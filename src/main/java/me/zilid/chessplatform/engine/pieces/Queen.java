@@ -8,8 +8,8 @@ import java.util.List;
 
 public class Queen extends Piece {
     
-    public Queen(boolean isWhite) {
-        super(isWhite);
+    public Queen(Color color) {
+        super(color);
     }
     
     @Override

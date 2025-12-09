@@ -8,14 +8,14 @@ import java.util.List;
 
 public class Pawn extends Piece {
 
-    public Pawn(boolean isWhite) {
-        super(isWhite);
+    public Pawn(Color color) {
+        super(color);
     }
 
     @Override
     public List<Position> getValidMoves(Position position, Piece[][] board) {
         List<Position> validMoves = new ArrayList<>();
-        int direction = isWhite ? 1 : -1;
+        int direction = color == Color.WHITE ? 1 : -1;
         int x = position.x();
         int y = position.y();
 
@@ -52,7 +52,7 @@ public class Pawn extends Piece {
     public List<Position> getControlledSquares(Position position, Piece[][] board) {
         // Pawns control diagonal squares regardless of whether they can capture
         List<Position> controlledSquares = new ArrayList<>();
-        int dy = isWhite ? 1 : -1;
+        int dy = color == Color.WHITE ? 1 : -1;
         int x = position.x();
         int y = position.y();
 

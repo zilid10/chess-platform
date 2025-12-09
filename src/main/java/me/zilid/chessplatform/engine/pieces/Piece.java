@@ -6,11 +6,11 @@ import me.zilid.chessplatform.engine.Position;
 import java.util.List;
 
 public abstract class Piece {
-    protected boolean isWhite;
+    protected Color color;
     protected boolean hasMoved;
     
-    public Piece(boolean isWhite) {
-        this.isWhite = isWhite;
+    public Piece(Color color) {
+        this.color = color;
         this.hasMoved = false;
     }
     
@@ -24,8 +24,12 @@ public abstract class Piece {
         return getType().getSymbol();
     }
 
+    public Color getColor() {
+        return color;
+    }
+    
     public boolean isWhite() {
-        return isWhite;
+        return color == Color.WHITE;
     }
     
     public void setMoved() {
@@ -41,11 +45,11 @@ public abstract class Piece {
     }
     
     protected boolean isEnemyPiece(Piece piece) {
-        return piece != null && piece.isWhite != this.isWhite;
+        return piece != null && piece.color != this.color;
     }
     
     protected boolean isFriendlyPiece(Piece piece) {
-        return piece != null && piece.isWhite == this.isWhite;
+        return piece != null && piece.color == this.color;
     }
     
     public enum PieceType {

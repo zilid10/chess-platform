@@ -22,35 +22,35 @@ public class Board {
     private void initializeBoard() {
         // Initialize pawns
         for (int i = 0; i < 8; i++) {
-            board[i][1] = new Pawn(true);
-            board[i][6] = new Pawn(false);
+            board[i][1] = new Pawn(Color.WHITE);
+            board[i][6] = new Pawn(Color.BLACK);
         }
         
         // Initialize rooks
-        board[0][0] = new Rook(true);
-        board[7][0] = new Rook(true);
-        board[0][7] = new Rook(false);
-        board[7][7] = new Rook(false);
+        board[0][0] = new Rook(Color.WHITE);
+        board[7][0] = new Rook(Color.WHITE);
+        board[0][7] = new Rook(Color.BLACK);
+        board[7][7] = new Rook(Color.BLACK);
         
         // Initialize knights
-        board[1][0] = new Knight(true);
-        board[6][0] = new Knight(true);
-        board[1][7] = new Knight(false);
-        board[6][7] = new Knight(false);
+        board[1][0] = new Knight(Color.WHITE);
+        board[6][0] = new Knight(Color.WHITE);
+        board[1][7] = new Knight(Color.BLACK);
+        board[6][7] = new Knight(Color.BLACK);
         
         // Initialize bishops
-        board[2][0] = new Bishop(true);
-        board[5][0] = new Bishop(true);
-        board[2][7] = new Bishop(false);
-        board[5][7] = new Bishop(false);
+        board[2][0] = new Bishop(Color.WHITE);
+        board[5][0] = new Bishop(Color.WHITE);
+        board[2][7] = new Bishop(Color.BLACK);
+        board[5][7] = new Bishop(Color.BLACK);
         
         // Initialize queens
-        board[3][0] = new Queen(true);
-        board[3][7] = new Queen(false);
+        board[3][0] = new Queen(Color.WHITE);
+        board[3][7] = new Queen(Color.BLACK);
         
         // Initialize kings
-        board[4][0] = new King(true);
-        board[4][7] = new King(false);
+        board[4][0] = new King(Color.WHITE);
+        board[4][7] = new King(Color.BLACK);
     }
     
     public Piece getPiece(Position position) {

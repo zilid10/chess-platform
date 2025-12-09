@@ -8,8 +8,8 @@ import java.util.List;
 
 public class Rook extends Piece {
     
-    public Rook(boolean isWhite) {
-        super(isWhite);
+    public Rook(Color color) {
+        super(color);
     }
     
     @Override
