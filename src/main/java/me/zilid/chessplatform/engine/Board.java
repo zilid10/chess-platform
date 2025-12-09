@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.engine;
 
-dimport me.zilid.chessplatform.engine.pieces.*;
+import me.zilid.chessplatform.engine.pieces.*;
 
 import java.util.ArrayList;
 import java.util.List;
