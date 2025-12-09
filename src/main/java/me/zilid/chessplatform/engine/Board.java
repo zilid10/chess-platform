@@ -8,10 +8,14 @@ import java.util.List;
 public class Board {
     private final Piece[][] board;
     private boolean whiteTurn;
+    private Position lastMoveFrom;
+    private Position lastMoveTo;
     
     public Board() {
         board = new Piece[8][8];
         whiteTurn = true;
+        lastMoveFrom = null;
+        lastMoveTo = null;
         initializeBoard();
     }
     
@@ -56,6 +60,14 @@ public class Board {
     public boolean isWhiteTurn() {
         return whiteTurn;
     }
+    
+    public Position getLastMoveFrom() {
+        return lastMoveFrom;
+    }
+    
+    public Position getLastMoveTo() {
+        return lastMoveTo;
+    }
 
     public boolean makeMove(Position from, Position to) {
         Piece piece = getPiece(from);
@@ -73,11 +85,40 @@ public class Board {
             return false;
         }
 
+        // Check for special moves
+        boolean isEnPassant = isEnPassantMove(from, to);
+        boolean isCastling = isCastlingMove(from, to);
+        
         // Make the move
         Piece capturedPiece = getPiece(to);
         board[to.x()][to.y()] = piece;
         board[from.x()][from.y()] = null;
         piece.setMoved();
+        
+        // Handle en passant capture
+        if (isEnPassant) {
+            int captureY = piece.isWhite() ? to.y() - 1 : to.y() + 1;
+            board[to.x()][captureY] = null; // Remove the captured pawn
+        }
+        
+        // Handle castling - move the rook
+        if (isCastling) {
+            int rookFromX = to.x() > from.x() ? 7 : 0; // Kingside or queenside
+            int rookToX = to.x() > from.x() ? to.x() - 1 : to.x() + 1;
+            int y = from.y();
+            
+            Piece rook = board[rookFromX][y];
+            board[rookToX][y] = rook;
+            board[rookFromX][y] = null;
+            if (rook != null) {
+                rook.setMoved();
+            }
+        }
+        
+        // Track last move for en passant
+        lastMoveFrom = from;
+        lastMoveTo = to;
+        
         whiteTurn = !whiteTurn;
         return true;
     }
@@ -89,13 +130,48 @@ public class Board {
         }
 
         List<Position> pseudoLegalMoves = piece.getValidMoves(piecePosition, board);
+        
+        // Add en passant moves for pawns
+        if (piece.getType() == Piece.PieceType.PAWN) {
+            pseudoLegalMoves.addAll(getEnPassantMoves(piecePosition));
+        }
+        
+        // Add castling moves for king
+        if (piece.getType() == Piece.PieceType.KING) {
+            pseudoLegalMoves.addAll(getCastlingMoves(piecePosition));
+        }
+        
         List<Position> legalMoves = new ArrayList<>();
 
         for (Position move : pseudoLegalMoves) {
             // Simulate the move
+            boolean isEnPassant = isEnPassantMove(piecePosition, move);
+            boolean isCastling = isCastlingMove(piecePosition, move);
+            
             Piece capturedPiece = board[move.x()][move.y()];
+            Piece enPassantCaptured = null;
+            
             board[move.x()][move.y()] = piece;
             board[piecePosition.x()][piecePosition.y()] = null;
+            
+            // Handle en passant in simulation
+            if (isEnPassant) {
+                int captureY = piece.isWhite() ? move.y() - 1 : move.y() + 1;
+                enPassantCaptured = board[move.x()][captureY];
+                board[move.x()][captureY] = null;
+            }
+            
+            // Handle castling in simulation
+            Piece rookMoved = null;
+            int rookFromX = 0, rookToX = 0, rookY = 0;
+            if (isCastling) {
+                rookFromX = move.x() > piecePosition.x() ? 7 : 0;
+                rookToX = move.x() > piecePosition.x() ? move.x() - 1 : move.x() + 1;
+                rookY = piecePosition.y();
+                rookMoved = board[rookFromX][rookY];
+                board[rookToX][rookY] = rookMoved;
+                board[rookFromX][rookY] = null;
+            }
 
             // Check if this move leaves the king in check
             if (!isInCheck(piece.isWhite())) {
@@ -105,6 +181,16 @@ public class Board {
             // Undo the move
             board[piecePosition.x()][piecePosition.y()] = piece;
             board[move.x()][move.y()] = capturedPiece;
+            
+            if (isEnPassant && enPassantCaptured != null) {
+                int captureY = piece.isWhite() ? move.y() - 1 : move.y() + 1;
+                board[move.x()][captureY] = enPassantCaptured;
+            }
+            
+            if (isCastling && rookMoved != null) {
+                board[rookFromX][rookY] = rookMoved;
+                board[rookToX][rookY] = null;
+            }
         }
 
         return legalMoves;
@@ -188,5 +274,147 @@ public class Board {
         }
         
         return true; // No legal moves and not in check = stalemate
+    }
+    
+    /**
+     * Get possible en passant moves for a pawn at the given position
+     */
+    private List<Position> getEnPassantMoves(Position pawnPosition) {
+        List<Position> enPassantMoves = new ArrayList<>();
+        Piece pawn = getPiece(pawnPosition);
+        
+        if (pawn == null || pawn.getType() != Piece.PieceType.PAWN) {
+            return enPassantMoves;
+        }
+        
+        if (lastMoveFrom == null || lastMoveTo == null) {
+            return enPassantMoves;
+        }
+        
+        Piece lastMovedPiece = getPiece(lastMoveTo);
+        if (lastMovedPiece == null || lastMovedPiece.getType() != Piece.PieceType.PAWN) {
+            return enPassantMoves;
+        }
+        
+        // Check if the last move was a two-square pawn advance
+        int moveDistance = Math.abs(lastMoveTo.y() - lastMoveFrom.y());
+        if (moveDistance != 2) {
+            return enPassantMoves;
+        }
+        
+        // Check if pawns are adjacent and on the correct rank
+        int expectedRank = pawn.isWhite() ? 4 : 3; // 5th rank for white, 4th rank for black
+        if (pawnPosition.y() != expectedRank) {
+            return enPassantMoves;
+        }
+        
+        // Check if the enemy pawn is adjacent
+        if (Math.abs(pawnPosition.x() - lastMoveTo.x()) == 1 && pawnPosition.y() == lastMoveTo.y()) {
+            int direction = pawn.isWhite() ? 1 : -1;
+            Position enPassantSquare = new Position(lastMoveTo.x(), pawnPosition.y() + direction);
+            enPassantMoves.add(enPassantSquare);
+        }
+        
+        return enPassantMoves;
+    }
+    
+    /**
+     * Get possible castling moves for a king at the given position
+     */
+    private List<Position> getCastlingMoves(Position kingPosition) {
+        List<Position> castlingMoves = new ArrayList<>();
+        Piece king = getPiece(kingPosition);
+        
+        if (king == null || king.getType() != Piece.PieceType.KING || king.hasMoved()) {
+            return castlingMoves;
+        }
+        
+        // Can't castle while in check
+        if (isInCheck(king.isWhite())) {
+            return castlingMoves;
+        }
+        
+        int y = kingPosition.y();
+        
+        // Kingside castling
+        Piece kingsideRook = board[7][y];
+        if (kingsideRook != null && kingsideRook.getType() == Piece.PieceType.ROOK && 
+            !kingsideRook.hasMoved() && kingsideRook.isWhite() == king.isWhite()) {
+            
+            // Check if squares between king and rook are empty
+            if (board[5][y] == null && board[6][y] == null) {
+                // Check if king doesn't pass through or land in check
+                if (!isSquareUnderAttack(new Position(5, y), king.isWhite()) &&
+                    !isSquareUnderAttack(new Position(6, y), king.isWhite())) {
+                    castlingMoves.add(new Position(6, y));
+                }
+            }
+        }
+        
+        // Queenside castling
+        Piece queensideRook = board[0][y];
+        if (queensideRook != null && queensideRook.getType() == Piece.PieceType.ROOK && 
+            !queensideRook.hasMoved() && queensideRook.isWhite() == king.isWhite()) {
+            
+            // Check if squares between king and rook are empty
+            if (board[1][y] == null && board[2][y] == null && board[3][y] == null) {
+                // Check if king doesn't pass through or land in check
+                if (!isSquareUnderAttack(new Position(2, y), king.isWhite()) &&
+                    !isSquareUnderAttack(new Position(3, y), king.isWhite())) {
+                    castlingMoves.add(new Position(2, y));
+                }
+            }
+        }
+        
+        return castlingMoves;
+    }
+    
+    /**
+     * Check if a square is under attack by the opponent
+     */
+    private boolean isSquareUnderAttack(Position square, boolean byWhite) {
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                Piece piece = board[x][y];
+                if (piece != null && piece.isWhite() != byWhite) {
+                    Position enemyPosition = new Position(x, y);
+                    List<Position> controlledSquares = piece.getControlledSquares(enemyPosition, board);
+                    if (controlledSquares.contains(square)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Check if a move is an en passant capture
+     */
+    private boolean isEnPassantMove(Position from, Position to) {
+        Piece piece = board[from.x()][from.y()];
+        if (piece == null || piece.getType() != Piece.PieceType.PAWN) {
+            return false;
+        }
+        
+        // En passant is a diagonal move to an empty square
+        if (board[to.x()][to.y()] == null && from.x() != to.x()) {
+            return getEnPassantMoves(from).contains(to);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if a move is a castling move
+     */
+    private boolean isCastlingMove(Position from, Position to) {
+        Piece piece = board[from.x()][from.y()];
+        if (piece == null || piece.getType() != Piece.PieceType.KING) {
+            return false;
+        }
+        
+        // Castling is a 2-square king move horizontally
+        return Math.abs(to.x() - from.x()) == 2 && to.y() == from.y();
     }
 }

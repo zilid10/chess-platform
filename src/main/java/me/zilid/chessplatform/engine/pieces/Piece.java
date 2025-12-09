@@ -7,10 +7,11 @@ import java.util.List;
 
 public abstract class Piece {
     protected boolean isWhite;
-    protected boolean hasMoved = false;
+    protected boolean hasMoved;
     
     public Piece(boolean isWhite) {
         this.isWhite = isWhite;
+        this.hasMoved = false;
     }
     
     public abstract List<Position> getValidMoves(Position position, Piece[][] board);

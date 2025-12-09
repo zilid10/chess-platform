@@ -51,6 +51,11 @@ public class Game {
             Piece capturedPiece = engine.getBoard().getPiece(toPos);
             Piece.PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
             
+            // Check for special moves before making the move
+            boolean isEnPassant = isEnPassantMove(fromPos, toPos);
+            boolean isCastling = isCastlingMove(fromPos, toPos);
+            boolean isKingsideCastle = isCastling && toPos.x() > fromPos.x();
+            
             // Attempt the move
             boolean success = engine.makeMove(from, to);
             if (!success) {
@@ -61,9 +66,10 @@ public class Game {
             boolean isCheck = engine.isInCheck();
             boolean isCheckmate = engine.isCheckmate();
             
-            // Record the move
+            // Record the move with special move flags
             Move move = new Move(fromPos, toPos, movingPiece.getType(), 
-                                capturedType, isCheck, isCheckmate);
+                                capturedType, isCheck, isCheckmate, 
+                                isEnPassant, isCastling, isKingsideCastle);
             history.addMove(move);
             
             // Update game status
@@ -73,6 +79,33 @@ public class Game {
         } catch (IllegalArgumentException e) {
             return false;
         }
+    }
+    
+    /**
+     * Check if a move is an en passant capture
+     */
+    private boolean isEnPassantMove(Position from, Position to) {
+        Piece piece = engine.getBoard().getPiece(from);
+        if (piece == null || piece.getType() != Piece.PieceType.PAWN) {
+            return false;
+        }
+        
+        // En passant is a diagonal pawn move to an empty square
+        Piece target = engine.getBoard().getPiece(to);
+        return target == null && from.x() != to.x();
+    }
+    
+    /**
+     * Check if a move is a castling move
+     */
+    private boolean isCastlingMove(Position from, Position to) {
+        Piece piece = engine.getBoard().getPiece(from);
+        if (piece == null || piece.getType() != Piece.PieceType.KING) {
+            return false;
+        }
+        
+        // Castling is a 2-square king move horizontally
+        return Math.abs(to.x() - from.x()) == 2 && to.y() == from.y();
     }
     
     /**
