@@ -36,6 +36,8 @@ public class GameSocketController {
     @SendTo("/update/{gameId}")
     public GameStateResponse movePiece(@DestinationVariable String gameId, @Payload MoveRequest moveRequest) {
         Game game = gameSessions.get(gameId);
+
+        throw Notˆ
     }
 
 }

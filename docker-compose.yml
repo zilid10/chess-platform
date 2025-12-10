@@ -1,0 +1,58 @@
+services:
+  backend:
+    container_name: chess-backend
+    hostname: backend
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      db:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+        - action: rebuild
+          path: pom.xml
+
+  frontend:
+    container_name: chess-frontend
+    hostname: frontend
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+        - action: rebuild
+          path: ./packages.json
+
+  db:
+    image: postgres:17.5
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    volumes:
+      - ./docker/volumes/postgres-dev:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chessdb
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  backend:
+  frontend:

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController("/api")
-public class AuthController {
+public class UserController {
     @GetMapping("/user/register")
     @ResponseStatus(HttpStatus.CREATED)
     public void createUser(@RequestBody RegisterRequest request) {
