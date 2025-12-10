@@ -45,21 +45,21 @@ public class ChessEngine {
      * Check if the current player is in check
      */
     public boolean isInCheck() {
-        return board.isInCheck(board.isWhiteTurn());
+        return board.isInCheck(board.getTurnColor());
     }
     
     /**
      * Check if the current player is in checkmate
      */
     public boolean isCheckmate() {
-        return board.isCheckmate(board.isWhiteTurn());
+        return board.isCheckmate(board.getTurnColor());
     }
     
     /**
      * Check if the current player is in stalemate
      */
     public boolean isStalemate() {
-        return board.isStalemate(board.isWhiteTurn());
+        return board.isStalemate(board.getTurnColor());
     }
     
     /**

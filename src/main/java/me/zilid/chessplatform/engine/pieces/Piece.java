@@ -56,37 +56,17 @@ public abstract class Piece {
     }
     
     public enum PieceType {
-        PAWN {
-            public String getSymbol() {
-                return "";
-            }
-        },
-        KNIGHT {
-            public String getSymbol() {
-                return "N";
-            }
-        },
-        BISHOP {
-            public String getSymbol() {
-                return "B";
-            }
-        },
-        ROOK {
-            public String getSymbol() {
-                return "R";
-            }
-        },
-        QUEEN {
-            public String getSymbol() {
-                return "Q";
-            }
-        },
-        KING {
-            public String getSymbol() {
-                return "K";
-            }
-        };
-        public abstract String getSymbol();
+        PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING;
+        public String getSymbol() {
+            return switch (this) {
+                case PAWN -> "";
+                case KNIGHT -> "N";
+                case BISHOP -> "B";
+                case ROOK -> "R";
+                case QUEEN -> "Q";
+                case KING -> "K";
+            };
+        }
     }
 
     public enum Color {
@@ -102,6 +82,13 @@ public abstract class Piece {
 
         public boolean isBlack() {
             return this == BLACK;
+        }
+
+        public String getSymbol() {
+            return switch (this) {
+                case WHITE -> "w";
+                case BLACK -> "b";
+            };
         }
     }
 }
