@@ -15,16 +15,12 @@ public class Move {
     private final boolean isEnPassant;
     private final boolean isCastling;
     private final boolean isKingsideCastle;
+    private final String disambiguation;
     private final String notation;
-    
-    public Move(Position from, Position to, Piece.PieceType movedPieceType,
-                Piece.PieceType capturedPieceType, boolean isCheck, boolean isCheckmate) {
-        this(from, to, movedPieceType, capturedPieceType, isCheck, isCheckmate, false, false, false);
-    }
-    
+
     public Move(Position from, Position to, Piece.PieceType movedPieceType,
                 Piece.PieceType capturedPieceType, boolean isCheck, boolean isCheckmate,
-                boolean isEnPassant, boolean isCastling, boolean isKingsideCastle) {
+                boolean isEnPassant, boolean isCastling, boolean isKingsideCastle, String disambiguation) {
         this.from = from;
         this.to = to;
         this.movedPieceType = movedPieceType;
@@ -34,41 +30,43 @@ public class Move {
         this.isEnPassant = isEnPassant;
         this.isCastling = isCastling;
         this.isKingsideCastle = isKingsideCastle;
+        this.disambiguation = disambiguation;
         this.notation = generateNotation();
     }
-    
+
     private String generateNotation() {
         StringBuilder sb = new StringBuilder();
-        
+
         // Special notation for castling
         if (isCastling) {
             sb.append(isKingsideCastle ? "O-O" : "O-O-O");
         } else {
             // Piece symbol (pawn symbol is empty string)
             sb.append(movedPieceType.getSymbol());
+            if (isEnPassant) {
+                sb.append(from.toNotation().charAt(0)); // File of pawn
+            }
+            sb.append(disambiguation);
 
             // Add 'x' for captures (including en passant)
             if (capturedPieceType != null || isEnPassant) {
-                if (movedPieceType == Piece.PieceType.PAWN) {
-                    sb.append(from.toNotation().charAt(0)); // File of pawn
-                }
                 sb.append('x');
             }
-            
+
             // Destination square
             sb.append(to.toNotation());
         }
-        
+
         // Check/Checkmate indicators
         if (isCheckmate) {
             sb.append('#');
         } else if (isCheck) {
             sb.append('+');
         }
-        
+
         return sb.toString();
     }
-    
+
     public Position getFrom() {
         return from;
     }

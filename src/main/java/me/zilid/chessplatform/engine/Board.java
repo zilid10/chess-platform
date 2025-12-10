@@ -5,16 +5,17 @@ import me.zilid.chessplatform.engine.pieces.*;
 import java.util.*;
 
 public class Board {
-    private final Piece[][] board;
     private static final int KING_FILE = 4;
     private static final int KINGSIDE_ROOK_FILE = 7;
     private static final int QUEENSIDE_ROOK_FILE = 0;
     private static final int BLACK_BACK_RANK = 7;
     private static final int WHITE_BACK_RANK = 0;
+    private final Piece[][] board;
     private Piece.Color turnColor;
     private Position lastMoveFrom;
     private Position lastMoveTo;
     private int halfMoveClock; // For fifty-move rule
+    private int fullMoveClock;
     private final Map<Integer, Integer> positionHistory; // For threefold repetition detection
 
     public Board() {
@@ -23,6 +24,7 @@ public class Board {
         lastMoveFrom = null;
         lastMoveTo = null;
         halfMoveClock = 0;
+        fullMoveClock = 1;
         positionHistory = new HashMap<>();
         initializeBoard();
         positionHistory.put(getBoardHash(), 1); // Add initial position
@@ -103,11 +105,22 @@ public class Board {
         } else {
             halfMoveClock++;
         }
+        if (piece.getColor().isBlack()) {
+            fullMoveClock++;
+        }
 
         // Make the move
         board[to.x()][to.y()] = piece;
         board[from.x()][from.y()] = null;
         piece.setMoved();
+
+        // Handle Pawn Promotion (Auto-promote to Queen for now)
+        if (piece.getType() == Piece.PieceType.PAWN) {
+            int rank = piece.getColor().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
+            if (to.y() == rank) {
+                board[to.x()][to.y()] = new Queen(piece.getColor());
+            }
+        }
 
         // Handle en passant capture
         if (isEnPassantMove(from, to)) {
@@ -375,7 +388,7 @@ public class Board {
     /**
      * Check if a move is an en passant capture
      */
-    private boolean isEnPassantMove(Position from, Position to) {
+    public boolean isEnPassantMove(Position from, Position to) {
         Piece piece = board[from.x()][from.y()];
         if (piece == null || piece.getType() != Piece.PieceType.PAWN) {
             return false;
@@ -392,7 +405,7 @@ public class Board {
     /**
      * Check if a move is a castling move
      */
-    private boolean isCastlingMove(Position from, Position to) {
+    public boolean isCastlingMove(Position from, Position to) {
         Piece piece = board[from.x()][from.y()];
         if (piece == null || piece.getType() != Piece.PieceType.KING) {
             return false;
@@ -429,7 +442,7 @@ public class Board {
         fen.append(" ").append(getCastleRights());
         fen.append(" ").append(getEnPassantPosition().map(Position::toNotation).orElse("-"));
         fen.append(" ").append(halfMoveClock);
-        fen.append(" ").append(halfMoveClock / 2 + 1);
+        fen.append(" ").append(fullMoveClock);
         return fen.toString();
     }
 
@@ -539,4 +552,55 @@ public class Board {
         return false;
     }
 
+    /**
+     * calculate the disambiguation string
+     */
+    public String getDisambiguation(Position from, Position to) {
+        Piece movingPiece = board[from.x()][from.y()];
+        if (movingPiece.getType() == Piece.PieceType.PAWN) {
+            return "";
+        }
+
+        boolean fileAmbiguity = false;
+        boolean rankAmbiguity = false;
+
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                // exclude self
+                if (x == from.x() && y == from.y()) continue;
+
+                Piece other = board[x][y];
+
+                if (other != null && other.getColor() == movingPiece.getColor() &&
+                        other.getType() == movingPiece.getType()) {
+
+                    List<Position> moves = getValidMovesForPiece(new Position(x, y));
+
+                    if (moves.contains(to)) {
+                        if (x == from.x()) {
+                            fileAmbiguity = true;
+                        }
+                        if (y == from.y()) {
+                            rankAmbiguity = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1. If there are both file and rank ambiguity, use the full notation (e.g., d4, e5)
+        // 2. If there are file ambiguity, use the rank number to disambiguate (1-8)
+        // 3. If there are rank ambiguity, use the file to disambiguate (a-h)
+
+        if (fileAmbiguity && rankAmbiguity) {
+            return from.toNotation();
+        }
+        if (fileAmbiguity) {
+            return String.valueOf(from.toNotation().charAt(1));
+        }
+        if (rankAmbiguity) {
+            return String.valueOf(from.toNotation().charAt(0));
+        }
+        return "";
+    }
 }

@@ -1,14 +1,23 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.pieces.Piece;
+
 import java.util.List;
 
 public class ChessEngine {
-    private Board board;
+    private final Board board;
     
     public ChessEngine() {
         this.board = new Board();
     }
     
+    /**
+     * Make a move
+     */
+    public boolean makeMove(Position from, Position to) {
+        return board.makeMove(from, to);
+    }
+
     /**
      * Make a move using chess notation (e.g., "e2" to "e4")
      */
@@ -21,7 +30,7 @@ public class ChessEngine {
             return false;
         }
     }
-    
+
     /**
      * Get all valid moves for a piece at the given position
      */
@@ -35,7 +44,7 @@ public class ChessEngine {
     }
     
     /**
-     * Get all valid moves for a piece at the given position (using Position object)
+     * Get all valid moves for a piece at the given position
      */
     public List<Position> getValidMoves(Position position) {
         return board.getValidMovesForPiece(position);
@@ -47,35 +56,35 @@ public class ChessEngine {
     public boolean isInCheck() {
         return board.isInCheck(board.getTurnColor());
     }
-    
+
+    /**
+     * Check if the game is over (checkmate or stalemate)
+     */
+    public boolean isGameOver() {
+        return isCheckmate() || isDraw();
+    }
+
     /**
      * Check if the current player is in checkmate
      */
     public boolean isCheckmate() {
         return board.isCheckmate(board.getTurnColor());
     }
-    
-    /**
-     * Check if the current player is in stalemate
-     */
-    public boolean isStalemate() {
-        return board.isStalemate(board.getTurnColor());
-    }
-    
-    /**
-     * Check if the game is over (checkmate or stalemate)
-     */
-    public boolean isGameOver() {
-        return isCheckmate() || isStalemate() || isDraw();
-    }
-    
+
     /**
      * Check if the game is a draw (any draw condition)
      */
     public boolean isDraw() {
         return isStalemate() || isThreefoldRepetition() || isFiftyMoveRule() || isInsufficientMaterial();
     }
-    
+
+    /**
+     * Check if the current player is in stalemate
+     */
+    public boolean isStalemate() {
+        return board.isStalemate(board.getTurnColor());
+    }
+
     /**
      * Check for threefold repetition
      */
@@ -112,9 +121,13 @@ public class ChessEngine {
     }
 
     /**
-     * Reset the board to starting position
+     * Get the current turn color
      */
-    public void reset() {
-        this.board = new Board();
+    public Piece.Color getTurnColor() {
+        return board.getTurnColor();
+    }
+
+    public String getFen() {
+        return board.getFen();
     }
 }

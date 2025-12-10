@@ -30,7 +30,7 @@ public class MoveHistory {
         return Collections.unmodifiableList(moves);
     }
 
-    public int getCount() {
+    public int size() {
         return moves.size();
     }
 
@@ -55,9 +55,11 @@ public class MoveHistory {
             if (i % 2 == 0) {
                 sb.append((i / 2) + 1).append(". ");
             }
-            sb.append(moves.get(i).getNotation()).append(" ");
+            sb.append(moves.get(i).getNotation());
+            if (i != moves.size()) {
+                sb.append(" ");
+            }
         }
-        sb.deleteCharAt(sb.length() - 1); // delete the final space
         return sb.toString();
     }
 }

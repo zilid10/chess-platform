@@ -4,7 +4,7 @@ package me.zilid.chessplatform.engine;
  * Represents the current status of a chess game
  */
 public enum GameStatus {
-    ONGOING("Game in progress"),
+    ONGOING("GameService in progress"),
     CHECKMATE_WHITE_WINS("White wins by checkmate"),
     CHECKMATE_BLACK_WINS("Black wins by checkmate"),
     RESIGNED_WHITE_WINS("White wins by resignation"),
