@@ -3,6 +3,7 @@ package me.zilid.chessplatform.model.entity;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "match_records")
@@ -10,7 +11,7 @@ public class MatchRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    private UUID id;
 
     @ManyToOne
     @JoinColumn(name = "white_user_id", nullable = false)
@@ -31,7 +32,7 @@ public class MatchRecord {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
-    public MatchRecord(String id, User white, User black, String result, String reason, String pgn, LocalDateTime start) {
+    public MatchRecord(UUID id, User white, User black, String result, String reason, String pgn, LocalDateTime start) {
         this.id = id;
         this.whitePlayer = white;
         this.blackPlayer = black;
