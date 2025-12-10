@@ -85,24 +85,19 @@ public class Board {
             return false;
         }
 
-        // Check for special moves
-        boolean isEnPassant = isEnPassantMove(from, to);
-        boolean isCastling = isCastlingMove(from, to);
-        
         // Make the move
-        Piece capturedPiece = getPiece(to);
         board[to.x()][to.y()] = piece;
         board[from.x()][from.y()] = null;
         piece.setMoved();
         
         // Handle en passant capture
-        if (isEnPassant) {
+        if (isEnPassantMove(from, to)) {
             int captureY = piece.isWhite() ? to.y() - 1 : to.y() + 1;
             board[to.x()][captureY] = null; // Remove the captured pawn
         }
         
-        // Handle castling - move the rook
-        if (isCastling) {
+        // Handle castling - move the king and the rook
+        if (isCastlingMove(from, to)) {
             int rookFromX = to.x() > from.x() ? 7 : 0; // Kingside or queenside
             int rookToX = to.x() > from.x() ? to.x() - 1 : to.x() + 1;
             int y = from.y();
@@ -131,16 +126,16 @@ public class Board {
 
         List<Position> pseudoLegalMoves = piece.getValidMoves(piecePosition, board);
         
-        // Add en passant moves for pawns
+        // Try to add en passant moves for pawns
         if (piece.getType() == Piece.PieceType.PAWN) {
             pseudoLegalMoves.addAll(getEnPassantMoves(piecePosition));
         }
         
-        // Add castling moves for king
+        // Try to add castling moves for king
         if (piece.getType() == Piece.PieceType.KING) {
             pseudoLegalMoves.addAll(getCastlingMoves(piecePosition));
         }
-        
+
         List<Position> legalMoves = new ArrayList<>();
 
         for (Position move : pseudoLegalMoves) {
@@ -282,7 +277,6 @@ public class Board {
     private List<Position> getEnPassantMoves(Position pawnPosition) {
         List<Position> enPassantMoves = new ArrayList<>();
         Piece pawn = getPiece(pawnPosition);
-        
         if (pawn == null || pawn.getType() != Piece.PieceType.PAWN) {
             return enPassantMoves;
         }
@@ -323,50 +317,44 @@ public class Board {
      */
     private List<Position> getCastlingMoves(Position kingPosition) {
         List<Position> castlingMoves = new ArrayList<>();
-        Piece king = getPiece(kingPosition);
-        
-        if (king == null || king.getType() != Piece.PieceType.KING || king.hasMoved()) {
-            return castlingMoves;
-        }
-        
-        // Can't castle while in check
-        if (isInCheck(king.isWhite())) {
-            return castlingMoves;
-        }
-        
         int y = kingPosition.y();
-        
+
         // Kingside castling
-        Piece kingsideRook = board[7][y];
-        if (kingsideRook != null && kingsideRook.getType() == Piece.PieceType.ROOK && 
-            !kingsideRook.hasMoved() && kingsideRook.isWhite() == king.isWhite()) {
-            
-            // Check if squares between king and rook are empty
-            if (board[5][y] == null && board[6][y] == null) {
-                // Check if king doesn't pass through or land in check
-                if (!isSquareUnderAttack(new Position(5, y), king.isWhite()) &&
-                    !isSquareUnderAttack(new Position(6, y), king.isWhite())) {
-                    castlingMoves.add(new Position(6, y));
-                }
-            }
+        if (canCastle(y, true)){
+            castlingMoves.add(new Position(6, y));
         }
         
         // Queenside castling
-        Piece queensideRook = board[0][y];
-        if (queensideRook != null && queensideRook.getType() == Piece.PieceType.ROOK && 
-            !queensideRook.hasMoved() && queensideRook.isWhite() == king.isWhite()) {
-            
-            // Check if squares between king and rook are empty
-            if (board[1][y] == null && board[2][y] == null && board[3][y] == null) {
-                // Check if king doesn't pass through or land in check
-                if (!isSquareUnderAttack(new Position(2, y), king.isWhite()) &&
-                    !isSquareUnderAttack(new Position(3, y), king.isWhite())) {
-                    castlingMoves.add(new Position(2, y));
-                }
-            }
+        if (canCastle(y, false)) {
+            castlingMoves.add(new Position(2, y));
         }
         
         return castlingMoves;
+    }
+
+    /**
+     * Check if the king can castle.
+     */
+    private boolean canCastle(int rank, boolean kingside) {
+        if (rank != 0 && rank != 7) {
+            return false;
+        }
+        Piece king = board[4][rank];
+        Piece rook = kingside ? board[7][rank] : board[0][rank];
+        if (king == null || rook == null) {
+            return false;
+        }
+        boolean sameColor = rook.isWhite() == king.isWhite();
+        boolean rookNotMoved = rook.getType() == Piece.PieceType.ROOK && !rook.hasMoved();
+        boolean kingNotMoved = king.getType() == Piece.PieceType.KING && !king.hasMoved();
+        boolean noPiecesBetween = kingside
+                ? board[5][rank] == null && board[6][rank] == null
+                : board[2][rank] == null && board[3][rank] == null;
+        boolean notInCheck = !isInCheck(king.isWhite());
+        boolean noSquareUnderAttackBetween = kingside
+                ? !isSquareUnderAttack(new Position(5, rank), king.isWhite()) && !isSquareUnderAttack(new Position(6, rank), king.isWhite())
+                : !isSquareUnderAttack(new Position(2, rank), king.isWhite()) && !isSquareUnderAttack(new Position(3, rank), king.isWhite());
+        return sameColor && rookNotMoved && kingNotMoved && noPiecesBetween && notInCheck && noSquareUnderAttackBetween;
     }
     
     /**
