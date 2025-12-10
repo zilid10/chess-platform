@@ -66,7 +66,35 @@ public class ChessEngine {
      * Check if the game is over (checkmate or stalemate)
      */
     public boolean isGameOver() {
-        return isCheckmate() || isStalemate();
+        return isCheckmate() || isStalemate() || isDraw();
+    }
+    
+    /**
+     * Check if the game is a draw (any draw condition)
+     */
+    public boolean isDraw() {
+        return isStalemate() || isThreefoldRepetition() || isFiftyMoveRule() || isInsufficientMaterial();
+    }
+    
+    /**
+     * Check for threefold repetition
+     */
+    public boolean isThreefoldRepetition() {
+        return board.isThreefoldRepetition();
+    }
+    
+    /**
+     * Check for fifty-move rule
+     */
+    public boolean isFiftyMoveRule() {
+        return board.isFiftyMoveRule();
+    }
+    
+    /**
+     * Check for insufficient material
+     */
+    public boolean isInsufficientMaterial() {
+        return board.isInsufficientMaterial();
     }
 
     /**

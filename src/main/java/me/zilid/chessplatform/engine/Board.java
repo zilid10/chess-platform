@@ -2,21 +2,25 @@ package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.pieces.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Board {
     private final Piece[][] board;
     private boolean whiteTurn;
     private Position lastMoveFrom;
     private Position lastMoveTo;
+    private int halfMoveClock; // For fifty-move rule
+    private final Map<Integer, Integer> positionHistory; // For threefold repetition
     
     public Board() {
         board = new Piece[8][8];
         whiteTurn = true;
         lastMoveFrom = null;
         lastMoveTo = null;
+        halfMoveClock = 0;
+        positionHistory = new HashMap<>();
         initializeBoard();
+        positionHistory.put(getBoardHash(), 0); // Add initial position
     }
     
     private void initializeBoard() {
@@ -85,6 +89,17 @@ public class Board {
             return false;
         }
 
+        // Track for fifty-move rule: reset if pawn move or capture
+        Piece capturedPiece = getPiece(to);
+        boolean isPawnMove = piece.getType() == Piece.PieceType.PAWN;
+        boolean isCapture = capturedPiece != null || isEnPassantMove(from, to);
+        
+        if (isPawnMove || isCapture) {
+            halfMoveClock = 0;
+        } else {
+            halfMoveClock++;
+        }
+
         // Make the move
         board[to.x()][to.y()] = piece;
         board[from.x()][from.y()] = null;
@@ -115,6 +130,11 @@ public class Board {
         lastMoveTo = to;
         
         whiteTurn = !whiteTurn;
+        
+        // Add position to history for threefold repetition
+        int boardHash = getBoardHash();
+        positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0));
+        
         return true;
     }
 
@@ -405,4 +425,78 @@ public class Board {
         // Castling is a 2-square king move horizontally
         return Math.abs(to.x() - from.x()) == 2 && to.y() == from.y();
     }
+    
+    /**
+     * Generate a hash of the current board position for threefold repetition detection
+     */
+    private int getBoardHash() {
+        StringBuilder boardRepresentation = new StringBuilder();
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                Piece piece = board[x][y];
+                boardRepresentation.append(piece == null ? "." : piece.getSymbol());
+            }
+        }
+        boardRepresentation.append(whiteTurn ? "W" : "B");
+        return boardRepresentation.toString().hashCode();
+    }
+    
+    /**
+     * Check if the current position has occurred three times (threefold repetition)
+     */
+    public boolean isThreefoldRepetition() {
+        return positionHistory.getOrDefault(getBoardHash(), 0) >= 3;
+    }
+    
+    /**
+     * Check if fifty moves have been made without pawn move or capture
+     */
+    public boolean isFiftyMoveRule() {
+        return halfMoveClock >= 100; // 100 half-moves = 50 full moves
+    }
+
+
+    public boolean isInsufficientMaterial() {
+        List<Piece> otherPieces = new ArrayList<>();
+        List<Position> bishopPositions = new ArrayList<>();
+        int whiteCount = 0, blackCount = 0;
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                Piece piece = board[x][y];
+                if (piece != null) {
+                    if (piece.isWhite()) {
+                        whiteCount++;
+                    } else {
+                        blackCount++;
+                    }
+                    if (piece.getType() == Piece.PieceType.BISHOP) {
+                        bishopPositions.add(new Position(x, y));
+                    }
+                    if (piece.getType() != Piece.PieceType.KING) {
+                        otherPieces.add(piece);
+                    }
+                }
+            }
+        }
+
+        // King vs King
+        if (whiteCount == 1 && blackCount == 1) {
+            return true;
+        }
+
+        // King and Bishop vs King or King and Knight vs King
+        if (otherPieces.size() == 1 && (otherPieces.getFirst().getType() == Piece.PieceType.KNIGHT || otherPieces.getFirst().getType() == Piece.PieceType.BISHOP)) {
+            return true;
+        }
+
+        // King and Bishop vs King and Bishop (same color bishop)
+        if (blackCount == 2 && whiteCount == 2 && bishopPositions.size() == 2) {
+            Position b1 = bishopPositions.get(0);
+            Position b2 = bishopPositions.get(1);
+            return (b1.x() + b1.y()) % 2 == (b2.x() + b2.y()) % 2;
+        }
+
+        return false;
+    }
+
 }

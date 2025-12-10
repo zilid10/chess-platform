@@ -127,6 +127,15 @@ public class Game {
         } else if (engine.isStalemate()) {
             status = GameStatus.STALEMATE;
             endTime = LocalDateTime.now();
+        } else if (engine.isThreefoldRepetition()) {
+            status = GameStatus.DRAW_BY_REPETITION;
+            endTime = LocalDateTime.now();
+        } else if (engine.isFiftyMoveRule()) {
+            status = GameStatus.DRAW_BY_FIFTY_MOVE_RULE;
+            endTime = LocalDateTime.now();
+        } else if (engine.isInsufficientMaterial()) {
+            status = GameStatus.DRAW_BY_INSUFFICIENT_MATERIAL;
+            endTime = LocalDateTime.now();
         }
     }
     

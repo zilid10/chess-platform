@@ -20,8 +20,11 @@ public abstract class Piece {
 
     public abstract PieceType getType();
 
+    // used for hash the board
     public String getSymbol() {
-        return getType().getSymbol();
+        String type = getType().getSymbol();
+        type = type.isEmpty() ? "P": type;
+        return isWhite() ? type : type.toLowerCase();
     }
 
     public Color getColor() {
