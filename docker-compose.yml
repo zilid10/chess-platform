@@ -19,21 +19,21 @@ services:
         - action: rebuild
           path: pom.xml
 
-  frontend:
-    container_name: chess-frontend
-    hostname: frontend
-    build:
-      context: ./frontend
-    ports:
-      - "3000:3000"
-    networks:
-      - frontend
-    develop:
-      watch:
-        - action: rebuild
-          path: ./src
-        - action: rebuild
-          path: ./packages.json
+#  frontend:
+#    container_name: chess-frontend
+#    hostname: frontend
+#    build:
+#      context: ./frontend
+#    ports:
+#      - "3000:3000"
+#    networks:
+#      - frontend
+#    develop:
+#      watch:
+#        - action: rebuild
+#          path: ./src
+#        - action: rebuild
+#          path: ./packages.json
 
   db:
     image: postgres:17.5
