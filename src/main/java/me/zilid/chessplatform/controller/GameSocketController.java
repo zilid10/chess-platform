@@ -11,6 +11,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.client.HttpServerErrorException;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -37,7 +38,7 @@ public class GameSocketController {
     public GameStateResponse movePiece(@DestinationVariable String gameId, @Payload MoveRequest moveRequest) {
         Game game = gameSessions.get(gameId);
 
-        throw Notˆ
+        throw new IllegalArgumentException("TO DO");
     }
 
 }
