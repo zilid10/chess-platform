@@ -26,35 +26,35 @@ public class Board {
     private void initializeBoard() {
         // Initialize pawns
         for (int i = 0; i < 8; i++) {
-            board[i][1] = new Pawn(Color.WHITE);
-            board[i][6] = new Pawn(Color.BLACK);
+            board[i][1] = new Pawn(Piece.Color.WHITE);
+            board[i][6] = new Pawn(Piece.Color.BLACK);
         }
         
         // Initialize rooks
-        board[0][0] = new Rook(Color.WHITE);
-        board[7][0] = new Rook(Color.WHITE);
-        board[0][7] = new Rook(Color.BLACK);
-        board[7][7] = new Rook(Color.BLACK);
+        board[0][0] = new Rook(Piece.Color.WHITE);
+        board[7][0] = new Rook(Piece.Color.WHITE);
+        board[0][7] = new Rook(Piece.Color.BLACK);
+        board[7][7] = new Rook(Piece.Color.BLACK);
         
         // Initialize knights
-        board[1][0] = new Knight(Color.WHITE);
-        board[6][0] = new Knight(Color.WHITE);
-        board[1][7] = new Knight(Color.BLACK);
-        board[6][7] = new Knight(Color.BLACK);
+        board[1][0] = new Knight(Piece.Color.WHITE);
+        board[6][0] = new Knight(Piece.Color.WHITE);
+        board[1][7] = new Knight(Piece.Color.BLACK);
+        board[6][7] = new Knight(Piece.Color.BLACK);
         
         // Initialize bishops
-        board[2][0] = new Bishop(Color.WHITE);
-        board[5][0] = new Bishop(Color.WHITE);
-        board[2][7] = new Bishop(Color.BLACK);
-        board[5][7] = new Bishop(Color.BLACK);
+        board[2][0] = new Bishop(Piece.Color.WHITE);
+        board[5][0] = new Bishop(Piece.Color.WHITE);
+        board[2][7] = new Bishop(Piece.Color.BLACK);
+        board[5][7] = new Bishop(Piece.Color.BLACK);
         
         // Initialize queens
-        board[3][0] = new Queen(Color.WHITE);
-        board[3][7] = new Queen(Color.BLACK);
+        board[3][0] = new Queen(Piece.Color.WHITE);
+        board[3][7] = new Queen(Piece.Color.BLACK);
         
         // Initialize kings
-        board[4][0] = new King(Color.WHITE);
-        board[4][7] = new King(Color.BLACK);
+        board[4][0] = new King(Piece.Color.WHITE);
+        board[4][7] = new King(Piece.Color.BLACK);
     }
     
     public Piece getPiece(Position position) {
