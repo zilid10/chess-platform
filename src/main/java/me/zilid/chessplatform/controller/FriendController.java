@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-@RestController("/api")
+@RestController()
+@RequestMapping("/api")
 public class FriendController {
 
     private final FriendService friendService;
