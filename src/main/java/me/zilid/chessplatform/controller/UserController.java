@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.controller;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -13,8 +14,6 @@ import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PagedModel;
-import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -86,8 +85,26 @@ public class UserController {
 
     @DeleteMapping("/users")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public void deleteUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                          HttpServletRequest httpRequest,
+                          HttpServletResponse httpResponse) {
         userService.deleteUser(userPrincipal.getId());
+        
+        // Clear the session after deleting the user
+        HttpSession session = httpRequest.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        
+        // Clear the security context
+        SecurityContextHolder.clearContext();
+        
+        // Delete the JSESSIONID cookie
+        Cookie cookie = new Cookie("JSESSIONID", null);
+        cookie.setPath("/");
+        cookie.setHttpOnly(true);
+        cookie.setMaxAge(0); // Delete the cookie immediately
+        httpResponse.addCookie(cookie);
     }
 
     @GetMapping("/users")
