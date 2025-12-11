@@ -15,6 +15,6 @@ import java.util.stream.Stream;
 public interface UserRepo extends CrudRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
-    Page<User> findByUsernameLikeIgnoreCase(String username, Pageable pageable);
+    Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
 
 }

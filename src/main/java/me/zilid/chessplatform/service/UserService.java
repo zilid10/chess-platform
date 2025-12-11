@@ -54,7 +54,7 @@ public class UserService {
 
     @Transactional
     public Page<UserResponse> getUser(String search, Pageable pageable) {
-        Page<User> users = userRepo.findByUsernameLikeIgnoreCase(search, pageable);
+        Page<User> users = userRepo.findByUsernameContainingIgnoreCase(search, pageable);
         return users.map(userConverter::toResponse);
     }
 
