@@ -4,12 +4,15 @@ import me.zilid.chessplatform.engine.Game;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
 import me.zilid.chessplatform.model.dto.MatchRecordResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
+import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
+import me.zilid.chessplatform.repository.UserRepo;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,11 +25,13 @@ public class MatchService {
     private final MatchRecordConverter matchRecordConverter;
     private final ConcurrentMap<UUID, Game> gameSessions = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Boolean>> playerConnections = new ConcurrentHashMap<>();
+    private final UserRepo userRepo;
 
 
-    public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter) {
+    public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
+        this.userRepo = userRepo;
     }
 
     @Transactional(readOnly = true)
@@ -43,7 +48,24 @@ public class MatchService {
 
     @Transactional
     public void archiveMatch(UUID matchId, Game game) {
-
+        if (!game.isGameOver()) {
+            throw new IllegalStateException("Game is not over");
+        }
+        MatchRecord matchRecord = new MatchRecord();
+        UUID whitePlayerId = game.getWhitePlayer().getId();
+        UUID blackPlayerId = game.getBlackPlayer().getId();
+        User whitePlayer = userRepo.findById(whitePlayerId)
+                .orElseThrow(() -> new IllegalArgumentException("White player with id " + whitePlayerId + " does not exist"));
+        User blackPlayer = userRepo.findById(blackPlayerId)
+                .orElseThrow(() -> new IllegalArgumentException("Black player with id " + blackPlayerId + " does not exist"));
+        matchRecord.setWhitePlayer(whitePlayer);
+        matchRecord.setBlackPlayer(blackPlayer);
+        matchRecord.setPgn(game.getNotation());
+        matchRecord.setMatchResult(game.getStatus().getSymbol());
+        matchRecord.setReason(game.getStatus().getReason());
+        matchRecord.setStartTime(game.getStartTime());
+        matchRecord.setEndTime(game.getEndTime());
+        matchRecordRepo.save(matchRecord);
     }
 
     /**

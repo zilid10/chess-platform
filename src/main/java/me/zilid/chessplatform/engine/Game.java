@@ -3,7 +3,7 @@ package me.zilid.chessplatform.engine;
 import me.zilid.chessplatform.engine.pieces.Piece;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -13,8 +13,8 @@ public class Game {
     private final ChessEngine engine;
     private final MoveHistory history;
     private GameStatus status;
-    private final LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private final Instant startTime;
+    private Instant endTime;
     private UserPrincipal whitePlayer;
     private UserPrincipal blackPlayer;
     
@@ -26,7 +26,7 @@ public class Game {
         this.engine = new ChessEngine();
         this.history = new MoveHistory();
         this.status = GameStatus.ONGOING;
-        this.startTime = LocalDateTime.now();
+        this.startTime = Instant.now();
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
@@ -112,7 +112,7 @@ public class Game {
         status = color.isWhite() ?
                 GameStatus.RESIGNED_BLACK_WINS :
                 GameStatus.RESIGNED_WHITE_WINS;
-        endTime = LocalDateTime.now();
+        endTime = Instant.now();
     }
 
     /**
@@ -124,7 +124,7 @@ public class Game {
         }
 
         status = GameStatus.DRAW_BY_AGREEMENT;
-        endTime = LocalDateTime.now();
+        endTime = Instant.now();
     }
 
     /**
@@ -156,19 +156,19 @@ public class Game {
             status = engine.isWhiteTurn() ?
                     GameStatus.CHECKMATE_BLACK_WINS :
                     GameStatus.CHECKMATE_WHITE_WINS;
-            endTime = LocalDateTime.now();
+            endTime = Instant.now();
         } else if (engine.isStalemate()) {
             status = GameStatus.STALEMATE;
-            endTime = LocalDateTime.now();
+            endTime = Instant.now();
         } else if (engine.isThreefoldRepetition()) {
             status = GameStatus.DRAW_BY_REPETITION;
-            endTime = LocalDateTime.now();
+            endTime = Instant.now();
         } else if (engine.isFiftyMoveRule()) {
             status = GameStatus.DRAW_BY_FIFTY_MOVE_RULE;
-            endTime = LocalDateTime.now();
+            endTime = Instant.now();
         } else if (engine.isInsufficientMaterial()) {
             status = GameStatus.DRAW_BY_INSUFFICIENT_MATERIAL;
-            endTime = LocalDateTime.now();
+            endTime = Instant.now();
         }
     }
 
@@ -186,11 +186,11 @@ public class Game {
         return engine;
     }
     
-    public LocalDateTime getStartTime() {
+    public Instant getStartTime() {
         return startTime;
     }
     
-    public LocalDateTime getEndTime() {
+    public Instant getEndTime() {
         return endTime;
     }
     

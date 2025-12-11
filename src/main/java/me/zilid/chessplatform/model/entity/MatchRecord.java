@@ -39,8 +39,7 @@ public class MatchRecord {
     @Column(name = "end_time")
     private Instant endTime;
 
-    public MatchRecord(UUID id, User white, User black, String result, String reason, String pgn, Instant start) {
-        this.id = id;
+    public MatchRecord(User white, User black, String result, String reason, String pgn, Instant start) {
         this.whitePlayer = white;
         this.blackPlayer = black;
         this.matchResult = result;
