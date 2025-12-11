@@ -10,13 +10,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class MatchService {
 
     private final MatchRecordRepo matchRecordRepo;
     private final MatchRecordConverter matchRecordConverter;
+    private final ConcurrentMap<UUID, Game> gameSessions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Boolean>> playerConnections = new ConcurrentHashMap<>();
+
 
     public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter) {
         this.matchRecordRepo = matchRecordRepo;
@@ -38,5 +44,64 @@ public class MatchService {
     @Transactional
     public void archiveMatch(UUID matchId, Game game) {
 
+    }
+
+    /**
+     * Get a game session (useful for testing or administrative purposes)
+     */
+    public Game getGameSession(UUID gameId) {
+        return gameSessions.getOrDefault(gameId, null);
+    }
+
+    public Game getOrCreateGameSession(UUID gameId) {
+        return gameSessions.computeIfAbsent(gameId, (k) -> new Game());
+    }
+
+    /**
+     * Remove a game session (cleanup after game completion)
+     */
+    public void removeGameSession(UUID gameId) {
+        gameSessions.remove(gameId);
+        playerConnections.remove(gameId);
+    }
+
+    /**
+     * Get connection status for a player in a game
+     */
+    public boolean isPlayerConnected(UUID gameId, UUID userId) {
+        ConcurrentMap<UUID, Boolean> gameConnections = playerConnections.get(gameId);
+        if (gameConnections == null) {
+            return false;
+        }
+        return gameConnections.getOrDefault(userId, false);
+    }
+
+    /**
+     * Get all player connection statuses for a game
+     */
+    public ConcurrentMap<UUID, Boolean> getGameConnectionStatus(UUID gameId) {
+        return playerConnections.getOrDefault(gameId, null);
+    }
+
+    public ConcurrentMap<UUID, Boolean> getOrCreateGameConnectionStatus(UUID gameId) {
+        return playerConnections.computeIfAbsent(gameId, (k) -> new ConcurrentHashMap<>());
+    }
+
+    /**
+     * Mark a player as connected in a game
+     */
+    public void setPlayerConnected(UUID gameId, UUID userId, boolean connected) {
+        ConcurrentMap<UUID, Boolean> gameConnections = playerConnections.computeIfAbsent(
+            gameId, 
+            k -> new ConcurrentHashMap<>()
+        );
+        gameConnections.put(userId, connected);
+    }
+
+    /**
+     * Get all player connections map (for internal use)
+     */
+    public Map<UUID, ConcurrentMap<UUID, Boolean>> getAllPlayerConnections() {
+        return playerConnections;
     }
 }

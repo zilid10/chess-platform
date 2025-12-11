@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,14 +15,14 @@ public class Game {
     private GameStatus status;
     private final LocalDateTime startTime;
     private LocalDateTime endTime;
-    private String whitePlayer;
-    private String blackPlayer;
+    private UserPrincipal whitePlayer;
+    private UserPrincipal blackPlayer;
     
     public Game() {
-        this("White", "Black");
+        this(null, null);
     }
     
-    public Game(String whitePlayer, String blackPlayer) {
+    public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
         this.engine = new ChessEngine();
         this.history = new MoveHistory();
         this.status = GameStatus.ONGOING;
@@ -193,19 +194,19 @@ public class Game {
         return endTime;
     }
     
-    public String getWhitePlayer() {
+    public UserPrincipal getWhitePlayer() {
         return whitePlayer;
     }
     
-    public void setWhitePlayer(String whitePlayer) {
+    public void setWhitePlayer(UserPrincipal whitePlayer) {
         this.whitePlayer = whitePlayer;
     }
     
-    public String getBlackPlayer() {
+    public UserPrincipal getBlackPlayer() {
         return blackPlayer;
     }
     
-    public void setBlackPlayer(String blackPlayer) {
+    public void setBlackPlayer(UserPrincipal blackPlayer) {
         this.blackPlayer = blackPlayer;
     }
     
@@ -233,5 +234,26 @@ public class Game {
         sb.append(history.getNotation()).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
+    }
+
+    public boolean isUserTurn(UserPrincipal currentUser) {
+        return switch (engine.getTurnColor()) {
+            case WHITE -> currentUser.equals(whitePlayer);
+            case BLACK -> currentUser.equals(blackPlayer);
+        };
+    }
+
+    public Piece.Color getPlayerColor(UserPrincipal currentUser) {
+        if (currentUser.equals(whitePlayer)) {
+            return Piece.Color.WHITE;
+        }
+        if (currentUser.equals(blackPlayer)) {
+            return Piece.Color.BLACK;
+        }
+        return null;
+    }
+
+    public boolean isValidPlayer(UserPrincipal currentUser) {
+        return currentUser.equals(whitePlayer) || currentUser.equals(blackPlayer);
     }
 }
