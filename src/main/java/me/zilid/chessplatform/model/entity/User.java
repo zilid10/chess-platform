@@ -45,6 +45,9 @@ public class User {
     )
     private Set<User> friends = new HashSet<>();
 
+    @ManyToMany(mappedBy = "friends", fetch = FetchType.LAZY)
+    private Set<User> friendOf = new HashSet<>();
+
     public User() {
     }
 
@@ -53,6 +56,20 @@ public class User {
         this.username = username;
         this.passwordHash = passwordHash;
         this.about = about;
+    }
+
+    public Set<User> getFriendOf() {
+        return friendOf;
+    }
+
+    public void addFriend(User friend) {
+        this.friends.add(friend);
+        friend.friendOf.add(this);
+    }
+
+    public void removeFriend(User friend) {
+        this.friends.remove(friend);
+        friend.friendOf.remove(this);
     }
 
     @Override

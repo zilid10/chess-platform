@@ -1,8 +1,10 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -49,5 +51,76 @@ public class MatchRecord {
     }
 
     public MatchRecord() {
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof MatchRecord that)) return false;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
+
+    public void setStartTime(Instant startTime) {
+        this.startTime = startTime;
+    }
+
+    public void setEndTime(Instant endTime) {
+        this.endTime = endTime;
+    }
+
+    public void setWhitePlayer(User whitePlayer) {
+        this.whitePlayer = whitePlayer;
+    }
+
+    public void setBlackPlayer(User blackPlayer) {
+        this.blackPlayer = blackPlayer;
+    }
+
+    public void setMatchResult(String matchResult) {
+        this.matchResult = matchResult;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public void setPgn(String pgn) {
+        this.pgn = pgn;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public User getWhitePlayer() {
+        return whitePlayer;
+    }
+
+    public User getBlackPlayer() {
+        return blackPlayer;
+    }
+
+    public String getMatchResult() {
+        return matchResult;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public String getPgn() {
+        return pgn;
+    }
+
+    public Instant getStartTime() {
+        return startTime;
+    }
+
+    public Instant getEndTime() {
+        return endTime;
     }
 }

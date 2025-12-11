@@ -2,6 +2,8 @@ package me.zilid.chessplatform.repository;
 
 import me.zilid.chessplatform.model.entity.FriendRequest;
 import me.zilid.chessplatform.model.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -9,20 +11,20 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
 
-    List<FriendRequest> findBySenderAndStatus(User user, FriendRequest.RequestStatus status);
+    Page<FriendRequest> findBySender_Id(UUID senderId,  Pageable pageable);
 
-    List<FriendRequest> findByRecipientAndStatus(User recipient, FriendRequest.RequestStatus status);
+    Page<FriendRequest> findByRecipient_Id(UUID senderId, Pageable pageable);
 
-    List<FriendRequest> findBySender_IdAndStatus(UUID senderId, FriendRequest.RequestStatus status);
-
-    List<FriendRequest> findByRecipient_IdAndStatus(UUID recipientId, FriendRequest.RequestStatus status);
-
-    List<FriendRequest> findBySender_IdAndRecipient_IdAndStatus(UUID senderId, UUID recipientId, FriendRequest.RequestStatus status);
+    Optional<FriendRequest> findBySender_IdAndRecipient_IdAndStatus(UUID senderId, UUID recipientId, FriendRequest.RequestStatus status);
+    
+    @Query("SELECT f FROM User u JOIN u.friends f WHERE u.id = :userId")
+    Page<User> findFriendsByUserId(@Param("userId") UUID userId, Pageable pageable);
 
     @Modifying
     @Query(value = """
@@ -46,4 +48,5 @@ public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
                         )
             """, nativeQuery = true)
     boolean existsFriendships(@Param("userId") UUID userId, @Param("friendId") UUID friendId);
+
 }
