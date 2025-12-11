@@ -140,6 +140,11 @@ public class GameSocketController {
             throw new IllegalStateException("Game is already over");
         }
 
+        if (!game.isUserTurn(currentUser)) {
+            logger.warn("Attempted move on opponent's turn {}", gameId);
+            throw new IllegalStateException("It is not your turn");
+        }
+
 
         // Validate and execute move
         String moveFrom = moveRequest.moveFrom();
