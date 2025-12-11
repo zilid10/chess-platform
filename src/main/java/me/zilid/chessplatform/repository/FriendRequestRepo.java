@@ -10,7 +10,6 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,4 +48,7 @@ public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
             """, nativeQuery = true)
     boolean existsFriendships(@Param("userId") UUID userId, @Param("friendId") UUID friendId);
 
+    Optional<FriendRequest> findByIdAndRecipient_IdAndStatus(UUID id, UUID recipientId, FriendRequest.RequestStatus status);
+
+    UUID recipient(User recipient);
 }

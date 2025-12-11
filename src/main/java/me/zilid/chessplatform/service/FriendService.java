@@ -44,19 +44,20 @@ public class FriendService {
     }
 
     @Transactional
-    public void acceptFriendRequest(UUID senderId, UUID recipientId) {
+    public void acceptFriendRequest(UUID friendRequestId, UUID recipientId) {
         FriendRequest friendRequest = friendRequestRepo
-                .findBySender_IdAndRecipient_IdAndStatus(senderId, recipientId, FriendRequest.RequestStatus.PENDING)
+                .findByIdAndRecipient_IdAndStatus(friendRequestId, recipientId,FriendRequest.RequestStatus.PENDING)
                 .orElseThrow(() -> new IllegalArgumentException("no pending friend requests found"));
 
         friendRequest.setStatus(FriendRequest.RequestStatus.ACCEPTED);
+        UUID senderId = friendRequest.getSender().getId();
         friendRequestRepo.addFriend(senderId, recipientId);
     }
 
     @Transactional
-    public void declineFriendRequest(UUID senderId, UUID recipientId) {
+    public void declineFriendRequest(UUID friendRequestId,  UUID recipientId) {
         FriendRequest friendRequest = friendRequestRepo
-                .findBySender_IdAndRecipient_IdAndStatus(senderId, recipientId, FriendRequest.RequestStatus.PENDING)
+                .findByIdAndRecipient_IdAndStatus(friendRequestId, recipientId, FriendRequest.RequestStatus.PENDING)
                 .orElseThrow(() -> new IllegalArgumentException("no pending friend requests found"));
 
         friendRequest.setStatus(FriendRequest.RequestStatus.REJECTED);
@@ -89,6 +90,10 @@ public class FriendService {
     public void deleteFriend(UUID userId, UUID friendId) {
         User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         User friend = userRepo.findById(friendId).orElseThrow(() -> new IllegalArgumentException("Friend not found"));
+        if (!friend.getFriends().contains(user) && !user.getFriends().contains(friend)) {
+            throw new IllegalArgumentException("friendship does not exist");
+        }
         user.removeFriend(friend);
+        friend.removeFriend(user);
     }
 }
