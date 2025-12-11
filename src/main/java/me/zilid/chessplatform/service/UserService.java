@@ -58,5 +58,10 @@ public class UserService {
         return users.map(userConverter::toResponse);
     }
 
+    @Transactional
+    public UserResponse getUserById(UUID userId) {
+        User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found!"));
+        return userConverter.toResponse(user);
+    }
 
 }
