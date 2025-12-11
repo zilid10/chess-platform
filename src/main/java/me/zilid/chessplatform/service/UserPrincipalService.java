@@ -1,26 +1,29 @@
-package me.zilid.chessplatform.config;
+package me.zilid.chessplatform.service;
 
+import jakarta.transaction.Transactional;
 import me.zilid.chessplatform.model.entity.User;
-import me.zilid.chessplatform.repository.UserRepository;
+import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.repository.UserRepo;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 
-@Component
+@Service
 public class UserPrincipalService implements UserDetailsService {
-    private final UserRepository userRepository;
+    private final UserRepo userRepo;
 
-    public UserPrincipalService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserPrincipalService(UserRepo userRepo) {
+        this.userRepo = userRepo;
     }
 
     @Override
+    @Transactional
     public UserDetails loadUserByUsername(@NonNull String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not exist: " + email));
 
         return new UserPrincipal(

@@ -1,19 +1,20 @@
-package me.zilid.chessplatform.config;
+package me.zilid.chessplatform.model.entity;
 
 import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.UUID;
 
 public class UserPrincipal implements UserDetails, CredentialsContainer {
-    private final Long id;
+    private final UUID id;
     private final String email;
     private final boolean enabled;
     private final Collection<? extends GrantedAuthority> authorities;
     private String passwordHash;
 
-    public UserPrincipal(Long id, String email, String passwordHash, boolean enabled, Collection<? extends GrantedAuthority> authorities) {
+    public UserPrincipal(UUID id, String email, String passwordHash, boolean enabled, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
@@ -21,7 +22,7 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
         this.authorities = authorities;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 

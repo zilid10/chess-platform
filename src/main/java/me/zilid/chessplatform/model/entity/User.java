@@ -1,35 +1,45 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", columnDefinition = "uuid")
+    private UUID id = UUID.randomUUID();
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "email", unique = true, nullable = false)
     private String email;
-    @Column(nullable = false)
+
+    @Column(name = "username", unique = true, nullable = false)
     private String username;
-    @Column(nullable = false)
+
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
-    private int wins = 0;
-    private int losses = 0;
-    private int draws = 0;
+
+    @Column(name = "about")
     private String about;
-    @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-    @Column(nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "user_friends",
+            name = "user_friendship",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "friend_id")
     )
@@ -38,12 +48,26 @@ public class User {
     public User() {
     }
 
-    public Long getId() {
-        return id;
+    public User(String email, String username, String passwordHash, String about) {
+        this.email = email;
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.about = about;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof User user)) return false;
+        return Objects.equals(id, user.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     public String getEmail() {
@@ -70,30 +94,6 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    public int getWins() {
-        return wins;
-    }
-
-    public void setWins(int wins) {
-        this.wins = wins;
-    }
-
-    public int getLosses() {
-        return losses;
-    }
-
-    public void setLosses(int losses) {
-        this.losses = losses;
-    }
-
-    public int getDraws() {
-        return draws;
-    }
-
-    public void setDraws(int draws) {
-        this.draws = draws;
-    }
-
     public String getAbout() {
         return about;
     }
@@ -102,28 +102,16 @@ public class User {
         this.about = about;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
+    public Instant getUpdatedAt() {
         return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 
     public Set<User> getFriends() {
         return friends;
-    }
-
-    public void setFriends(Set<User> friends) {
-        this.friends = friends;
     }
 
 }

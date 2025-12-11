@@ -16,11 +16,11 @@ public enum GameStatus {
     DRAW_BY_AGREEMENT("Draw by agreement");
 
     private final String description;
-    
+
     GameStatus(String description) {
         this.description = description;
     }
-    
+
     public String getDescription() {
         return description;
     }
@@ -33,9 +33,22 @@ public enum GameStatus {
             return "0-1";
         }
         if (isDraw()) {
-            return "0-0";
+            return "1/2-1/2";
         }
         return "";
+    }
+
+    public String getReason() {
+        return switch (this) {
+            case CHECKMATE_BLACK_WINS, CHECKMATE_WHITE_WINS -> "CHECKMATE";
+            case STALEMATE -> "STALEMATE";
+            case RESIGNED_BLACK_WINS, RESIGNED_WHITE_WINS -> "RESIGNATION";
+            case DRAW_BY_AGREEMENT -> "ACCEPT_DRAW";
+            case DRAW_BY_REPETITION -> "THREE_FOLD_REPETITION";
+            case DRAW_BY_FIFTY_MOVE_RULE -> "FIFTY_MOVE_RULE";
+            case DRAW_BY_INSUFFICIENT_MATERIAL -> "INSUFFICIENT_MATERIAL";
+            case ONGOING -> "";
+        };
     }
 
     public boolean isGameOver() {

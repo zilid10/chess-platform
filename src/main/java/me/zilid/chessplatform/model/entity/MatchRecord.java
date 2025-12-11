@@ -2,7 +2,7 @@ package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -10,8 +10,8 @@ import java.util.UUID;
 public class MatchRecord {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @Column(name = "id", columnDefinition = "uuid")
+    private UUID id = UUID.randomUUID();
 
     @ManyToOne
     @JoinColumn(name = "white_user_id", nullable = false)
@@ -21,18 +21,23 @@ public class MatchRecord {
     @JoinColumn(name = "black_user_id", nullable = false)
     private User blackPlayer;
 
+    @Column(name = "result")
     private String matchResult;
 
+    @Column(name = "reason")
     private String reason;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "pgn", columnDefinition = "TEXT")
     private String pgn;
 
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    @Column(name = "start_time")
+    private Instant startTime;
 
-    public MatchRecord(UUID id, User white, User black, String result, String reason, String pgn, LocalDateTime start) {
+    @Column(name = "end_time")
+    private Instant endTime;
+
+    public MatchRecord(UUID id, User white, User black, String result, String reason, String pgn, Instant start) {
         this.id = id;
         this.whitePlayer = white;
         this.blackPlayer = black;
@@ -40,7 +45,7 @@ public class MatchRecord {
         this.reason = reason;
         this.pgn = pgn;
         this.startTime = start;
-        this.endTime = LocalDateTime.now();
+        this.endTime = Instant.now();
     }
 
     public MatchRecord() {

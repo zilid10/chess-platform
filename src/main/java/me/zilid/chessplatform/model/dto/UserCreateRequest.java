@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
-public record RegisterRequest(
+public record UserCreateRequest(
         @NotEmpty(message = "username must be provided")
         @Size(min = 3, max = 20, message = "username length must between 3 and 20")
         String username,
