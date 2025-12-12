@@ -28,6 +28,7 @@ public class UserPrincipalService implements UserDetailsService {
 
         return new UserPrincipal(
                 user.getId(),
+                user.getUsername(),
                 user.getEmail(),
                 user.getPasswordHash(),
                 true,

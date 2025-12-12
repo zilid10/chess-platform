@@ -2,7 +2,6 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
 import me.zilid.chessplatform.model.dto.UserResponse;
-import me.zilid.chessplatform.model.entity.FriendRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.FriendService;
 import org.springframework.data.domain.Page;
@@ -11,10 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
-@RestController()
+@RestController
 @RequestMapping("/api")
 public class FriendController {
 

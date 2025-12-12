@@ -17,14 +17,14 @@ public class Game {
     private Instant endTime;
     private UserPrincipal whitePlayer;
     private UserPrincipal blackPlayer;
-    private Piece.Color drawIssuedBy;
+    private Piece.Color drawOfferedBy;
 
-    public Piece.Color getDrawIssuedBy() {
-        return drawIssuedBy;
+    public Piece.Color getDrawOfferedBy() {
+        return drawOfferedBy;
     }
 
-    public void setDrawIssuedBy(Piece.Color drawIssuedBy) {
-        this.drawIssuedBy = drawIssuedBy;
+    public void setDrawOfferedBy(Piece.Color drawOfferedBy) {
+        this.drawOfferedBy = drawOfferedBy;
     }
 
     public Game() {
