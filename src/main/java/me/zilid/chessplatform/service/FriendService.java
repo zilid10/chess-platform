@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -33,10 +34,24 @@ public class FriendService {
 
     @Transactional
     public FriendRequestResponse createFriendRequest(UUID senderId, UUID recipientId) {
-        User sender = userRepo.findById(senderId).orElseThrow(() -> new IllegalArgumentException("Sender not found"));
-        User recipient = userRepo.findById(recipientId).orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
-        if (sender.getFriends().contains(recipient)) {
-            throw new IllegalArgumentException("Sender and recipient already exist");
+        if (senderId.equals(recipientId)) {
+            throw new IllegalArgumentException("Cannot send friend request to yourself");
+        }
+
+        // check if they are already friends
+        User sender = userRepo.findById(senderId)
+                .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
+        User recipient = userRepo.findById(recipientId)
+                .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
+        if (friendRequestRepo.existsFriendships(senderId, recipientId)) {
+            throw new IllegalArgumentException("Users are already friends");
+        }
+
+        // check if there already exists pending friend request
+        Optional<FriendRequest> existingRequest = friendRequestRepo
+                .findBySender_IdAndRecipient_IdAndStatus(senderId, recipientId, FriendRequest.RequestStatus.PENDING);
+        if (existingRequest.isPresent()) {
+            throw new IllegalArgumentException("Friend request already sent");
         }
 
         FriendRequest friendRequest = friendRequestRepo.save(new FriendRequest(sender, recipient, FriendRequest.RequestStatus.PENDING));
@@ -44,7 +59,7 @@ public class FriendService {
     }
 
     @Transactional
-    public void acceptFriendRequest(UUID friendRequestId, UUID recipientId) {
+    public FriendRequestResponse acceptFriendRequest(UUID friendRequestId, UUID recipientId) {
         FriendRequest friendRequest = friendRequestRepo
                 .findByIdAndRecipient_IdAndStatus(friendRequestId, recipientId,FriendRequest.RequestStatus.PENDING)
                 .orElseThrow(() -> new IllegalArgumentException("no pending friend requests found"));
@@ -52,6 +67,7 @@ public class FriendService {
         friendRequest.setStatus(FriendRequest.RequestStatus.ACCEPTED);
         UUID senderId = friendRequest.getSender().getId();
         friendRequestRepo.addFriend(senderId, recipientId);
+        return friendRequestConverter.toResponse(friendRequest);
     }
 
     @Transactional
@@ -90,7 +106,7 @@ public class FriendService {
     public void deleteFriend(UUID userId, UUID friendId) {
         User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         User friend = userRepo.findById(friendId).orElseThrow(() -> new IllegalArgumentException("Friend not found"));
-        if (!friend.getFriends().contains(user) && !user.getFriends().contains(friend)) {
+        if (!friend.getFriends().contains(user)) {
             throw new IllegalArgumentException("friendship does not exist");
         }
         user.removeFriend(friend);

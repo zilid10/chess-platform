@@ -31,7 +31,6 @@ public class UserService {
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
         User user = userConverter.toEntity(request);
-        user.setPasswordHash(passwordEncoder.encode(request.rawPassword()));
         user = userRepo.save(user);
         return userConverter.toResponse(user);
     }

@@ -58,10 +58,10 @@ public class FriendController {
 
     @PostMapping("/friends/accept/{friendRequestId}")
     @ResponseStatus(HttpStatus.CREATED)
-    public void acceptFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public FriendRequestResponse acceptFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                     @PathVariable("friendRequestId") UUID friendRequestId) {
         UUID recipientId = userPrincipal.getId();
-        friendService.acceptFriendRequest(friendRequestId, recipientId);
+        return friendService.acceptFriendRequest(friendRequestId, recipientId);
     }
 
     @PutMapping("/friends/reject/{friendRequestId}")

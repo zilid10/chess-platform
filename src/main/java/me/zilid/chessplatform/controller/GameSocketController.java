@@ -4,6 +4,7 @@ import me.zilid.chessplatform.engine.Game;
 import me.zilid.chessplatform.engine.Position;
 import me.zilid.chessplatform.engine.pieces.Piece;
 import me.zilid.chessplatform.model.dto.ChatMessage;
+import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -247,5 +249,24 @@ public class GameSocketController {
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
     }
 
+    @MessageExceptionHandler
+    public void handleException(Exception e,
+                                SimpMessageHeaderAccessor headerAccessor) {
+        logger.error("WebSocket error: ", e);
+
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes == null) return;
+
+        String username = (String) sessionAttributes.get("username");
+
+        if (username != null) {
+            ErrorResponse error = new ErrorResponse(e.getMessage());
+            messagingTemplate.convertAndSendToUser(
+                    username,
+                    "/queue/errors",
+                    error
+            );
+        }
+    }
 
 }

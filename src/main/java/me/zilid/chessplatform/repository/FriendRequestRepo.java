@@ -29,8 +29,9 @@ public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
     @Query(value = """
             INSERT INTO user_friendship(user_id, friend_id)
             VALUES (:senderId, :recipientId), (:recipientId, :senderId)
+            ON CONFLICT DO NOTHING
             """, nativeQuery = true)
-    void addFriend(UUID senderId, UUID recipientId);
+    int addFriend(@Param("senderId") UUID senderId,@Param("recipientId") UUID recipientId);
 
     @Modifying
     @Query(value = """
@@ -50,5 +51,4 @@ public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
 
     Optional<FriendRequest> findByIdAndRecipient_IdAndStatus(UUID id, UUID recipientId, FriendRequest.RequestStatus status);
 
-    UUID recipient(User recipient);
 }
