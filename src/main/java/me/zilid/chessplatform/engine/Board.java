@@ -447,6 +447,9 @@ public class Board {
     }
 
     private Optional<Position> getEnPassantPosition() {
+        if (lastMoveTo == null || lastMoveFrom == null) {
+            return Optional.empty();
+        }
         Piece lastMovedPiece = getPiece(lastMoveTo);
 
         if (lastMovedPiece != null && lastMovedPiece.getType() == Piece.PieceType.PAWN && Math.abs(lastMoveTo.y() - lastMoveFrom.y()) == 2) {

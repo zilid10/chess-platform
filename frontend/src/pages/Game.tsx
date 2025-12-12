@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { websocketService } from '../services/websocketService';
+import { gameService } from '../services/gameService';
 import { useAuth } from '../context/AuthContext';
 import { GameState, ChatMessage as ChatMessageType } from '../types';
 import { Copy, Flag, Scale, Send } from 'lucide-react';
@@ -10,31 +11,58 @@ import { Copy, Flag, Scale, Send } from 'lucide-react';
 const Game = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [game, setGame] = useState(new Chess());
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessageType[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!gameId || !user) return;
 
-    // Connect to WebSocket
-    websocketService.connect(
-      gameId,
-      user.username,
-      (state: GameState) => {
-        setGameState(state);
-        if (state.fen) {
-          const newGame = new Chess(state.fen);
+    const initializeGame = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Step 1: Join the game via REST API
+        const joinResponse = await gameService.joinGame(gameId);
+        
+        // Set initial game state from join response
+        if (joinResponse.fen) {
+          const newGame = new Chess(joinResponse.fen);
           setGame(newGame);
         }
-      },
-      (message: ChatMessageType) => {
-        setChatMessages((prev) => [...prev, message]);
+
+        // Step 2: Connect to WebSocket
+        websocketService.connect(
+          gameId,
+          user.username,
+          (state: GameState) => {
+            setGameState(state);
+            if (state.fen) {
+              const newGame = new Chess(state.fen);
+              setGame(newGame);
+            }
+          },
+          (message: ChatMessageType) => {
+            setChatMessages((prev) => [...prev, message]);
+          }
+        );
+
+        setLoading(false);
+      } catch (err: any) {
+        console.error('Error initializing game:', err);
+        setError(err.response?.data?.message || 'Failed to join game');
+        setLoading(false);
       }
-    );
+    };
+
+    initializeGame();
 
     return () => {
       websocketService.disconnect();
@@ -126,6 +154,36 @@ const Game = () => {
     
     return status;
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Joining game...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="card bg-red-50">
+          <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="mt-4 btn btn-primary"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

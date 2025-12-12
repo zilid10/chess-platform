@@ -1,7 +1,24 @@
 import api from './api';
-import { MatchRecord, PageResponse } from '../types';
+import { MatchRecord, PageResponse, GameCreatedResponse, GameJoinResponse, GameState } from '../types';
 
 export const gameService = {
+  createGame: async (color: 'WHITE' | 'BLACK'): Promise<GameCreatedResponse> => {
+    const response = await api.post('/games', null, {
+      params: { color }
+    });
+    return response.data;
+  },
+
+  joinGame: async (gameId: string): Promise<GameJoinResponse> => {
+    const response = await api.post(`/games/${gameId}/join`);
+    return response.data;
+  },
+
+  getGameState: async (gameId: string): Promise<GameState> => {
+    const response = await api.get(`/games/${gameId}/state`);
+    return response.data;
+  },
+
   getGames: async (userId: string, page: number = 0, size: number = 10): Promise<PageResponse<MatchRecord>> => {
     const response = await api.get(`/games/users/${userId}`, {
       params: { page, size }
@@ -10,7 +27,7 @@ export const gameService = {
   },
 
   getGamePGN: async (gameId: string): Promise<string> => {
-    const response = await api.get(`/games/${gameId}`);
+    const response = await api.get(`/games/${gameId}/pgn`);
     return response.data;
   },
 };

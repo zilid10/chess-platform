@@ -109,7 +109,8 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/move")
     public void movePiece(@DestinationVariable UUID gameId,
                           @Payload MoveRequest moveRequest,
-                          @AuthenticationPrincipal UserPrincipal currentUser) {
+                          Authentication authentication) {
+        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
         Game game = matchService.getGameOrThrow(gameId);
         matchService.requirePlayer(game, currentUser);
 
@@ -161,7 +162,8 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
-                       @AuthenticationPrincipal UserPrincipal currentUser) {
+                       Authentication authentication) {
+        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
         GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
@@ -179,8 +181,10 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/draw/accept")
     public void acceptDraw(
-            @AuthenticationPrincipal UserPrincipal currentUser,
-            @DestinationVariable UUID gameId) {
+            @DestinationVariable UUID gameId,
+            Authentication authentication) {
+        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
         // update the game state

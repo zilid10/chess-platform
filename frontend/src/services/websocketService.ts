@@ -44,6 +44,7 @@ export class WebSocketService {
       // Send join message
       this.client?.publish({
         destination: `/app/game/${gameId}/join`,
+        body: '{}'
       });
     };
 
@@ -99,6 +100,7 @@ export class WebSocketService {
 
     this.client.publish({
       destination: `/app/game/${gameId}/resign`,
+      body: '{}'
     });
   }
 
@@ -109,6 +111,7 @@ export class WebSocketService {
 
     this.client.publish({
       destination: `/app/game/${gameId}/draw/offer`,
+      body: '{}'
     });
   }
 }

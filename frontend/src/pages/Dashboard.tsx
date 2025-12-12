@@ -1,16 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { gameService } from '../services/gameService';
 import { Play, Users } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [gameId, setGameId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleCreateGame = () => {
-    const newGameId = crypto.randomUUID();
-    navigate(`/game/${newGameId}`);
+  const handleCreateGame = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Create a game with WHITE color
+      const response = await gameService.createGame('WHITE');
+      navigate(`/game/${response.gameId}`);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create game');
+      setLoading(false);
+    }
   };
 
   const handleJoinGame = () => {
@@ -28,6 +39,12 @@ const Dashboard = () => {
         <p className="mt-2 text-gray-600">Start a new game or join an existing one</p>
       </div>
 
+      {error && (
+        <div className="mb-6 rounded-md bg-red-50 p-4">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Create Game Card */}
         <div className="card">
@@ -38,9 +55,10 @@ const Dashboard = () => {
           <p className="text-gray-600 mb-6">Start a new chess game and invite a friend</p>
           <button
             onClick={handleCreateGame}
-            className="w-full btn btn-primary"
+            disabled={loading}
+            className="w-full btn btn-primary disabled:opacity-50"
           >
-            Create Game
+            {loading ? 'Creating game...' : 'Create Game'}
           </button>
         </div>
 

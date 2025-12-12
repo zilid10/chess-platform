@@ -83,3 +83,18 @@ export interface PageResponse<T> {
   size: number;
   number: number;
 }
+
+export interface GameCreatedResponse {
+  gameId: string;
+  color: 'WHITE' | 'BLACK';
+  fen: string;
+  socketUrl: string;
+}
+
+export interface GameJoinResponse {
+  gameId: string;
+  role: string;
+  fen: string;
+  status: GameStatus;
+  currentTurn: string;
+}
