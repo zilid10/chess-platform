@@ -170,7 +170,7 @@ public class GameSocketController {
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
         // Send system message
-        String winner = response.gameStatus().isWhiteWin() ? "Black" : "White";
+        String winner = response.gameStatus().isWhiteWin() ? "White" : "Black";
         sendSystemMessage(gameId, winner + " wins by resignation");
     }
 

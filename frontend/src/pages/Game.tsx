@@ -22,6 +22,8 @@ const Game = () => {
   const [error, setError] = useState('');
   const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
   const [drawOffered, setDrawOffered] = useState(false);
+  const [isPlayer, setIsPlayer] = useState(true);
+  const iOfferedDrawRef = useRef(false);
 
   useEffect(() => {
     if (!gameId || !user) return;
@@ -34,9 +36,15 @@ const Game = () => {
         // Step 1: Join the game via REST API
         const joinResponse = await gameService.joinGame(gameId);
         
+        // Check if user is a player or spectator
+        const isActualPlayer = joinResponse.role === 'WHITE' || joinResponse.role === 'BLACK';
+        setIsPlayer(isActualPlayer);
+        
         // Set player color based on role (role is like "WHITE" or "BLACK")
-        const color = joinResponse.role.toLowerCase() as 'white' | 'black';
-        setPlayerColor(color);
+        if (isActualPlayer) {
+          const color = joinResponse.role.toLowerCase() as 'white' | 'black';
+          setPlayerColor(color);
+        }
         
         // Set initial game state from join response
         if (joinResponse.fen) {
@@ -60,12 +68,16 @@ const Game = () => {
             
             // Check if this is a draw offer message
             if (message.type === 'SYSTEM' && message.message === 'Draw offered' && message.sender === 'System') {
-              setDrawOffered(true);
+              // Only set drawOffered if WE didn't offer the draw
+              if (!iOfferedDrawRef.current) {
+                setDrawOffered(true);
+              }
             }
             
             // Clear draw offer if game ended or draw was agreed/declined
             if (message.type === 'SYSTEM' && (message.message === 'Draw agreed' || message.message.includes('wins'))) {
               setDrawOffered(false);
+              iOfferedDrawRef.current = false;
             }
           }
         );
@@ -133,6 +145,7 @@ const Game = () => {
   const handleOfferDraw = () => {
     if (!gameId || !confirm('Offer a draw?')) return;
     
+    iOfferedDrawRef.current = true;
     websocketService.offerDraw(gameId);
   };
 
@@ -145,6 +158,7 @@ const Game = () => {
 
   const handleDeclineDraw = () => {
     setDrawOffered(false);
+    // Note: we don't reset iOfferedDraw here because the offer is still pending
   };
 
   const copyGameId = () => {
@@ -214,8 +228,8 @@ const Game = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Draw Offer Notification */}
-      {drawOffered && gameState?.gameStatus === 'ONGOING' && (
+      {/* Draw Offer Notification - Only show to players */}
+      {isPlayer && drawOffered && gameState?.gameStatus === 'ONGOING' && (
         <div className="mb-6 card bg-blue-50 border-2 border-blue-500">
           <div className="flex items-center justify-between">
             <div>
@@ -270,7 +284,7 @@ const Game = () => {
               />
             </div>
 
-            {gameState?.gameStatus === 'ONGOING' && (
+            {isPlayer && gameState?.gameStatus === 'ONGOING' && (
               <div className="mt-6 flex space-x-4">
                 <button
                   onClick={handleResign}
