@@ -23,13 +23,17 @@ export const userService = {
     return response.data;
   },
 
-  login: async (username: string, password: string): Promise<{ token: string; user: User }> => {
-    const response = await api.post('/auth/login', { username, password });
+  login: async (username: string, password: string): Promise<User> => {
+    const response = await api.post('/login', { username, password });
     return response.data;
   },
 
+  logout: async (): Promise<void> => {
+    await api.post('/logout');
+  },
+
   getCurrentUser: async (): Promise<User> => {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/users');
     return response.data;
   },
 };

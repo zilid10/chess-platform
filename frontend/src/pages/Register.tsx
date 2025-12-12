@@ -35,8 +35,8 @@ const Register = () => {
       await userService.createUser({
         username: formData.username,
         email: formData.email,
-        password: formData.password,
-        displayName: formData.displayName || undefined,
+        rawPassword: formData.password,
+        about: formData.displayName || undefined,
       });
       navigate('/login');
     } catch (err: any) {

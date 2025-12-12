@@ -5,7 +5,7 @@ import { Chess } from 'chess.js';
 import { websocketService } from '../services/websocketService';
 import { useAuth } from '../context/AuthContext';
 import { GameState, ChatMessage as ChatMessageType } from '../types';
-import { Copy, Flag, Handshake, Send } from 'lucide-react';
+import { Copy, Flag, Scale, Send } from 'lucide-react';
 
 const Game = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -63,6 +63,7 @@ const Game = () => {
 
       if (move === null) return false;
 
+      console.log(`onDrop ${sourceSquare} -> ${targetSquare}`);
       websocketService.sendMove(gameId, sourceSquare, targetSquare, 'q');
       return true;
     } catch (error) {
@@ -170,7 +171,7 @@ const Game = () => {
                   onClick={handleOfferDraw}
                   className="btn btn-secondary flex items-center space-x-2"
                 >
-                  <Handshake size={16} />
+                  <Scale size={16} />
                   <span>Offer Draw</span>
                 </button>
               </div>

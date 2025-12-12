@@ -1,22 +1,24 @@
 import { Client, IMessage } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import { GameState, ChatMessage } from '../types';
 
 export class WebSocketService {
   private client: Client | null = null;
-  private gameId: string | null = null;
   
-  connect(gameId: string, username: string, onGameUpdate: (state: GameState) => void, onChatMessage: (message: ChatMessage) => void) {
-    this.gameId = gameId;
-    
+  connect(gameId: string, _username: string, onGameUpdate: (state: GameState) => void, onChatMessage: (message: ChatMessage) => void) {
+
+    if (this.client && this.client.active) {
+      console.warn('WebSocket already active, skip connect');
+      return;
+    }
+
     this.client = new Client({
-      webSocketFactory: () => new SockJS('/ws'),
+      brokerURL: 'ws://localhost:8080/ws',
       debug: (str) => {
         console.log('STOMP: ' + str);
       },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      heartbeatOutgoing: 4000
     });
 
     this.client.onConnect = () => {
@@ -34,10 +36,14 @@ export class WebSocketService {
         onChatMessage(chatMessage);
       });
 
+      this.client?.subscribe(`/user/queue/errors`, (message: IMessage) => {
+        const chatMessage: ChatMessage = JSON.parse(message.body);
+        onChatMessage(chatMessage);
+      })
+
       // Send join message
       this.client?.publish({
         destination: `/app/game/${gameId}/join`,
-        body: username,
       });
     };
 
@@ -86,14 +92,13 @@ export class WebSocketService {
     });
   }
 
-  resign(gameId: string, playerColor: string) {
+  resign(gameId: string, _playerColor: string) {
     if (!this.client || !this.client.connected) {
       throw new Error('WebSocket not connected');
     }
 
     this.client.publish({
       destination: `/app/game/${gameId}/resign`,
-      body: playerColor,
     });
   }
 
@@ -103,8 +108,7 @@ export class WebSocketService {
     }
 
     this.client.publish({
-      destination: `/app/game/${gameId}/draw`,
-      body: '',
+      destination: `/app/game/${gameId}/draw/offer`,
     });
   }
 }

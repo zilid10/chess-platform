@@ -14,8 +14,8 @@ export interface LoginRequest {
 export interface UserCreateRequest {
   username: string;
   email: string;
-  password: string;
-  displayName?: string;
+  rawPassword: string;
+  about?: string;
 }
 
 export interface UserUpdateRequest {

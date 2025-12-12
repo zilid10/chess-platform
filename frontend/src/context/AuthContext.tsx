@@ -4,8 +4,9 @@ import { userService } from '../services/userService';
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -17,44 +18,57 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    
-    if (storedUser && token) {
+    // Check if user is already logged in via session cookie
+    const checkAuth = async () => {
       try {
-        setUser(JSON.parse(storedUser));
+        const currentUser = await userService.getCurrentUser();
+        setUser(currentUser);
       } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        // User is not authenticated, that's okay
+        console.log('No active session');
+      } finally {
+        setLoading(false);
       }
-    }
+    };
     
-    setLoading(false);
+    checkAuth();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {
     try {
-      const response = await userService.login(username, password);
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
+      const loggedInUser = await userService.login(email, password);
+      setUser(loggedInUser);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+  const register = async (username: string, email: string, password: string) => {
+    try {
+      await userService.createUser({ username, email, rawPassword: password });
+      // After registration, log them in
+      await login(email, password);
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await userService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const value: AuthContextType = {
     user,
     login,
+    register,
     logout,
     isAuthenticated: !!user,
     loading,

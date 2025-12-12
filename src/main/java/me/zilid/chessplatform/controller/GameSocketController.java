@@ -18,10 +18,12 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -71,9 +73,9 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/join")
     public void joinGame(@DestinationVariable UUID gameId,
-                         @AuthenticationPrincipal UserPrincipal currentUser,
+                         Authentication authentication,
                          SimpMessageHeaderAccessor headerAccessor) {
-
+        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
         headerAccessor.getSessionAttributes().put("gameId", gameId);
         headerAccessor.getSessionAttributes().put("userId", currentUser.getId());
         headerAccessor.getSessionAttributes().put("username", currentUser.getUsername());
