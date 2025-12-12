@@ -22,9 +22,9 @@ public class UserPrincipalService implements UserDetailsService {
 
     @Override
     @Transactional
-    public UserDetails loadUserByUsername(@NonNull String email) throws UsernameNotFoundException {
-        User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not exist: " + email));
+    public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
+        User user = userRepo.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not exist: " + username));
 
         return new UserPrincipal(
                 user.getId(),

@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.repository;
 
 import me.zilid.chessplatform.model.entity.User;
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.CrudRepository;
@@ -17,4 +18,5 @@ public interface UserRepo extends CrudRepository<User, UUID> {
 
     Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
 
+    Optional<User> findByUsername(@NonNull String username);
 }

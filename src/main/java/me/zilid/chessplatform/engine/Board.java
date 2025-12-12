@@ -149,7 +149,7 @@ public class Board {
         
         // Add current position to history for threefold repetition
         int boardHash = getBoardHash();
-        positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0));
+        positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
         
         return true;
     }

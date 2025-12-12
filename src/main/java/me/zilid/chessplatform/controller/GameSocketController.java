@@ -1,6 +1,8 @@
 package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.engine.Game;
+import me.zilid.chessplatform.exception.GameIsOverException;
+import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -240,6 +242,36 @@ public class GameSocketController {
 
         if (username != null) {
             ErrorResponse error = new ErrorResponse("An unexpected error occurred: " + e.getMessage());
+            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
+        }
+    }
+
+    @MessageExceptionHandler(GameNotFoundException.class)
+    public void handleException(GameNotFoundException e, SimpMessageHeaderAccessor headerAccessor) {
+        logger.error("WebSocket error: ", e);
+
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes == null) return;
+
+        String username = (String) sessionAttributes.get("username");
+
+        if (username != null) {
+            ErrorResponse error = new ErrorResponse("Game not found: " + e.getMessage());
+            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
+        }
+    }
+
+    @MessageExceptionHandler(GameIsOverException.class)
+    public void handleException(GameIsOverException e, SimpMessageHeaderAccessor headerAccessor) {
+        logger.error("WebSocket error: ", e);
+
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes == null) return;
+
+        String username = (String) sessionAttributes.get("username");
+
+        if (username != null) {
+            ErrorResponse error = new ErrorResponse("Game is already over: " + e.getMessage());
             messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
         }
     }

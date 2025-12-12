@@ -77,9 +77,9 @@ public class MatchService {
         Game game = getGameOrThrow(gameId);
 
         String role;
-        if (game.getWhitePlayer().equals(currentUser)) {
+        if (currentUser.equals(game.getWhitePlayer())) {
             role = "WHITE"; // reconnect
-        } else if (game.getBlackPlayer().equals(currentUser)) {
+        } else if (currentUser.equals(game.getBlackPlayer())) {
             role = "BLACK"; // reconnect
         } else if (game.getWhitePlayer() == null) {
             game.setWhitePlayer(currentUser);
