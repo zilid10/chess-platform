@@ -78,7 +78,7 @@ const Profile = () => {
       await userService.updateUser({
         email: formData.email,
         about: formData.about || undefined,
-        password: formData.password || undefined,
+        rawPassword: formData.password || undefined,
       });
       
       setSuccess('Profile updated successfully!');

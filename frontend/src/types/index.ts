@@ -21,7 +21,7 @@ export interface UserCreateRequest {
 export interface UserUpdateRequest {
   email?: string;
   about?: string;
-  password?: string;
+  rawPassword?: string;
 }
 
 export interface FriendRequest {
