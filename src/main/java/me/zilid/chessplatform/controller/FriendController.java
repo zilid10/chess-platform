@@ -48,7 +48,7 @@ public class FriendController {
         return friendService.getSentRequest(userPrincipal.getId(), pageable);
     }
 
-    @PostMapping("friends/send/{userId}")
+    @PostMapping("/friends/send/{userId}")
     @ResponseStatus(HttpStatus.CREATED)
     public FriendRequestResponse sendFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                   @PathVariable("userId") UUID recipientId) {

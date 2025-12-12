@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.engine.Game;
+import me.zilid.chessplatform.engine.Position;
 import me.zilid.chessplatform.engine.pieces.Piece;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -21,7 +22,9 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 @Controller
 public class GameSocketController {
@@ -74,47 +77,31 @@ public class GameSocketController {
     public void joinGame(@DestinationVariable UUID gameId,
                          @AuthenticationPrincipal UserPrincipal currentUser,
                          SimpMessageHeaderAccessor headerAccessor) {
-        // Store session attributes for tracking
+
         headerAccessor.getSessionAttributes().put("gameId", gameId);
         headerAccessor.getSessionAttributes().put("userId", currentUser.getId());
         headerAccessor.getSessionAttributes().put("username", currentUser.getUsername());
 
-        // Create game if it doesn't exist
-        Game game = matchService.getOrCreateGameSession(gameId);
+        Game game = matchService.getGameSession(gameId);
+        if (game == null) {
+            throw new IllegalArgumentException("Game not found");
+        }
+        boolean isPlayer = game.isValidPlayer(currentUser);
 
-        // Initialize connection tracking for this game if needed
-        ConcurrentMap<UUID, Boolean> gameConnections = matchService.getOrCreateGameConnectionStatus(gameId);
-
-        // Check if this is a reconnect
-        boolean isReconnect = gameConnections.containsKey(currentUser.getId());
-
-        // Assign player to white or black if new player
-        if (!isReconnect) {
-            if (game.getWhitePlayer() == null) {
-                game.setWhitePlayer(currentUser);
-                logger.info("User {} joined game {} as White", currentUser.getUsername(), gameId);
-            } else if (game.getBlackPlayer() == null) {
-                game.setBlackPlayer(currentUser);
-                logger.info("User {} joined game {} as Black", currentUser.getUsername(), gameId);
-            } else {
-                logger.info("User {} joined game {} as spectator", currentUser.getUsername(), gameId);
-            }
-        } else {
-            logger.info("User {} reconnected to game {}", currentUser.getUsername(), gameId);
+        if (!isPlayer) {
+            logger.warn("User {} tried to join game {} without proper authorization",
+                    currentUser.getUsername(), gameId);
         }
 
-        // Mark player as connected
         matchService.setPlayerConnected(gameId, currentUser.getId(), true);
 
-        // Send current game state to all subscribers
-        GameStateResponse response = buildGameStateResponse(game, null, null);
+        GameStateResponse response = buildGameStateResponse(game, game.getLastMoveFrom(), game.getLastMoveTo());
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
-        // Send appropriate notification to chat
         ChatMessage notification = new ChatMessage(
-            "System",
-            currentUser.getUsername() + (isReconnect ? " reconnected" : " joined the game"),
-            ChatMessage.MessageType.JOIN
+                "System",
+                currentUser.getUsername() + " connected",
+                ChatMessage.MessageType.JOIN
         );
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", notification);
     }
@@ -166,6 +153,13 @@ public class GameSocketController {
         // Send system message if game ended
         if (game.isGameOver()) {
             sendSystemMessage(gameId, "Game Over: " + game.getStatus().getDescription());
+            try {
+                matchService.archiveMatch(gameId, game);
+
+                matchService.scheduleGameCleanup(gameId);
+            } catch (Exception e) {
+                logger.error("Failed to archive game {}", gameId, e);
+            }
         }
     }
 
@@ -196,7 +190,7 @@ public class GameSocketController {
         logger.info("Player {} resigned in game {}", color, gameId);
 
         // Send updated game state
-        GameStateResponse response = buildGameStateResponse(game, null, null);
+        GameStateResponse response = buildGameStateResponse(game, game.getLastMoveFrom(), game.getLastMoveTo());
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
         // Send system message
@@ -227,7 +221,7 @@ public class GameSocketController {
         logger.info("Draw agreed in game {}", gameId);
 
         // Send updated game state
-        GameStateResponse response = buildGameStateResponse(game, null, null);
+        GameStateResponse response = buildGameStateResponse(game, game.getLastMoveFrom(), game.getLastMoveTo());
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
         // Send system message
@@ -274,9 +268,6 @@ public class GameSocketController {
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", timestampedMessage);
     }
 
-    /**
-     * Send system message to game chat
-     */
     private void sendSystemMessage(UUID gameId, String message) {
         ChatMessage systemMessage = new ChatMessage(
             "System",
@@ -285,4 +276,6 @@ public class GameSocketController {
         );
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
     }
+
+
 }

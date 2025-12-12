@@ -101,6 +101,16 @@ public class Game {
         return engine.getFen();
     }
 
+    public String getLastMoveFrom() {
+        Position move = engine.getBoard().getLastMoveFrom();
+        return move == null ? null : move.toNotation();
+    }
+
+    public String getLastMoveTo() {
+        Position move = engine.getBoard().getLastMoveTo();
+        return move == null ? null : move.toNotation();
+    }
+
     /**
      * Resign the game for the current player
      */
