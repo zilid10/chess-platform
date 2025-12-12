@@ -109,6 +109,9 @@ public class Board {
             fullMoveClock++;
         }
 
+        boolean isEnPassant = isEnPassantMove(from, to);
+        boolean isCastling = isCastlingMove(from, to);
+
         // Make the move
         board[to.x()][to.y()] = piece;
         board[from.x()][from.y()] = null;
@@ -123,13 +126,13 @@ public class Board {
         }
 
         // Handle en passant capture
-        if (isEnPassantMove(from, to)) {
+        if (isEnPassant) {
             int captureY = piece.isWhite() ? to.y() - 1 : to.y() + 1;
             board[to.x()][captureY] = null; // Remove the captured pawn
         }
         
         // Handle castling - move the rook
-        if (isCastlingMove(from, to)) {
+        if (isCastling) {
             int rookFromX = to.x() > from.x() ? KINGSIDE_ROOK_FILE : QUEENSIDE_ROOK_FILE; // Kingside or queenside
             int rookToX = to.x() > from.x() ? to.x() - 1 : to.x() + 1;
             int y = from.y();

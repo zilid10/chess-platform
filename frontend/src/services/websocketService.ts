@@ -111,7 +111,18 @@ export class WebSocketService {
 
     this.client.publish({
       destination: `/app/game/${gameId}/draw/offer`,
-      body: '{}'
+      body: '',
+    });
+  }
+
+  acceptDraw(gameId: string) {
+    if (!this.client || !this.client.connected) {
+      throw new Error('WebSocket not connected');
+    }
+
+    this.client.publish({
+      destination: `/app/game/${gameId}/draw/accept`,
+      body: '',
     });
   }
 }

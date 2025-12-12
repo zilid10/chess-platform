@@ -21,6 +21,7 @@ const Game = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
+  const [drawOffered, setDrawOffered] = useState(false);
 
   useEffect(() => {
     if (!gameId || !user) return;
@@ -56,6 +57,16 @@ const Game = () => {
           },
           (message: ChatMessageType) => {
             setChatMessages((prev) => [...prev, message]);
+            
+            // Check if this is a draw offer message
+            if (message.type === 'SYSTEM' && message.message === 'Draw offered' && message.sender === 'System') {
+              setDrawOffered(true);
+            }
+            
+            // Clear draw offer if game ended or draw was agreed/declined
+            if (message.type === 'SYSTEM' && (message.message === 'Draw agreed' || message.message.includes('wins'))) {
+              setDrawOffered(false);
+            }
           }
         );
 
@@ -125,6 +136,17 @@ const Game = () => {
     websocketService.offerDraw(gameId);
   };
 
+  const handleAcceptDraw = () => {
+    if (!gameId) return;
+    
+    websocketService.acceptDraw(gameId);
+    setDrawOffered(false);
+  };
+
+  const handleDeclineDraw = () => {
+    setDrawOffered(false);
+  };
+
   const copyGameId = () => {
     if (gameId) {
       navigator.clipboard.writeText(gameId);
@@ -192,6 +214,32 @@ const Game = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Draw Offer Notification */}
+      {drawOffered && gameState?.gameStatus === 'ONGOING' && (
+        <div className="mb-6 card bg-blue-50 border-2 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900">Draw Offered</h3>
+              <p className="text-sm text-blue-700">Your opponent has offered a draw</p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleAcceptDraw}
+                className="btn btn-primary"
+              >
+                Accept Draw
+              </button>
+              <button
+                onClick={handleDeclineDraw}
+                className="btn btn-secondary"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chess Board */}
         <div className="lg:col-span-2">
