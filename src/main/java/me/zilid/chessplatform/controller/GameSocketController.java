@@ -197,8 +197,9 @@ public class GameSocketController {
 
     @MessageMapping("/game/{gameId}/draw/offer")
     public void offerDraw(
-            @AuthenticationPrincipal UserPrincipal currentUser,
-            @DestinationVariable UUID gameId) {
+            @DestinationVariable UUID gameId,
+            Authentication authentication) {
+        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
         matchService.offerDraw(currentUser, gameId);
         logger.info("Draw agreed in game {}", gameId);
 

@@ -20,6 +20,7 @@ const Game = () => {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
 
   useEffect(() => {
     if (!gameId || !user) return;
@@ -31,6 +32,10 @@ const Game = () => {
 
         // Step 1: Join the game via REST API
         const joinResponse = await gameService.joinGame(gameId);
+        
+        // Set player color based on role (role is like "WHITE" or "BLACK")
+        const color = joinResponse.role.toLowerCase() as 'white' | 'black';
+        setPlayerColor(color);
         
         // Set initial game state from join response
         if (joinResponse.fen) {
@@ -213,6 +218,7 @@ const Game = () => {
                 position={game.fen()}
                 onPieceDrop={onDrop}
                 boardWidth={560}
+                boardOrientation={playerColor}
               />
             </div>
 
