@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { gameService } from '../services/gameService';
 import { MatchRecord } from '../types';
-import { Trophy, Clock, Calendar } from 'lucide-react';
+import { Trophy, Clock, Calendar, Download, Copy } from 'lucide-react';
 
 const History = () => {
   const { user } = useAuth();
@@ -11,6 +11,7 @@ const History = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [copiedGameId, setCopiedGameId] = useState<string | null>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -89,6 +90,43 @@ const History = () => {
     return `${seconds}s`;
   };
 
+  const handleDownloadPGN = async (gameId: string) => {
+    try {
+      const response = await fetch(`/api/games/${gameId}/pgn`, {
+        credentials: 'include',
+      });
+      const pgnText = await response.text();
+      
+      // Create a blob and download
+      const blob = new Blob([pgnText], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `game-${gameId}.pgn`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error downloading PGN:', err);
+    }
+  };
+
+  const handleCopyPGN = async (gameId: string) => {
+    try {
+      const response = await fetch(`/api/games/${gameId}/pgn`, {
+        credentials: 'include',
+      });
+      const pgnText = await response.text();
+      
+      await navigator.clipboard.writeText(pgnText);
+      setCopiedGameId(gameId);
+      setTimeout(() => setCopiedGameId(null), 2000);
+    } catch (err) {
+      console.error('Error copying PGN:', err);
+    }
+  };
+
   if (loading && page === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -163,15 +201,25 @@ const History = () => {
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      {game.pgn && (
-                        <a
-                          href={`/api/games/${game.id}/pgn`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-secondary text-sm"
-                        >
-                          View PGN
-                        </a>
+                      {game.endTime && (
+                        <>
+                          <button
+                            onClick={() => handleDownloadPGN(game.id)}
+                            className="btn btn-secondary text-sm flex items-center space-x-1"
+                            title="Download PGN"
+                          >
+                            <Download size={14} />
+                            <span>Download</span>
+                          </button>
+                          <button
+                            onClick={() => handleCopyPGN(game.id)}
+                            className="btn btn-secondary text-sm flex items-center space-x-1"
+                            title="Copy PGN to clipboard"
+                          >
+                            <Copy size={14} />
+                            <span>{copiedGameId === game.id ? 'Copied!' : 'Copy'}</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
