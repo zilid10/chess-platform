@@ -15,7 +15,7 @@ public record UserCreateRequest(
         String email,
 
         @NotEmpty(message = "password must be provided")
-        @Size(min = 10, max = 32, message = "password length must between 10 and 32")
+        @Size(min = 3, max = 32, message = "password length must between 10 and 32")
         String rawPassword,
 
         @Size(max = 1000, message = "about length can't exceed 1000")

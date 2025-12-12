@@ -63,6 +63,12 @@ public class UserController {
         return userService.getUserById(userPrincipal.getId());
     }
 
+    @GetMapping("/me")
+    @ResponseStatus(HttpStatus.OK)
+    public UserResponse getCurrentUser(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return userService.getUserById(userPrincipal.getId());
+    }
+
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse createUser(@Valid @RequestBody UserCreateRequest request, BindingResult result) {
