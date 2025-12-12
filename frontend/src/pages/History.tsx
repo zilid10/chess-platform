@@ -92,10 +92,7 @@ const History = () => {
 
   const handleDownloadPGN = async (gameId: string) => {
     try {
-      const response = await fetch(`/api/games/${gameId}/pgn`, {
-        credentials: 'include',
-      });
-      const pgnText = await response.text();
+      const pgnText = await gameService.getGamePGN(gameId);
       
       // Create a blob and download
       const blob = new Blob([pgnText], { type: 'text/plain' });
@@ -114,10 +111,7 @@ const History = () => {
 
   const handleCopyPGN = async (gameId: string) => {
     try {
-      const response = await fetch(`/api/games/${gameId}/pgn`, {
-        credentials: 'include',
-      });
-      const pgnText = await response.text();
+      const pgnText = await gameService.getGamePGN(gameId);
       
       await navigator.clipboard.writeText(pgnText);
       setCopiedGameId(gameId);
