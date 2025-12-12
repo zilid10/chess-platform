@@ -141,18 +141,7 @@ public class GameSocketController {
         // Build and send response with updated game state
         GameStateResponse response = matchService.buildGameStateResponse(game);
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
-
-        // Send system message if game ended
-        if (game.isGameOver()) {
-            sendSystemMessage(gameId, "Game Over: " + game.getStatus().getDescription());
-            try {
-                matchService.archiveMatch(gameId, game);
-
-                matchService.scheduleGameCleanup(gameId);
-            } catch (Exception e) {
-                logger.error("Failed to archive game {}", gameId, e);
-            }
-        }
+        onGameEnd(game, gameId);
     }
 
     /**
@@ -171,7 +160,7 @@ public class GameSocketController {
 
         // Send system message
         String winner = response.gameStatus().isWhiteWin() ? "White" : "Black";
-        sendSystemMessage(gameId, winner + " wins by resignation");
+        onGameEnd(matchService.getGameOrThrow(gameId), gameId);
     }
 
     /**
@@ -192,7 +181,7 @@ public class GameSocketController {
         logger.info("Draw offered in game {}", gameId);
 
         // Send system message
-        sendSystemMessage(gameId, "Draw agreed");
+        onGameEnd(matchService.getGameOrThrow(gameId), gameId);
     }
 
     @MessageMapping("/game/{gameId}/draw/offer")
@@ -236,6 +225,18 @@ public class GameSocketController {
             ChatMessage.MessageType.SYSTEM
         );
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
+    }
+
+    private void onGameEnd(Game game, UUID gameId) {
+        if (game.isGameOver()) {
+            sendSystemMessage(gameId, "Game Over: " + game.getStatus().getDescription());
+            try {
+                matchService.archiveMatch(gameId, game);
+                matchService.scheduleGameCleanup(gameId);
+            } catch (Exception e) {
+                logger.error("Failed to archive game {}", gameId, e);
+            }
+        }
     }
 
     @MessageExceptionHandler

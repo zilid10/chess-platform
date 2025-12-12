@@ -29,7 +29,6 @@ public class MatchRecord {
     @Column(name = "reason")
     private String reason;
 
-    @Lob
     @Column(name = "pgn", columnDefinition = "TEXT")
     private String pgn;
 
