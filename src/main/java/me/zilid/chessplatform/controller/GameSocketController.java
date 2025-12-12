@@ -22,9 +22,6 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 
 @Controller
 public class GameSocketController {
@@ -95,7 +92,7 @@ public class GameSocketController {
 
         matchService.setPlayerConnected(gameId, currentUser.getId(), true);
 
-        GameStateResponse response = buildGameStateResponse(game, game.getLastMoveFrom(), game.getLastMoveTo());
+        GameStateResponse response = matchService.buildGameStateResponse(game);
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
         ChatMessage notification = new ChatMessage(
@@ -147,7 +144,7 @@ public class GameSocketController {
         logger.info("Move executed in game {}: {} to {}", gameId, moveFrom, moveTo);
 
         // Build and send response with updated game state
-        GameStateResponse response = buildGameStateResponse(game, moveFrom, moveTo);
+        GameStateResponse response = matchService.buildGameStateResponse(game);
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
         // Send system message if game ended
@@ -171,30 +168,14 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
                        @AuthenticationPrincipal UserPrincipal currentUser) {
-        Game game = matchService.getGameSession(gameId);
-
-        if (game == null) {
-            logger.error("Game {} not found", gameId);
-            throw new IllegalArgumentException("Game not found: " + gameId);
-        }
-
-        if (game.isGameOver()) {
-            logger.warn("Attempted resignation on completed game {}", gameId);
-            throw new IllegalStateException("Game is already over");
-        }
-
-        // Parse player color and resign
-        Piece.Color color = game.getPlayerColor(currentUser);
-        game.resign(color);
-
-        logger.info("Player {} resigned in game {}", color, gameId);
+        GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
-        GameStateResponse response = buildGameStateResponse(game, game.getLastMoveFrom(), game.getLastMoveTo());
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
 
+
         // Send system message
-        String winner = color.isWhite() ? "Black" : "White";
+        String winner = response.gameStatus().isWhiteWin() ? "Black" : "White";
         sendSystemMessage(gameId, winner + " wins by resignation");
     }
 
@@ -203,43 +184,32 @@ public class GameSocketController {
      * Maps to: /app/game/{gameId}/draw
      * Response sent to: /topic/game/{gameId}
      */
-    @MessageMapping("/game/{gameId}/draw")
-    public void offerDraw(@DestinationVariable UUID gameId) {
-        Game game = matchService.getGameSession(gameId);
+    @MessageMapping("/game/{gameId}/draw/accept")
+    public void acceptDraw(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @DestinationVariable UUID gameId) {
+        GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
-        if (game == null) {
-            logger.error("Game {} not found", gameId);
-            throw new IllegalArgumentException("Game not found: " + gameId);
-        }
-
-        if (game.isGameOver()) {
-            logger.warn("Attempted draw offer on completed game {}", gameId);
-            throw new IllegalStateException("Game is already over");
-        }
-
-        game.agreeDraw();
-        logger.info("Draw agreed in game {}", gameId);
-
-        // Send updated game state
-        GameStateResponse response = buildGameStateResponse(game, game.getLastMoveFrom(), game.getLastMoveTo());
+        // update the game state
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
+        logger.info("Draw offered in game {}", gameId);
 
         // Send system message
         sendSystemMessage(gameId, "Draw agreed");
     }
 
-    /**
-     * Build a GameStateResponse from the current game state
-     */
-    private GameStateResponse buildGameStateResponse(Game game, String lastMoveFrom, String lastMoveTo) {
-        return new GameStateResponse(
-            game.getStatus(),
-            game.getFen(),
-            lastMoveFrom,
-            lastMoveTo,
-            game.getTurnColor().name()
-        );
+    @MessageMapping("/game/{gameId}/draw/offer")
+    public void offerDraw(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @DestinationVariable UUID gameId) {
+        matchService.issueDraw(currentUser, gameId);
+        logger.info("Draw agreed in game {}", gameId);
+
+        // Send system message
+        sendSystemMessage(gameId, "Draw offered");
     }
+
+
 
     /**
      * Handle chat messages in a game

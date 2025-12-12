@@ -17,7 +17,16 @@ public class Game {
     private Instant endTime;
     private UserPrincipal whitePlayer;
     private UserPrincipal blackPlayer;
-    
+    private Piece.Color drawIssuedBy;
+
+    public Piece.Color getDrawIssuedBy() {
+        return drawIssuedBy;
+    }
+
+    public void setDrawIssuedBy(Piece.Color drawIssuedBy) {
+        this.drawIssuedBy = drawIssuedBy;
+    }
+
     public Game() {
         this(null, null);
     }

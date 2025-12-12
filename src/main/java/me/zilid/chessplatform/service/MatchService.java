@@ -153,6 +153,59 @@ public class MatchService {
                 });
     }
 
+    public void issueDraw(UserPrincipal currentUser, UUID gameId) {
+        Game game = getGameSession(gameId);
+        if (game == null) {
+            throw new GameNotFoundException("Game not found");
+        }
+        if (game.isGameOver()) {
+            throw new IllegalStateException("Game is over");
+        }
+        Piece.Color color =  game.getPlayerColor(currentUser);
+        if (color == null) {
+            throw new IllegalStateException("Color is null");
+        }
+        game.setDrawIssuedBy(color);
+
+    }
+
+    public GameStateResponse acceptDraw(UserPrincipal currentUser, UUID gameId) {
+        Game game = getGameSession(gameId);
+
+        if (game == null) {
+            logger.error("Game {} not found", gameId);
+            throw new IllegalArgumentException("Game not found: " + gameId);
+        }
+
+        if (game.isGameOver()) {
+            logger.warn("Attempted draw offer on completed game {}", gameId);
+            throw new IllegalStateException("Game is already over");
+        }
+
+        Piece.Color color =  game.getPlayerColor(currentUser);
+        if (color == null) {
+            throw new IllegalStateException("Color is null");
+        }
+        if (color.opposite() == game.getDrawIssuedBy()) {
+            game.agreeDraw();
+        }
+
+        return buildGameStateResponse(game);
+    }
+
+    /**
+     * Build a GameStateResponse from the current game state
+     */
+    public GameStateResponse buildGameStateResponse(Game game) {
+        return new GameStateResponse(
+                game.getStatus(),
+                game.getFen(),
+                game.getLastMoveFrom(),
+                game.getLastMoveTo(),
+                game.getTurnColor().name()
+        );
+    }
+
     /**
      * Get a game session (useful for testing or administrative purposes)
      */
@@ -210,5 +263,26 @@ public class MatchService {
      */
     public Map<UUID, ConcurrentMap<UUID, Boolean>> getAllPlayerConnections() {
         return playerConnections;
+    }
+
+    public GameStateResponse resign(UserPrincipal currentUser, UUID gameId) {
+        Game game = getGameSession(gameId);
+
+        if (game == null) {
+            logger.error("Game {} not found", gameId);
+            throw new IllegalArgumentException("Game not found: " + gameId);
+        }
+
+        if (game.isGameOver()) {
+            logger.warn("Attempted resignation on completed game {}", gameId);
+            throw new IllegalStateException("Game is already over");
+        }
+
+        // Parse player color and resign
+        Piece.Color color = game.getPlayerColor(currentUser);
+        game.resign(color);
+
+        logger.info("Player {} resigned in game {}", color, gameId);
+        return buildGameStateResponse(game);
     }
 }
