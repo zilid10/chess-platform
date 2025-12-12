@@ -7,7 +7,7 @@ public record MatchRecordResponse(
         UUID id,
         UserResponse whitePlayer,
         UserResponse blackPlayer,
-        String matchResult,
+        String result,
         String reason,
         Instant startTime,
         Instant endTime

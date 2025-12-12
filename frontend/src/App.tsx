@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Game from './pages/Game';
+import Profile from './pages/Profile';
+import History from './pages/History';
 import Navbar from './components/Navbar';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -41,6 +43,22 @@ const AppRoutes = () => {
             element={
               <PrivateRoute>
                 <Game />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <PrivateRoute>
+                <History />
               </PrivateRoute>
             }
           />

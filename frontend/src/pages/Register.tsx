@@ -9,7 +9,7 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: '',
+    about: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +36,7 @@ const Register = () => {
         username: formData.username,
         email: formData.email,
         rawPassword: formData.password,
-        about: formData.displayName || undefined,
+        about: formData.about || undefined,
       });
       navigate('/login');
     } catch (err: any) {
@@ -90,11 +90,11 @@ const Register = () => {
               onChange={handleChange}
             />
             <input
-              name="displayName"
+              name="about"
               type="text"
               className="input"
-              placeholder="Display Name (optional)"
-              value={formData.displayName}
+              placeholder="About (optional)"
+              value={formData.about}
               onChange={handleChange}
             />
             <input

@@ -2,7 +2,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  displayName?: string;
+  about?: string;
   createdAt?: string;
 }
 
@@ -20,7 +20,7 @@ export interface UserCreateRequest {
 
 export interface UserUpdateRequest {
   email?: string;
-  displayName?: string;
+  about?: string;
   password?: string;
 }
 

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User, Home } from 'lucide-react';
+import { LogOut, User, Home, History, UserCircle } from 'lucide-react';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -25,12 +25,26 @@ const Navbar = () => {
               <Home size={20} />
               <span>Dashboard</span>
             </Link>
+            <Link
+              to="/history"
+              className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              <History size={20} />
+              <span>History</span>
+            </Link>
+            <Link
+              to="/profile"
+              className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition-colors"
+            >
+              <UserCircle size={20} />
+              <span>Profile</span>
+            </Link>
           </div>
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 text-gray-700">
               <User size={20} />
-              <span className="font-medium">{user?.displayName || user?.username}</span>
+              <span className="font-medium">{user?.username}</span>
             </div>
             <button
               onClick={logout}
