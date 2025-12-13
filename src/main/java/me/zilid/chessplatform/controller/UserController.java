@@ -12,6 +12,8 @@ import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class UserController {
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+    
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
 
@@ -45,6 +49,8 @@ public class UserController {
             throw new ValidationException(result.getAllErrors().toString());
         }
 
+        logger.info("Login attempt for user: {}", request.username());
+        
         // Authenticate the user
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())
@@ -60,12 +66,14 @@ public class UserController {
 
         // Get authenticated user details and return full user information
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        logger.info("User {} logged in successfully", request.username());
         return userService.getUserById(userPrincipal.getId());
     }
 
     @GetMapping("/me")
     @ResponseStatus(HttpStatus.OK)
     public UserResponse getCurrentUser(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        logger.debug("Fetching current user info for: {}", userPrincipal.getUsername());
         return userService.getUserById(userPrincipal.getId());
     }
 
@@ -75,6 +83,7 @@ public class UserController {
         if (result.hasErrors()) {
             throw new ValidationException(result.getAllErrors().toString());
         }
+        logger.info("Creating new user: {}", request.username());
         return userService.createUser(request);
     }
 
@@ -86,6 +95,7 @@ public class UserController {
         if (result.hasErrors()) {
             throw new ValidationException(result.getAllErrors().toString());
         }
+        logger.info("Updating user: {}", userPrincipal.getUsername());
         return userService.updateUser(userPrincipal.getId(), request);
     }
 
@@ -94,6 +104,7 @@ public class UserController {
     public void deleteUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
                           HttpServletRequest httpRequest,
                           HttpServletResponse httpResponse) {
+        logger.info("Deleting user: {}", userPrincipal.getUsername());
         userService.deleteUser(userPrincipal.getId());
         
         // Clear the session after deleting the user
@@ -116,6 +127,7 @@ public class UserController {
     @GetMapping("/users")
     @ResponseStatus(HttpStatus.OK)
     public Page<UserResponse> getUser(@RequestParam("search") String search, Pageable pageable) {
+        logger.debug("Searching users with query: {}", search);
         return userService.getUser(search, pageable);
     }
 

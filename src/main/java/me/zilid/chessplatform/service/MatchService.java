@@ -48,6 +48,7 @@ public class MatchService {
 
     @Transactional(readOnly = true)
     public Page<MatchRecordResponse> findMatches(UUID userId, Pageable pageable) {
+        logger.debug("Finding matches for user: {}", userId);
         pageable = PageRequest.of(
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
@@ -57,17 +58,20 @@ public class MatchService {
         Page<MatchRecord> records =
                 matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
         Page<MatchRecord> games = matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
+        logger.debug("Found {} matches for user {}", games.getTotalElements(), userId);
         return games.map(matchRecordConverter::toResponse);
     }
 
     @Transactional(readOnly = true)
     public String getMatchPGN(UUID matchId) {
+        logger.debug("Fetching PGN for match: {}", matchId);
         MatchRecord matchRecord = matchRecordRepo.findById(matchId).orElseThrow(() -> new IllegalArgumentException("Game with id " + matchId + " does not exist"));
         return matchRecord.getPgn();
     }
 
     public GameCreatedResponse createGame(UserPrincipal currentUser, Piece.Color color) {
         UUID gameId = UUID.randomUUID();
+        logger.info("Creating new game {} for user {} with color {}", gameId, currentUser.getUsername(), color);
         Game game = getOrCreateGameSession(gameId);
         if (color.isWhite()) {
             game.setWhitePlayer(currentUser);
@@ -84,21 +88,27 @@ public class MatchService {
     }
 
     public GameJoinResponse joinGame(UUID gameId, UserPrincipal currentUser) {
+        logger.info("User {} attempting to join game {}", currentUser.getUsername(), gameId);
         Game game = getGameOrThrow(gameId);
 
         String role;
         if (currentUser.equals(game.getWhitePlayer())) {
             role = "WHITE"; // reconnect
+            logger.debug("User {} reconnecting as WHITE to game {}", currentUser.getUsername(), gameId);
         } else if (currentUser.equals(game.getBlackPlayer())) {
             role = "BLACK"; // reconnect
+            logger.debug("User {} reconnecting as BLACK to game {}", currentUser.getUsername(), gameId);
         } else if (game.getWhitePlayer() == null) {
             game.setWhitePlayer(currentUser);
             role = "WHITE";
+            logger.info("User {} joined game {} as WHITE", currentUser.getUsername(), gameId);
         } else if (game.getBlackPlayer() == null) {
             game.setBlackPlayer(currentUser);
             role = "BLACK";
+            logger.info("User {} joined game {} as BLACK", currentUser.getUsername(), gameId);
         } else {
             role = "SPECTATOR"; // spectator
+            logger.info("User {} joined game {} as SPECTATOR", currentUser.getUsername(), gameId);
         }
 
         return new GameJoinResponse(
@@ -111,6 +121,7 @@ public class MatchService {
     }
 
     public void offerDraw(UserPrincipal currentUser, UUID gameId) {
+        logger.info("User {} offering draw in game {}", currentUser.getUsername(), gameId);
         Game game = getGameOrThrow(gameId);
         requirePlayer(game, currentUser);
 
@@ -122,7 +133,7 @@ public class MatchService {
             throw new IllegalStateException("You can't offer a draw");
         }
         game.setDrawOfferedBy(color);
-
+        logger.info("Draw offered by {} in game {}", color, gameId);
     }
 
     public GameStateResponse acceptDraw(UserPrincipal currentUser, UUID gameId) {
@@ -189,6 +200,7 @@ public class MatchService {
         if (!game.isGameOver()) {
             throw new IllegalStateException("Game is not over");
         }
+        logger.info("Archiving match {} with result: {}", matchId, game.getStatus().getSymbol());
         MatchRecord matchRecord = new MatchRecord();
         UUID whitePlayerId = game.getWhitePlayer().getId();
         UUID blackPlayerId = game.getBlackPlayer().getId();
@@ -204,6 +216,7 @@ public class MatchService {
         matchRecord.setStartTime(game.getStartTime());
         matchRecord.setEndTime(game.getEndTime());
         matchRecordRepo.save(matchRecord);
+        logger.info("Match {} archived successfully", matchId);
     }
 
     public void scheduleGameCleanup(UUID gameId) {

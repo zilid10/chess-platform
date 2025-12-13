@@ -7,6 +7,8 @@ import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MatchRecordResponse;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 public class GameController {
+    private static final Logger logger = LoggerFactory.getLogger(GameController.class);
 
     private final MatchService matchService;
 
@@ -27,11 +30,13 @@ public class GameController {
 
     @GetMapping("/games/users/{userId}")
     public Page<MatchRecordResponse> getGames(@PathVariable("userId") UUID userId, Pageable pageable) {
+        logger.debug("Fetching games for user: {}", userId);
         return matchService.findMatches(userId, pageable);
     }
 
     @GetMapping("/games/{gameId}/pgn")
     public String getGamePGN(@PathVariable("gameId") UUID gameId) {
+        logger.debug("Fetching PGN for game: {}", gameId);
         return matchService.getMatchPGN(gameId);
     }
 
@@ -40,6 +45,7 @@ public class GameController {
     public GameCreatedResponse createGame(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @RequestParam("color") Piece.Color color) {
+        logger.info("User {} creating game with color {}", currentUser.getUsername(), color);
         return matchService.createGame(currentUser, color);
     }
 
@@ -47,11 +53,13 @@ public class GameController {
     public GameJoinResponse joinGame(
             @PathVariable UUID gameId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
+        logger.info("User {} joining game {}", currentUser.getUsername(), gameId);
         return  matchService.joinGame(gameId, currentUser);
     }
 
     @GetMapping("/games/{gameId}/state")
     public GameStateResponse getGameState(@PathVariable UUID gameId) {
+        logger.debug("Fetching game state for game: {}", gameId);
         return matchService.getGameState(gameId);
     }
 }

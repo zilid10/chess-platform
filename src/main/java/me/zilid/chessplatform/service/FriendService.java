@@ -9,6 +9,8 @@ import me.zilid.chessplatform.model.entity.FriendRequest;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.repository.FriendRequestRepo;
 import me.zilid.chessplatform.repository.UserRepo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 @Service
 public class FriendService {
+    private static final Logger logger = LoggerFactory.getLogger(FriendService.class);
 
     private final FriendRequestRepo friendRequestRepo;
     private final UserRepo userRepo;
@@ -55,6 +58,7 @@ public class FriendService {
         }
 
         FriendRequest friendRequest = friendRequestRepo.save(new FriendRequest(sender, recipient, FriendRequest.RequestStatus.PENDING));
+        logger.info("Friend request created from {} to {}", sender.getUsername(), recipient.getUsername());
         return friendRequestConverter.toResponse(friendRequest);
     }
 
@@ -67,6 +71,7 @@ public class FriendService {
         friendRequest.setStatus(FriendRequest.RequestStatus.ACCEPTED);
         UUID senderId = friendRequest.getSender().getId();
         friendRequestRepo.addFriend(senderId, recipientId);
+        logger.info("Friend request accepted: {} and {} are now friends", friendRequest.getSender().getUsername(), friendRequest.getRecipient().getUsername());
         return friendRequestConverter.toResponse(friendRequest);
     }
 
@@ -77,17 +82,22 @@ public class FriendService {
                 .orElseThrow(() -> new IllegalArgumentException("no pending friend requests found"));
 
         friendRequest.setStatus(FriendRequest.RequestStatus.REJECTED);
+        logger.info("Friend request {} rejected by user {}", friendRequestId, recipientId);
     }
 
     @Transactional(readOnly = true)
     public Page<FriendRequestResponse> getSentRequest(UUID senderId, Pageable pageable) {
+        logger.debug("Fetching sent friend requests for user: {}", senderId);
         Page<FriendRequest> sentRequests = friendRequestRepo.findBySender_Id(senderId, pageable);
+        logger.debug("Found {} sent friend requests", sentRequests.getTotalElements());
         return sentRequests.map(friendRequestConverter::toResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<FriendRequestResponse> getReceivedRequest(UUID recipientId, Pageable pageable) {
+        logger.debug("Fetching received friend requests for user: {}", recipientId);
         Page<FriendRequest> receivedRequests = friendRequestRepo.findByRecipient_Id(recipientId, pageable);
+        logger.debug("Found {} received friend requests", receivedRequests.getTotalElements());
         return receivedRequests.map(friendRequestConverter::toResponse);
     }
 
@@ -98,12 +108,15 @@ public class FriendService {
 
     @Transactional(readOnly = true)
     public Page<UserResponse> getFriends(UUID userId, Pageable pageable) {
+        logger.debug("Fetching friends for user: {}", userId);
         Page<User> friends = friendRequestRepo.findFriendsByUserId(userId, pageable);
+        logger.debug("User {} has {} friends", userId, friends.getTotalElements());
         return friends.map(userConverter::toResponse);
     }
 
     @Transactional
     public void deleteFriend(UUID userId, UUID friendId) {
+        logger.info("Removing friendship between user {} and {}", userId, friendId);
         User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
         User friend = userRepo.findById(friendId).orElseThrow(() -> new IllegalArgumentException("Friend not found"));
         if (!friend.getFriends().contains(user)) {
@@ -111,5 +124,6 @@ public class FriendService {
         }
         user.removeFriend(friend);
         friend.removeFriend(user);
+        logger.info("Friendship removed successfully between {} and {}", user.getUsername(), friend.getUsername());
     }
 }
