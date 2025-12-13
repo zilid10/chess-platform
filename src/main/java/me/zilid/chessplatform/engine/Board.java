@@ -308,6 +308,9 @@ public class Board {
         return false;
     }
 
+    /**
+     * check if the current position is checkmate
+     */
     public boolean isCheckmate(Piece.Color color) {
         // Not in check, so not checkmate
         if (!isInCheck(color)) {
@@ -331,6 +334,9 @@ public class Board {
         return true; // No legal moves and in check -> checkmate
     }
 
+    /**
+     * Check if current position is a draw due to stalemate
+     */
     public boolean isStalemate(Piece.Color color) {
         if (isInCheck(color)) {
             return false; // In check, so not stalemate
@@ -418,6 +424,9 @@ public class Board {
         return Math.abs(to.x() - from.x()) == 2 && to.y() == from.y();
     }
 
+    /**
+     * Get the fen representation of the current position
+     */
     public String getFen() {
         StringBuilder fen = new StringBuilder();
         for (int y = 7; y >= 0; y--) {
@@ -515,6 +524,9 @@ public class Board {
     }
 
 
+    /**
+     * Check if the current position is a draw due to insufficient material
+     */
     public boolean isInsufficientMaterial() {
         List<Piece> otherPieces = new ArrayList<>();
         List<Position> bishopPositions = new ArrayList<>();
@@ -559,7 +571,7 @@ public class Board {
     }
 
     /**
-     * calculate the disambiguation string
+     * calculate the disambiguation string (when multiple same pieces can move to the same square, requires disambiguation)
      */
     public String getDisambiguation(Position from, Position to) {
         Piece movingPiece = board[from.x()][from.y()];
@@ -597,7 +609,6 @@ public class Board {
         // 1. If there are both file and rank ambiguity, use the full notation (e.g., d4, e5)
         // 2. If there are file ambiguity, use the rank number to disambiguate (1-8)
         // 3. If there are rank ambiguity, use the file to disambiguate (a-h)
-
         if (fileAmbiguity && rankAmbiguity) {
             return from.toNotation();
         }

@@ -20,7 +20,7 @@ public abstract class Piece {
 
     public abstract PieceType getType();
 
-    // used for hash the board
+    // used for hashing the board and getting the fen representation
     public String getSymbol() {
         String type = getType().getSymbol();
         type = type.isEmpty() ? "P": type;

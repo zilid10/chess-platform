@@ -14,13 +14,12 @@ public record ChatMessage(
         LEAVE,     // Player left notification
         SYSTEM     // System message (game events, etc.)
     }
-    
-    // Constructor for simple chat messages
+
+    // chat type default to CHAT
     public ChatMessage(String sender, String message) {
         this(sender, message, LocalDateTime.now(), MessageType.CHAT);
     }
     
-    // Constructor with message type
     public ChatMessage(String sender, String message, MessageType type) {
         this(sender, message, LocalDateTime.now(), type);
     }

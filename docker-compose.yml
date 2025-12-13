@@ -1,41 +1,7 @@
 services:
-  backend:
-    container_name: chess-backend
-    hostname: backend
-    build:
-      context: .
-    ports:
-      - "8080:8080"
-    networks:
-      - backend
-      - frontend
-    depends_on:
-      db:
-        condition: service_healthy
-    develop:
-      watch:
-        - action: rebuild
-          path: ./src
-        - action: rebuild
-          path: pom.xml
-
-#  frontend:
-#    container_name: chess-frontend
-#    hostname: frontend
-#    build:
-#      context: ./frontend
-#    ports:
-#      - "3000:3000"
-#    networks:
-#      - frontend
-#    develop:
-#      watch:
-#        - action: rebuild
-#          path: ./src
-#        - action: rebuild
-#          path: ./packages.json
-
   db:
+    container_name: chess-db
+    hostname: db
     image: postgres:17.5
     ports:
       - "5432:5432"
@@ -48,11 +14,47 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: chessdb
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: [ "CMD-SHELL", "pg_isready -U root -d chessdb" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    container_name: chess-backend
+    hostname: backend
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    container_name: chess-frontend
+    hostname: frontend
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend
+    depends_on:
+      backend:
+        condition: service_healthy
 
 networks:
   backend:
+    driver: bridge
   frontend:
+    driver: bridge

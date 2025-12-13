@@ -233,9 +233,6 @@ public class MatchService {
         return gameSessions.computeIfAbsent(gameId, (k) -> new Game());
     }
 
-    /**
-     * Remove a game session (cleanup after game completion)
-     */
     public void removeGameSession(UUID gameId) {
         gameSessions.remove(gameId);
     }

@@ -35,9 +35,7 @@ public class King extends Piece {
                 }
             }
         }
-        
-        // TODO: Add castling logic if needed
-        
+
         return validMoves;
     }
 

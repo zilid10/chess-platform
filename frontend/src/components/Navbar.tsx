@@ -15,7 +15,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-8">
             <Link to="/dashboard" className="flex items-center space-x-2 text-xl font-bold text-primary-600">
-              <span>♔</span>
+              <span>♘</span>
               <span>Chess Platform</span>
             </Link>
             <Link

@@ -24,23 +24,7 @@ public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOrigins("http://localhost:3000");
+        registry.addEndpoint("/ws").setAllowedOrigins("http://localhost:3000", "http://frontend:3000");
     }
 
-//    @Override
-//    public void configureClientInboundChannel(ChannelRegistration registration) {
-//        registration.interceptors(new ChannelInterceptor() {
-//            @Override
-//            public Message<?> preSend(Message<?> message, MessageChannel channel) {
-//                StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-//                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-//                    Authentication auth = (Authentication) accessor.getSessionAttributes().get("SPRING_SECURITY_CONTEXT");
-//                    if (auth != null) {
-//                        accessor.setUser(auth);
-//                    }
-//                }
-//                return message;
-//            }
-//        });
-//    }
 }

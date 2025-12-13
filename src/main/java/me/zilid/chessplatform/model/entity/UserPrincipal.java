@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public class UserPrincipal implements UserDetails, CredentialsContainer {
     private final UUID id;
-    private String username;
+    private final String username;
     private final String email;
     private final boolean enabled;
     private final Collection<? extends GrantedAuthority> authorities;
