@@ -127,6 +127,9 @@ public class ChessEngine {
         return board.getTurnColor();
     }
 
+    /**
+     * Get fen representation of current board
+     */
     public String getFen() {
         return board.getFen();
     }

@@ -255,6 +255,9 @@ public class Game {
         return sb.toString();
     }
 
+    /**
+     * Check if now is the turn of the given user
+     */
     public boolean isUserTurn(UserPrincipal currentUser) {
         return switch (engine.getTurnColor()) {
             case WHITE -> currentUser.equals(whitePlayer);
@@ -262,6 +265,9 @@ public class Game {
         };
     }
 
+    /**
+     * Get the color in this game of the given user, spectator will get a null
+     */
     public Piece.Color getPlayerColor(UserPrincipal currentUser) {
         if (currentUser.equals(whitePlayer)) {
             return Piece.Color.WHITE;
@@ -272,6 +278,9 @@ public class Game {
         return null;
     }
 
+    /**
+     * Check if the given user is the player of the game
+     */
     public boolean isValidPlayer(UserPrincipal currentUser) {
         return currentUser.equals(whitePlayer) || currentUser.equals(blackPlayer);
     }
