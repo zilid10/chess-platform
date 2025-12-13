@@ -132,7 +132,7 @@ public class MatchService {
         if (color == null) {
             throw new IllegalStateException("You can't offer a draw");
         }
-        game.setDrawOfferedBy(color);
+        game.offerDraw(color);
         logger.info("Draw offered by {} in game {}", color, gameId);
     }
 
@@ -146,12 +146,7 @@ public class MatchService {
         }
 
         Piece.Color color =  game.getPlayerColor(currentUser);
-        if (color == null) {
-            throw new IllegalStateException("You can't accept draw offer");
-        }
-        if (color.opposite() == game.getDrawOfferedBy()) {
-            game.agreeDraw();
-        }
+        game.acceptDraw(color);
 
         return buildGameStateResponse(game);
     }

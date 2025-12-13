@@ -12,20 +12,12 @@ import java.util.List;
 public class Game {
     private final ChessEngine engine;
     private final MoveHistory history;
-    private GameStatus status;
     private final Instant startTime;
-    private Instant endTime;
-    private UserPrincipal whitePlayer;
-    private UserPrincipal blackPlayer;
-    private Piece.Color drawOfferedBy;
-
-    public Piece.Color getDrawOfferedBy() {
-        return drawOfferedBy;
-    }
-
-    public void setDrawOfferedBy(Piece.Color drawOfferedBy) {
-        this.drawOfferedBy = drawOfferedBy;
-    }
+    private volatile GameStatus status;
+    private volatile Instant endTime;
+    private volatile UserPrincipal whitePlayer;
+    private volatile UserPrincipal blackPlayer;
+    private volatile Piece.Color drawOfferedBy;
 
     public Game() {
         this(null, null);
@@ -43,7 +35,7 @@ public class Game {
     /**
      * Make a move using chess notation
      */
-    public boolean makeMove(String from, String to) {
+    public synchronized boolean makeMove(String from, String to) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
@@ -99,23 +91,23 @@ public class Game {
     /**
      * Get valid moves for a piece at the given position
      */
-    public List<Position> getValidMoves(String position) {
+    public synchronized List<Position> getValidMoves(String position) {
         return engine.getValidMoves(position);
     }
 
     /**
      * Get the current board state of the game
      */
-    public String getFen() {
+    public synchronized String getFen() {
         return engine.getFen();
     }
 
-    public String getLastMoveFrom() {
+    public synchronized String getLastMoveFrom() {
         Position move = engine.getBoard().getLastMoveFrom();
         return move == null ? null : move.toNotation();
     }
 
-    public String getLastMoveTo() {
+    public synchronized String getLastMoveTo() {
         Position move = engine.getBoard().getLastMoveTo();
         return move == null ? null : move.toNotation();
     }
@@ -123,7 +115,7 @@ public class Game {
     /**
      * Resign the game for the current player
      */
-    public void resign(Piece.Color color) {
+    public synchronized void resign(Piece.Color color) {
         if (status.isGameOver()) {
             return;
         }
@@ -137,7 +129,7 @@ public class Game {
     /**
      * Offer/accept a draw
      */
-    public void agreeDraw() {
+    public synchronized void agreeDraw() {
         if (status.isGameOver()) {
             return;
         }
@@ -147,30 +139,23 @@ public class Game {
     }
 
     /**
-     * Get the game status
-     */
-    public GameStatus getStatus() {
-        return status;
-    }
-
-    /**
      * Check if a move is an en passant capture
      */
-    private boolean isEnPassantMove(Position from, Position to) {
+    private synchronized boolean isEnPassantMove(Position from, Position to) {
         return engine.getBoard().isEnPassantMove(from, to);
     }
 
     /**
      * Check if a move is a castling move
      */
-    private boolean isCastlingMove(Position from, Position to) {
+    private synchronized boolean isCastlingMove(Position from, Position to) {
         return engine.getBoard().isCastlingMove(from, to);
     }
 
     /**
      * Update the game status based on current board state
      */
-    private void updateGameStatus() {
+    private synchronized void updateGameStatus() {
         if (engine.isCheckmate()) {
             status = engine.isWhiteTurn() ?
                     GameStatus.CHECKMATE_BLACK_WINS :
@@ -191,53 +176,12 @@ public class Game {
         }
     }
 
-    /**
-     * Get the move history
-     */
-    public MoveHistory getHistory() {
-        return history;
-    }
 
-    /**
-     * Get the chess engine
-     */
-    public ChessEngine getEngine() {
-        return engine;
-    }
-    
-    public Instant getStartTime() {
-        return startTime;
-    }
-    
-    public Instant getEndTime() {
-        return endTime;
-    }
-    
-    public UserPrincipal getWhitePlayer() {
-        return whitePlayer;
-    }
-    
-    public void setWhitePlayer(UserPrincipal whitePlayer) {
-        this.whitePlayer = whitePlayer;
-    }
-    
-    public UserPrincipal getBlackPlayer() {
-        return blackPlayer;
-    }
-    
-    public void setBlackPlayer(UserPrincipal blackPlayer) {
-        this.blackPlayer = blackPlayer;
-    }
-    
-    public boolean isGameOver() {
-        return status.isGameOver();
-    }
-
-    public Piece.Color getTurnColor() {
+    public synchronized Piece.Color getTurnColor() {
         return engine.getTurnColor();
     }
 
-    public String getNotation() {
+    public synchronized String getNotation() {
         if (!isGameOver()) {
             return "";
         }
@@ -245,10 +189,10 @@ public class Game {
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
         sb.append("[Round \"").append(history.getRounds()).append("\"]\n");
-        sb.append("[White \"").append(whitePlayer).append("\"]\n");
-        sb.append("[Black \"").append(blackPlayer).append("\"]\n");
+        sb.append("[White \"").append(whitePlayer.getUsername()).append("\"]\n");
+        sb.append("[Black \"").append(blackPlayer.getUsername()).append("\"]\n");
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
-        sb.append("[Termination\"").append(status.getDescription()).append("\"]\n");
+        sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
         sb.append(history.getNotation()).append("\n");
         sb.append(status.getSymbol());
@@ -258,11 +202,61 @@ public class Game {
     /**
      * Check if now is the turn of the given user
      */
-    public boolean isUserTurn(UserPrincipal currentUser) {
+    public synchronized boolean isUserTurn(UserPrincipal currentUser) {
         return switch (engine.getTurnColor()) {
             case WHITE -> currentUser.equals(whitePlayer);
             case BLACK -> currentUser.equals(blackPlayer);
         };
+    }
+
+    public Instant getStartTime() {
+        return startTime;
+    }
+
+    public Instant getEndTime() {
+        return endTime;
+    }
+
+    public UserPrincipal getWhitePlayer() {
+        return whitePlayer;
+    }
+
+    public void setWhitePlayer(UserPrincipal whitePlayer) {
+        this.whitePlayer = whitePlayer;
+    }
+
+    public UserPrincipal getBlackPlayer() {
+        return blackPlayer;
+    }
+
+    public void setBlackPlayer(UserPrincipal blackPlayer) {
+        this.blackPlayer = blackPlayer;
+    }
+
+    public synchronized Piece.Color getDrawOfferedBy() {
+        return drawOfferedBy;
+    }
+
+    public synchronized boolean offerDraw(Piece.Color by) {
+        drawOfferedBy = by;
+        return true;
+    }
+
+    public synchronized boolean acceptDraw(Piece.Color by) {
+        if (drawOfferedBy == null) return false;
+        if (drawOfferedBy != by.opposite()) return false;
+        agreeDraw();
+        drawOfferedBy = null;
+        return true;
+    }
+
+    public GameStatus getStatus() {
+        return status;
+    }
+
+    public boolean isGameOver() {
+        GameStatus gameStatus = status;
+        return gameStatus.isGameOver();
     }
 
     /**
