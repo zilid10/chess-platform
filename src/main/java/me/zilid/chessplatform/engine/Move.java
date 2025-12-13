@@ -43,10 +43,8 @@ public class Move {
         } else {
             // Piece symbol (pawn symbol is empty string)
             sb.append(movedPieceType.getSymbol());
-            // there is no ambiguation when moving piece is pawn or king
-            if (movedPieceType != Piece.PieceType.PAWN && movedPieceType != Piece.PieceType.KING) {
-                sb.append(disambiguation);
-            }
+            // there is no ambiguation when moving piece is pawn or king (disambiguation for these pieces is empty string)
+            sb.append(disambiguation);
 
             // Add 'x' for captures (including en passant)
             if (capturedPieceType != null || isEnPassant) {

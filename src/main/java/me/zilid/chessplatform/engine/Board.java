@@ -575,12 +575,13 @@ public class Board {
      */
     public String getDisambiguation(Position from, Position to) {
         Piece movingPiece = board[from.x()][from.y()];
-        if (movingPiece.getType() == Piece.PieceType.PAWN) {
+        if (movingPiece == null || movingPiece.getType() == Piece.PieceType.PAWN || movingPiece.getType() == Piece.PieceType.KING) {
             return "";
         }
 
-        boolean fileAmbiguity = false;
-        boolean rankAmbiguity = false;
+        boolean needDisambiguation = false;
+        boolean sameFile = false;
+        boolean sameRank = false;
 
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
@@ -589,17 +590,18 @@ public class Board {
 
                 Piece other = board[x][y];
 
-                if (other != null && other.getColor() == movingPiece.getColor() &&
-                        other.getType() == movingPiece.getType()) {
+                if (other != null && other.getColor() == movingPiece.getColor() && other.getType() == movingPiece.getType()) {
+
 
                     List<Position> moves = getValidMovesForPiece(new Position(x, y));
 
                     if (moves.contains(to)) {
+                        needDisambiguation = true;
                         if (x == from.x()) {
-                            fileAmbiguity = true;
+                            sameFile = true;
                         }
                         if (y == from.y()) {
-                            rankAmbiguity = true;
+                            sameRank = true;
                         }
                     }
                 }
@@ -609,15 +611,16 @@ public class Board {
         // 1. If there are both file and rank ambiguity, use the full notation (e.g., d4, e5)
         // 2. If there are file ambiguity, use the rank number to disambiguate (1-8)
         // 3. If there are rank ambiguity, use the file to disambiguate (a-h)
-        if (fileAmbiguity && rankAmbiguity) {
+        if (!needDisambiguation) {
+            return "";
+        }
+
+        if (sameFile && sameRank) {
             return from.toNotation();
         }
-        if (fileAmbiguity) {
+        if (sameFile) {
             return String.valueOf(from.toNotation().charAt(1));
         }
-        if (rankAmbiguity) {
-            return String.valueOf(from.toNotation().charAt(0));
-        }
-        return "";
+        return String.valueOf(from.toNotation().charAt(0));
     }
 }
