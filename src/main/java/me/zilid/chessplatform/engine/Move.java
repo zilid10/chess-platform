@@ -43,18 +43,25 @@ public class Move {
         } else {
             // Piece symbol (pawn symbol is empty string)
             sb.append(movedPieceType.getSymbol());
-            if (isEnPassant) {
-                sb.append(from.toNotation().charAt(0)); // File of pawn
+            // there is no ambiguation when moving piece is pawn or king
+            if (movedPieceType != Piece.PieceType.PAWN && movedPieceType != Piece.PieceType.KING) {
+                sb.append(disambiguation);
             }
-            sb.append(disambiguation);
 
             // Add 'x' for captures (including en passant)
             if (capturedPieceType != null || isEnPassant) {
+                if (isEnPassant || movedPieceType == Piece.PieceType.PAWN) {
+                    sb.append(from.toNotation().charAt(0)); // File of pawn
+                }
                 sb.append('x');
             }
 
             // Destination square
             sb.append(to.toNotation());
+        }
+
+        if ((to.y() == 0 || to.y() == 7) && movedPieceType == Piece.PieceType.PAWN) {
+            sb.append("=Q");
         }
 
         // Check/Checkmate indicators
