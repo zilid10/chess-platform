@@ -56,6 +56,11 @@ public class FriendService {
         if (existingRequest.isPresent()) {
             throw new IllegalArgumentException("Friend request already sent");
         }
+        Optional<FriendRequest> existingReverseRequest = friendRequestRepo
+                .findBySender_IdAndRecipient_IdAndStatus(recipientId, senderId, FriendRequest.RequestStatus.PENDING);
+        if (existingReverseRequest.isPresent()) {
+            throw new IllegalArgumentException("Reverse friend request already sent");
+        }
 
         FriendRequest friendRequest = friendRequestRepo.save(new FriendRequest(sender, recipient, FriendRequest.RequestStatus.PENDING));
         logger.info("Friend request created from {} to {}", sender.getUsername(), recipient.getUsername());
@@ -88,7 +93,7 @@ public class FriendService {
     @Transactional(readOnly = true)
     public Page<FriendRequestResponse> getSentRequest(UUID senderId, Pageable pageable) {
         logger.debug("Fetching sent friend requests for user: {}", senderId);
-        Page<FriendRequest> sentRequests = friendRequestRepo.findBySender_Id(senderId, pageable);
+        Page<FriendRequest> sentRequests = friendRequestRepo.findBySender_IdAndStatus(senderId, FriendRequest.RequestStatus.PENDING, pageable);
         logger.debug("Found {} sent friend requests", sentRequests.getTotalElements());
         return sentRequests.map(friendRequestConverter::toResponse);
     }
@@ -96,7 +101,7 @@ public class FriendService {
     @Transactional(readOnly = true)
     public Page<FriendRequestResponse> getReceivedRequest(UUID recipientId, Pageable pageable) {
         logger.debug("Fetching received friend requests for user: {}", recipientId);
-        Page<FriendRequest> receivedRequests = friendRequestRepo.findByRecipient_Id(recipientId, pageable);
+        Page<FriendRequest> receivedRequests = friendRequestRepo.findByRecipient_IdAndStatus(recipientId, FriendRequest.RequestStatus.PENDING, pageable);
         logger.debug("Found {} received friend requests", receivedRequests.getTotalElements());
         return receivedRequests.map(friendRequestConverter::toResponse);
     }

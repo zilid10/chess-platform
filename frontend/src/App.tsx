@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Game from './pages/Game';
 import Profile from './pages/Profile';
 import History from './pages/History';
+import Friends from './pages/Friends';
 import Navbar from './components/Navbar';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -59,6 +60,14 @@ const AppRoutes = () => {
             element={
               <PrivateRoute>
                 <History />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/friends"
+            element={
+              <PrivateRoute>
+                <Friends />
               </PrivateRoute>
             }
           />

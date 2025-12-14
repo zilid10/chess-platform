@@ -16,9 +16,9 @@ import java.util.UUID;
 @Repository
 public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
 
-    Page<FriendRequest> findBySender_Id(UUID senderId,  Pageable pageable);
+    Page<FriendRequest> findBySender_IdAndStatus(UUID senderId, FriendRequest.RequestStatus status, Pageable pageable);
 
-    Page<FriendRequest> findByRecipient_Id(UUID senderId, Pageable pageable);
+    Page<FriendRequest> findByRecipient_IdAndStatus(UUID recipientId, FriendRequest.RequestStatus status, Pageable pageable);
 
     Optional<FriendRequest> findBySender_IdAndRecipient_IdAndStatus(UUID senderId, UUID recipientId, FriendRequest.RequestStatus status);
     

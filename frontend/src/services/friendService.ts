@@ -23,16 +23,18 @@ export const friendService = {
     return response.data;
   },
 
-  sendFriendRequest: async (userId: string): Promise<void> => {
-    await api.post(`/friends/request/${userId}`);
+  sendFriendRequest: async (userId: string): Promise<FriendRequest> => {
+    const response = await api.post(`/friends/send/${userId}`);
+    return response.data;
   },
 
-  acceptFriendRequest: async (userId: string): Promise<void> => {
-    await api.post(`/friends/accept/${userId}`);
+  acceptFriendRequest: async (requestId: string): Promise<FriendRequest> => {
+    const response = await api.post(`/friends/accept/${requestId}`);
+    return response.data;
   },
 
-  rejectFriendRequest: async (userId: string): Promise<void> => {
-    await api.put(`/friends/reject/${userId}`);
+  rejectFriendRequest: async (requestId: string): Promise<void> => {
+    await api.put(`/friends/reject/${requestId}`);
   },
 
   removeFriend: async (userId: string): Promise<void> => {

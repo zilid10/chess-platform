@@ -4,6 +4,7 @@ export interface User {
   email: string;
   about?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginRequest {
@@ -25,11 +26,12 @@ export interface UserUpdateRequest {
 }
 
 export interface FriendRequest {
-  id: string;
+  friendRequestId: string;
   sender: User;
   recipient: User;
-  createdAt: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  requestedAt: string;
+  updatedAt: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 }
 
 export interface MatchRecord {
