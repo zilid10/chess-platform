@@ -20,6 +20,24 @@ services:
       retries: 5
       start_period: 20s
 
+  flyway:
+    container_name: chess-flyway
+    image: flyway/flyway:11.19
+    command: migrate
+    restart: "no"
+    networks:
+      - backend
+    volumes:
+      - ./docker/db/migrations:/flyway/sql
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/chessdb
+      FLYWAY_USER: root
+      FLYWAY_PASSWORD: password
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     container_name: chess-backend
     hostname: backend
@@ -39,6 +57,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
 
   frontend:
     container_name: chess-frontend
