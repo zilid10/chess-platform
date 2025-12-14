@@ -169,7 +169,9 @@ npm run dev
 - Backend API: http://localhost:8080/api
     - Health Check: http://localhost:8080/actuator/health
 
-You might need two browsers to log in to two different accounts and then play each other.
+Testing: To test the chess game, use two different browsers (or incognito/private windows) to log in with these test accounts (or create new accounts):
+- Username: `anyu`, Password: `anyu`
+- Username: `zili`, Password: `zili`
 
 ---
 
