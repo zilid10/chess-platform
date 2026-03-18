@@ -7,6 +7,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class King extends Piece {
+    // All 8 adjacent squares
+    private static final int[][] moves = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+    };
     
     public King(Color color) {
         super(color);
@@ -17,13 +22,7 @@ public class King extends Piece {
         List<Position> validMoves = new ArrayList<>();
         int x = position.x();
         int y = position.y();
-        
-        // All 8 adjacent squares
-        int[][] moves = {
-            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
-        };
-        
+
         for (int[] move : moves) {
             int newX = x + move[0];
             int newY = y + move[1];
@@ -41,7 +40,19 @@ public class King extends Piece {
 
     @Override
     public List<Position> getControlledSquares(Position position, Piece[][] board) {
-        return getValidMoves(position, board);
+        List<Position> controlled = new ArrayList<>();
+        int x = position.x();
+        int y = position.y();
+
+        for (int[] move : moves) {
+            int newX = x + move[0];
+            int newY = y + move[1];
+
+            if (isValidPosition(newX, newY)) {
+                controlled.add(new Position(newX, newY));
+            }
+        }
+        return controlled;
     }
     
     @Override

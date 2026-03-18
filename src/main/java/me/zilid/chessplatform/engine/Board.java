@@ -10,6 +10,7 @@ public class Board {
     private static final int QUEENSIDE_ROOK_FILE = 0;
     private static final int BLACK_BACK_RANK = 7;
     private static final int WHITE_BACK_RANK = 0;
+
     private final Piece[][] board;
     private Piece.Color turnColor;
     private Position lastMoveFrom;
@@ -69,7 +70,7 @@ public class Board {
     }
     
     public boolean isWhiteTurn() {
-        return turnColor == Piece.Color.WHITE;
+        return turnColor.isWhite();
     }
 
     public Piece.Color getTurnColor() {
@@ -85,6 +86,10 @@ public class Board {
     }
 
     public boolean makeMove(Position from, Position to) {
+        return makeMove(from, to, Piece.PieceType.QUEEN);
+    }
+
+    public boolean makeMove(Position from, Position to, Piece.PieceType promotionType) {
         Piece piece = getPiece(from);
         if (piece == null || piece.getColor() != turnColor) {
             return false;
@@ -117,11 +122,17 @@ public class Board {
         board[from.x()][from.y()] = null;
         piece.setMoved();
 
-        // Handle Pawn Promotion (Auto-promote to Queen for now)
+        // Handle Pawn Promotion
         if (piece.getType() == Piece.PieceType.PAWN) {
             int rank = piece.getColor().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
             if (to.y() == rank) {
-                board[to.x()][to.y()] = new Queen(piece.getColor());
+                board[to.x()][to.y()] = switch (promotionType) {
+                    case Piece.PieceType.QUEEN -> new Queen(piece.getColor());
+                    case Piece.PieceType.ROOK ->  new Rook(piece.getColor());
+                    case Piece.PieceType.KNIGHT -> new Knight(piece.getColor());
+                    case Piece.PieceType.BISHOP -> new Bishop(piece.getColor());
+                    default -> throw new IllegalStateException("Invalid promotion type");
+                };
             }
         }
 

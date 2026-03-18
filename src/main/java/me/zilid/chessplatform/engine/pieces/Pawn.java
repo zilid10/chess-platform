@@ -15,7 +15,7 @@ public class Pawn extends Piece {
     @Override
     public List<Position> getValidMoves(Position position, Piece[][] board) {
         List<Position> validMoves = new ArrayList<>();
-        int direction = color == Color.WHITE ? 1 : -1;
+        int direction = color.isWhite() ? 1 : -1;
         int x = position.x();
         int y = position.y();
 
@@ -25,11 +25,9 @@ public class Pawn extends Piece {
             validMoves.add(new Position(x, newY));
 
             // Double move from starting position, only possible when there is no blockade in front of the pawn
-            if (!hasMoved) {
-                int doubleY = y + (2 * direction);
-                if (isValidPosition(x, doubleY) && board[x][doubleY] == null) {
-                    validMoves.add(new Position(x, doubleY));
-                }
+            int doubleY = y + (2 * direction);
+            if (!hasMoved && isValidPosition(x, doubleY) && board[x][doubleY] == null) {
+                validMoves.add(new Position(x, doubleY));
             }
         }
 
@@ -52,7 +50,7 @@ public class Pawn extends Piece {
     public List<Position> getControlledSquares(Position position, Piece[][] board) {
         // Pawns control diagonal squares regardless of whether they can capture
         List<Position> controlledSquares = new ArrayList<>();
-        int dy = color == Color.WHITE ? 1 : -1;
+        int dy = color.isWhite() ? 1 : -1;
         int x = position.x();
         int y = position.y();
 

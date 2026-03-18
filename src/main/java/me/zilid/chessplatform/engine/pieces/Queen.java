@@ -7,7 +7,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Queen extends Piece {
-    
+    // All 8 directions (horizontal, vertical, and diagonal)
+    private static final int[][] directions = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+    };
+
     public Queen(Color color) {
         super(color);
     }
@@ -17,13 +22,7 @@ public class Queen extends Piece {
         List<Position> validMoves = new ArrayList<>();
         int x = position.x();
         int y = position.y();
-        
-        // All 8 directions (horizontal, vertical, and diagonal)
-        int[][] directions = {
-            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
-        };
-        
+
         for (int[] dir : directions) {
             int newX = x + dir[0];
             int newY = y + dir[1];
@@ -50,7 +49,28 @@ public class Queen extends Piece {
 
     @Override
     public List<Position> getControlledSquares(Position position, Piece[][] board) {
-        return getValidMoves(position, board);
+        List<Position> controlled = new ArrayList<>();
+        int x = position.x();
+        int y = position.y();
+
+        for (int[] dir : directions) {
+            int newX = x + dir[0];
+            int newY = y + dir[1];
+
+            while (isValidPosition(newX, newY)) {
+                Piece target = board[newX][newY];
+                controlled.add(new Position(newX, newY));
+
+                if (target != null) {
+                    break;
+                }
+
+                newX += dir[0];
+                newY += dir[1];
+            }
+        }
+
+        return controlled;
     }
     
     @Override

@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Rook extends Piece {
+    // Horizontal and vertical directions
+    private static final int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     
     public Rook(Color color) {
         super(color);
@@ -17,10 +19,7 @@ public class Rook extends Piece {
         List<Position> validMoves = new ArrayList<>();
         int x = position.x();
         int y = position.y();
-        
-        // Horizontal and vertical directions
-        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        
+
         for (int[] dir : directions) {
             int newX = x + dir[0];
             int newY = y + dir[1];
@@ -46,7 +45,26 @@ public class Rook extends Piece {
 
     @Override
     public List<Position> getControlledSquares(Position position, Piece[][] board) {
-        return getValidMoves(position, board);
+        List<Position> controlled = new ArrayList<>();
+        int x = position.x();
+        int y = position.y();
+
+        for (int[] dir : directions) {
+            int newX = x + dir[0];
+            int newY = y + dir[1];
+
+            while (isValidPosition(newX, newY)) {
+                Piece target = board[newX][newY];
+                controlled.add(new Position(newX, newY));
+                if (target != null) {
+                    break;
+                }
+
+                newX += dir[0];
+                newY += dir[1];
+            }
+        }
+        return controlled;
     }
     
     @Override

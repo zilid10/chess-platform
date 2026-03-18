@@ -3,7 +3,7 @@ package me.zilid.chessplatform.engine;
 import java.util.regex.Pattern;
 
 public record Position(int x, int y) {
-    public static Pattern positionPattern = Pattern.compile("[a-h][1-8]");
+    public static final Pattern positionPattern = Pattern.compile("[a-h][1-8]");
     public static Position fromNotation(String notation) {
         if (!positionPattern.matcher(notation).matches()) {
             throw new IllegalArgumentException("Invalid notation");
