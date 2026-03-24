@@ -8,27 +8,31 @@ public class ChessEngine {
     private final Board board;
     
     public ChessEngine() {
-        this.board = new Board();
+        board = new Board();
     }
-    
-    /**
-     * Make a move
-     */
-    public boolean makeMove(Position from, Position to) {
-        return board.makeMove(from, to);
+
+    public ChessEngine(Board board) {
+        this.board = board;
     }
 
     /**
      * Make a move using chess notation (e.g., "e2" to "e4")
      */
-    public boolean makeMove(String from, String to) {
+    public boolean makeMove(String from, String to, Piece.PieceType promotionType) {
         try {
             Position fromPos = Position.fromNotation(from);
             Position toPos = Position.fromNotation(to);
-            return board.makeMove(fromPos, toPos);
+            return makeMove(fromPos, toPos, promotionType);
         } catch (IllegalArgumentException e) {
             return false;
         }
+    }
+
+    /**
+     * Make a move from a given position
+     */
+    public boolean makeMove(Position from, Position to, Piece.PieceType promotionType) {
+        return board.makeMove(from, to, promotionType);
     }
 
     /**
@@ -37,7 +41,7 @@ public class ChessEngine {
     public List<Position> getValidMoves(String position) {
         try {
             Position pos = Position.fromNotation(position);
-            return board.getValidMovesForPiece(pos);
+            return getValidMoves(pos);
         } catch (IllegalArgumentException e) {
             return List.of();
         }
@@ -49,19 +53,20 @@ public class ChessEngine {
     public List<Position> getValidMoves(Position position) {
         return board.getValidMovesForPiece(position);
     }
-    
+
+    public UndoInfo applyMove(Move move) {
+        return board.applyMove(move);
+    }
+
+    public void undoMove(Move move, UndoInfo undoInfo) {
+        board.undoMove(move, undoInfo);
+    }
+
     /**
      * Check if the current player is in check
      */
     public boolean isInCheck() {
         return board.isInCheck(board.getTurnColor());
-    }
-
-    /**
-     * Check if the game is over (checkmate or stalemate)
-     */
-    public boolean isGameOver() {
-        return isCheckmate() || isDraw();
     }
 
     /**
@@ -72,24 +77,10 @@ public class ChessEngine {
     }
 
     /**
-     * Check if the game is a draw (any draw condition)
-     */
-    public boolean isDraw() {
-        return isStalemate() || isThreefoldRepetition() || isFiftyMoveRule() || isInsufficientMaterial();
-    }
-
-    /**
      * Check if the current player is in stalemate
      */
     public boolean isStalemate() {
         return board.isStalemate(board.getTurnColor());
-    }
-
-    /**
-     * Check for threefold repetition
-     */
-    public boolean isThreefoldRepetition() {
-        return board.isThreefoldRepetition();
     }
     
     /**

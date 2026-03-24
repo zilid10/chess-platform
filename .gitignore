@@ -1,5 +1,7 @@
-./docker
+./docker/volumes
 frontend/node_modules
+.idea*
+docker/volumes
 
 HELP.md
 target/

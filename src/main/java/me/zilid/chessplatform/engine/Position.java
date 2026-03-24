@@ -6,7 +6,7 @@ public record Position(int x, int y) {
     public static final Pattern positionPattern = Pattern.compile("[a-h][1-8]");
     public static Position fromNotation(String notation) {
         if (!positionPattern.matcher(notation).matches()) {
-            throw new IllegalArgumentException("Invalid notation");
+            throw new IllegalArgumentException("Invalid notation: " + notation);
         }
 
         return new Position(notation.charAt(0) - 'a', notation.charAt(1) - '1');

@@ -2,122 +2,53 @@ package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.pieces.Piece;
 
-/*
- * Represents a single chess move
- */
-public class Move {
-    private final Position from;
-    private final Position to;
-    private final Piece.PieceType movedPieceType;
-    private final Piece.PieceType capturedPieceType; // null if no capture
-    private final boolean isCheck;
-    private final boolean isCheckmate;
-    private final boolean isEnPassant;
-    private final boolean isCastling;
-    private final boolean isKingsideCastle;
-    private final String disambiguation;
-    private final String notation;
+public record Move(
+        Position from,
+        Position to,
+        MoveType moveType,
+        Piece.PieceType pieceType,
+        Piece.PieceType captureType, // nullable
+        Piece.PieceType promotionType // nullable
+) {
 
-    public Move(Position from, Position to, Piece.PieceType movedPieceType,
-                Piece.PieceType capturedPieceType, boolean isCheck, boolean isCheckmate,
-                boolean isEnPassant, boolean isCastling, boolean isKingsideCastle, String disambiguation) {
-        this.from = from;
-        this.to = to;
-        this.movedPieceType = movedPieceType;
-        this.capturedPieceType = capturedPieceType;
-        this.isCheck = isCheck;
-        this.isCheckmate = isCheckmate;
-        this.isEnPassant = isEnPassant;
-        this.isCastling = isCastling;
-        this.isKingsideCastle = isKingsideCastle;
-        this.disambiguation = disambiguation;
-        this.notation = generateNotation();
-    }
-
-    private String generateNotation() {
-        StringBuilder sb = new StringBuilder();
-
-        // Special notation for castling
-        if (isCastling) {
-            sb.append(isKingsideCastle ? "O-O" : "O-O-O");
-        } else {
-            // Piece symbol (pawn symbol is empty string)
-            sb.append(movedPieceType.getSymbol());
-            // there is no ambiguation when moving piece is pawn or king (disambiguation for these pieces is empty string)
-            sb.append(disambiguation);
-
-            // Add 'x' for captures (including en passant)
-            if (capturedPieceType != null || isEnPassant) {
-                if (isEnPassant || movedPieceType == Piece.PieceType.PAWN) {
-                    sb.append(from.toNotation().charAt(0)); // File of pawn
-                }
-                sb.append('x');
-            }
-
-            // Destination square
-            sb.append(to.toNotation());
+    public Move {
+        if (from == null || to == null || pieceType == null || moveType == null) {
+            throw new IllegalArgumentException("Invalid move");
         }
-
-        if ((to.y() == 0 || to.y() == 7) && movedPieceType == Piece.PieceType.PAWN) {
-            sb.append("=Q");
+        if (moveType == MoveType.PROMOTION && promotionType == null) {
+            throw new IllegalArgumentException("Promotion must have promotionType");
         }
-
-        // Check/Checkmate indicators
-        if (isCheckmate) {
-            sb.append('#');
-        } else if (isCheck) {
-            sb.append('+');
-        }
-
-        return sb.toString();
     }
 
-    public Position getFrom() {
-        return from;
-    }
-    
-    public Position getTo() {
-        return to;
-    }
-    
-    public Piece.PieceType getMovedPieceType() {
-        return movedPieceType;
-    }
-    
-    public Piece.PieceType getCapturedPieceType() {
-        return capturedPieceType;
-    }
-    
-    public boolean isCheck() {
-        return isCheck;
-    }
-    
-    public boolean isCheckmate() {
-        return isCheckmate;
-    }
-    
-    public String getNotation() {
-        return notation;
-    }
-    
     public boolean isCapture() {
-        return capturedPieceType != null || isEnPassant;
+        return captureType != null;
     }
-    
+
+    public boolean isPromotion() {
+        return moveType == MoveType.PROMOTION && promotionType != null;
+    }
+
     public boolean isEnPassant() {
-        return isEnPassant;
+        return moveType == MoveType.EN_PASSANT;
     }
-    
-    public boolean isCastling() {
-        return isCastling;
+
+    public boolean isCastle() {
+        return moveType == MoveType.CASTLE_KINGSIDE || moveType == MoveType.CASTLE_QUEENSIDE;
     }
-    
-    public boolean isKingsideCastle() {
-        return isKingsideCastle;
+
+    public boolean isKingSide() {
+        return moveType == MoveType.CASTLE_KINGSIDE;
     }
-    
-    @Override
-    public String toString() {
-        return notation + " (" + from.toNotation() + " -> " + to.toNotation() + ")";
+
+    public boolean isQueenSide() {
+        return moveType == MoveType.CASTLE_QUEENSIDE;
+    }
+
+    public enum MoveType {
+        NORMAL,
+        EN_PASSANT,
+        CASTLE_KINGSIDE,
+        CASTLE_QUEENSIDE,
+        PROMOTION
     }
 }

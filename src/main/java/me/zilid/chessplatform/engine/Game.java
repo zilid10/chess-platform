@@ -1,20 +1,28 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.formatter.PgnWriter;
 import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.*;
 
 /**
  * Represents a complete chess game with history and metadata
  */
 public class Game {
+    // chess engine (board information)
     private final ChessEngine engine;
-    private final MoveHistory history;
+
+    // move history management
+    private final List<Move> history;
+    private final Map<Integer, Integer> positionHistory;
+
+    // game metadata
     private final Instant startTime;
-    private volatile GameStatus status;
     private volatile Instant endTime;
+    private volatile GameStatus status;
     private volatile UserPrincipal whitePlayer;
     private volatile UserPrincipal blackPlayer;
     private volatile Piece.Color drawOfferedBy;
@@ -24,18 +32,42 @@ public class Game {
     }
     
     public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
-        this.engine = new ChessEngine();
-        this.history = new MoveHistory();
-        this.status = GameStatus.ONGOING;
-        this.startTime = Instant.now();
+        engine = new ChessEngine();
+        history = new ArrayList<>();
+        positionHistory = new HashMap<>();
+        status = GameStatus.ONGOING;
+        startTime = Instant.now();
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
 
+    public Game(ChessEngine engine,
+                List<Move> history,
+                Map<Integer, Integer> positionHistory,
+                Instant startTime,
+                Instant endTime,
+                GameStatus status,
+                UserPrincipal whitePlayer,
+                UserPrincipal blackPlayer,
+                Piece.Color drawOfferedBy) {
+        this.engine = engine;
+        this.history = history;
+        this.positionHistory = positionHistory;
+        this.startTime = startTime;
+        this.endTime = endTime ;
+        this.status = status;
+        this.whitePlayer = whitePlayer;
+        this.blackPlayer = blackPlayer;
+        this.drawOfferedBy = drawOfferedBy;
+    }
+
+    public synchronized boolean makeMove(String from, String to) {
+        return makeMove(from, to, Piece.PieceType.QUEEN);
+    }
     /**
      * Make a move using chess notation
      */
-    public synchronized boolean makeMove(String from, String to) {
+    public synchronized boolean makeMove(String from, String to, Piece.PieceType promotionType) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
@@ -43,8 +75,7 @@ public class Game {
         try {
             Position fromPos = Position.fromNotation(from);
             Position toPos = Position.fromNotation(to);
-
-            String disambiguation = engine.getBoard().getDisambiguation(fromPos, toPos);
+            Move.MoveType moveType = Move.MoveType.NORMAL;
 
             // Get piece info before move
             Piece movingPiece = engine.getBoard().getPiece(fromPos);
@@ -59,25 +90,28 @@ public class Game {
             boolean isEnPassant = isEnPassantMove(fromPos, toPos);
             boolean isCastling = isCastlingMove(fromPos, toPos);
             boolean isKingsideCastle = isCastling && toPos.x() > fromPos.x();
-            if (isEnPassant) {
+            boolean isPromotion = movingPiece.getType() == Piece.PieceType.PAWN && (
+                    (getTurnColor().isWhite() && toPos.y() == 7) || (getTurnColor().isBlack() && toPos.y() == 0));
+            if (isCastling) {
+                moveType = isKingsideCastle ? Move.MoveType.CASTLE_KINGSIDE : Move.MoveType.CASTLE_QUEENSIDE;
+            } else if (isPromotion) {
+                moveType = Move.MoveType.PROMOTION;
+            } else if (isEnPassant) {
+                moveType = Move.MoveType.EN_PASSANT;
                 capturedType = Piece.PieceType.PAWN;
             }
 
             // Attempt the move
-            boolean success = engine.makeMove(from, to);
+            boolean success = engine.makeMove(from, to, promotionType);
             if (!success) {
                 return false;
             }
 
-            // Check game state after move
-            boolean isCheck = engine.isInCheck();
-            boolean isCheckmate = engine.isCheckmate();
-
             // Record the move with special move flags
-            Move move = new Move(fromPos, toPos, movingPiece.getType(),
-                                capturedType, isCheck, isCheckmate,
-                                isEnPassant, isCastling, isKingsideCastle, disambiguation);
-            history.addMove(move);
+            Move move = new Move(fromPos, toPos, moveType, movingPiece.getType(), capturedType, promotionType);
+            history.add(move);
+            int boardHash = engine.getBoard().getBoardHash();
+            positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
 
             // Update game status
             updateGameStatus();
@@ -95,6 +129,20 @@ public class Game {
         return engine.getValidMoves(position);
     }
 
+    public synchronized GameSnapShot getGameSnapshot() {
+        return new GameSnapShot(
+                getFen(),
+                List.copyOf(history),
+                Map.copyOf(positionHistory),
+                startTime,
+                endTime,
+                status,
+                whitePlayer.getId(),
+                blackPlayer.getId(),
+                drawOfferedBy
+        );
+    }
+
     /**
      * Get the current board state of the game
      */
@@ -103,13 +151,11 @@ public class Game {
     }
 
     public synchronized String getLastMoveFrom() {
-        Position move = engine.getBoard().getLastMoveFrom();
-        return move == null ? null : move.toNotation();
+        return history.isEmpty() ? null : history.getLast().from().toNotation();
     }
 
     public synchronized String getLastMoveTo() {
-        Position move = engine.getBoard().getLastMoveTo();
-        return move == null ? null : move.toNotation();
+        return history.isEmpty() ? null : history.getLast().to().toNotation();
     }
 
     /**
@@ -164,7 +210,7 @@ public class Game {
         } else if (engine.isStalemate()) {
             status = GameStatus.STALEMATE;
             endTime = Instant.now();
-        } else if (engine.isThreefoldRepetition()) {
+        } else if (isThreefoldRepetition()) {
             status = GameStatus.DRAW_BY_REPETITION;
             endTime = Instant.now();
         } else if (engine.isFiftyMoveRule()) {
@@ -176,25 +222,38 @@ public class Game {
         }
     }
 
+    private synchronized boolean isThreefoldRepetition() {
+        return positionHistory.getOrDefault(engine.getBoard().getBoardHash(), 0) >= 3;
+    }
+
 
     public synchronized Piece.Color getTurnColor() {
         return engine.getTurnColor();
+    }
+
+    public synchronized int getRound() {
+        return (history.size() / 2) + 1;
+    }
+
+    public synchronized List<Move> getHistory() {
+        return Collections.unmodifiableList(history);
     }
 
     public synchronized String getNotation() {
         if (!isGameOver()) {
             return "";
         }
+        PgnWriter pgnWriter = new PgnWriter();
         StringBuilder sb = new StringBuilder();
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
-        sb.append("[Round \"").append(history.getRounds()).append("\"]\n");
+        sb.append("[Round \"").append(getRound()).append("\"]\n");
         sb.append("[White \"").append(whitePlayer.getUsername()).append("\"]\n");
         sb.append("[Black \"").append(blackPlayer.getUsername()).append("\"]\n");
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
-        sb.append(history.getNotation()).append("\n");
+        sb.append(pgnWriter.format(new Board(), history)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
     }

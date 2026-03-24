@@ -7,11 +7,9 @@ import java.util.List;
 
 public abstract class Piece {
     protected Color color;
-    protected boolean hasMoved;
-    
+
     public Piece(Color color) {
         this.color = color;
-        this.hasMoved = false;
     }
     
     public abstract List<Position> getValidMoves(Position position, Piece[][] board);
@@ -35,14 +33,6 @@ public abstract class Piece {
         return color == Color.WHITE;
     }
     
-    public void setMoved() {
-        this.hasMoved = true;
-    }
-    
-    public boolean hasMoved() {
-        return hasMoved;
-    }
-    
     protected boolean isValidPosition(int x, int y) {
         return x >= 0 && x < 8 && y >= 0 && y < 8;
     }
@@ -53,6 +43,17 @@ public abstract class Piece {
     
     protected boolean isFriendlyPiece(Piece piece) {
         return piece != null && piece.color == this.color;
+    }
+
+    public static Piece of(PieceType type, Color color) {
+        return switch (type) {
+            case QUEEN ->  new Queen(color);
+            case KING ->  new King(color);
+            case ROOK ->  new Rook(color);
+            case BISHOP ->  new Bishop(color);
+            case KNIGHT ->   new Knight(color);
+            case PAWN ->  new Pawn(color);
+        };
     }
     
     public enum PieceType {
@@ -89,6 +90,16 @@ public abstract class Piece {
                 case WHITE -> "w";
                 case BLACK -> "b";
             };
+        }
+
+        public static Color fromSymbol(String color) {
+            if (color.equals("w")) {
+                return WHITE;
+            }
+            if (color.equals("b")) {
+                return BLACK;
+            }
+            throw new IllegalArgumentException("invalid color: " + color);
         }
     }
 }

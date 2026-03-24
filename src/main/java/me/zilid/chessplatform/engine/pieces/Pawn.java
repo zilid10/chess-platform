@@ -8,6 +8,9 @@ import java.util.List;
 
 public class Pawn extends Piece {
 
+    private static final int BLACK_STARTING_RANK = 6;
+    private static final int WHITE_STARTING_RANK = 1;
+
     public Pawn(Color color) {
         super(color);
     }
@@ -26,7 +29,7 @@ public class Pawn extends Piece {
 
             // Double move from starting position, only possible when there is no blockade in front of the pawn
             int doubleY = y + (2 * direction);
-            if (!hasMoved && isValidPosition(x, doubleY) && board[x][doubleY] == null) {
+            if (isOnStartingRank(position) && isValidPosition(x, doubleY) && board[x][doubleY] == null) {
                 validMoves.add(new Position(x, doubleY));
             }
         }
@@ -44,6 +47,13 @@ public class Pawn extends Piece {
         }
 
         return validMoves;
+    }
+
+    public boolean isOnStartingRank(Position position) {
+        return switch (color) {
+            case WHITE -> position.y() == WHITE_STARTING_RANK;
+            case BLACK -> position.y() == BLACK_STARTING_RANK;
+        };
     }
 
     @Override
