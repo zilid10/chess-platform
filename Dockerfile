@@ -15,7 +15,7 @@ ARG APP_GID=996
 LABEL maintainer="me@zilid.me" \
     org.opencontainers.image.title="chess-platform" \
     org.opencontainers.image.version="0.0.1" \
-    org.opencontainers.image.description="A simple chess platform."
+    org.opencontainers.image.description="A simple online chess platform where people can play each other."
 
 WORKDIR /app
 
