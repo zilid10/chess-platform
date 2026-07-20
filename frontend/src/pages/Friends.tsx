@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { friendService } from '../services/friendService';
 import { userService } from '../services/userService';
 import { User, FriendRequest } from '../types';
@@ -43,8 +44,8 @@ const Friends = () => {
         setTotalPages(response.totalPages);
         setTotalElements(response.totalElements);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load data');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to load data'));
     } finally {
       setLoading(false);
     }
@@ -74,8 +75,8 @@ const Friends = () => {
     try {
       const results = await userService.searchUsers(searchQuery);
       setSearchResults(results.content);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to search users');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to search users'));
     } finally {
       setLoading(false);
     }
@@ -93,8 +94,8 @@ const Friends = () => {
       if (activeTab === 'sent') {
         loadData(activeTab, currentPage);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send friend request');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to send friend request'));
     }
   };
 
@@ -106,8 +107,8 @@ const Friends = () => {
       setTimeout(() => setSuccessMessage(''), 3000);
       // Reload current data
       loadData(activeTab, currentPage);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to accept request');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to accept request'));
     }
   };
 
@@ -119,8 +120,8 @@ const Friends = () => {
       setTimeout(() => setSuccessMessage(''), 3000);
       // Reload current data
       loadData(activeTab, currentPage);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to reject request');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to reject request'));
     }
   };
 
@@ -136,8 +137,8 @@ const Friends = () => {
       setTimeout(() => setSuccessMessage(''), 3000);
       // Reload current data
       loadData(activeTab, currentPage);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to remove friend');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to remove friend'));
     }
   };
 

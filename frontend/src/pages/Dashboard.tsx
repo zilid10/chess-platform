@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { gameService } from '../services/gameService';
@@ -18,8 +19,8 @@ const Dashboard = () => {
       // Create a game with WHITE color
       const response = await gameService.createGame('WHITE');
       navigate(`/game/${response.gameId}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create game');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to create game'));
       setLoading(false);
     }
   };

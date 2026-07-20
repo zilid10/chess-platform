@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,8 +23,8 @@ const Login = () => {
     try {
       await login(username, password);
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Login failed. Please check your credentials.'));
     } finally {
       setLoading(false);
     }
