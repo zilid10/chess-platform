@@ -29,6 +29,12 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # Runtime majors are upgraded manually
+      - dependency-name: "node"
+        update-types: [ "version-update:semver-major" ]
+      - dependency-name: "eclipse-temurin"
+        update-types: [ "version-update:semver-major" ]
     groups:
       docker:
         patterns: [ "*" ]

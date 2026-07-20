@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { User } from '../types';
@@ -19,10 +20,6 @@ const Profile = () => {
     confirmPassword: '',
   });
 
-  useEffect(() => {
-    loadUserProfile();
-  }, [currentUser]);
-
   const loadUserProfile = async () => {
     if (!currentUser) {
       setLoading(false);
@@ -40,7 +37,7 @@ const Profile = () => {
         password: '',
         confirmPassword: '',
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error loading profile:', err);
       // Don't show error, just use currentUser data
       setUser(currentUser);
@@ -54,6 +51,11 @@ const Profile = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -86,8 +88,8 @@ const Profile = () => {
       setFormData({ ...formData, password: '', confirmPassword: '' });
       await refreshUser(); // Refresh the auth context
       await loadUserProfile();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to update profile'));
     } finally {
       setSaving(false);
     }

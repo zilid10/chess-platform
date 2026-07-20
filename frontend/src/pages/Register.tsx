@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { useNavigate, Link } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
@@ -39,8 +40,8 @@ const Register = () => {
         about: formData.about || undefined,
       });
       navigate('/login');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }

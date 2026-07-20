@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
@@ -83,9 +84,9 @@ const Game = () => {
         );
 
         setLoading(false);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error initializing game:', err);
-        setError(err.response?.data?.message || 'Failed to join game');
+        setError(apiErrorMessage(err, 'Failed to join game'));
         setLoading(false);
       }
     };
@@ -122,7 +123,7 @@ const Game = () => {
       console.log(`onDrop ${sourceSquare} -> ${targetSquare}`);
       websocketService.sendMove(gameId, sourceSquare, targetSquare, 'q');
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   };

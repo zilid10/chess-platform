@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiErrorMessage } from '../services/errors';
 import { useAuth } from '../context/AuthContext';
 import { gameService } from '../services/gameService';
 import { MatchRecord } from '../types';
@@ -14,13 +15,6 @@ const History = () => {
   const [copiedGameId, setCopiedGameId] = useState<string | null>(null);
   const pageSize = 10;
 
-  useEffect(() => {
-    if (user?.id) {
-      loadGames();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, page]);
-
   const loadGames = async () => {
     if (!user?.id) {
       setLoading(false);
@@ -33,14 +27,21 @@ const History = () => {
       const response = await gameService.getGames(user.id, page, pageSize);
       setGames(response.content || []);
       setTotalPages(response.totalPages || 0);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error loading games:', err);
-      setError(err.response?.data?.message || 'Failed to load game history');
+      setError(apiErrorMessage(err, 'Failed to load game history'));
       setGames([]);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user?.id) {
+      loadGames();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, page]);
 
   const getGameResult = (game: MatchRecord) => {
     if (!user || !game.result) return { text: game.result || 'Unknown', color: 'text-gray-600' };
