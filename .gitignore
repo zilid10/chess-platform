@@ -2,6 +2,7 @@
 frontend/node_modules
 .idea*
 docker/volumes
+.DS_Store
 
 HELP.md
 target/
