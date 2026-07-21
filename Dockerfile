@@ -12,9 +12,10 @@ ARG APP_GROUP=appgroup
 ARG APP_UID=996
 ARG APP_GID=996
 
+ARG APP_VERSION=0.1.0-SNAPSHOT
 LABEL maintainer="me@zilid.me" \
     org.opencontainers.image.title="chess-platform" \
-    org.opencontainers.image.version="0.0.1" \
+    org.opencontainers.image.version=${APP_VERSION}\
     org.opencontainers.image.description="A simple online chess platform where people can play each other."
 
 WORKDIR /app
@@ -27,5 +28,4 @@ COPY --chown=${APP_UID}:${APP_GID} --link --from=build /app/target/*.jar app.jar
 
 USER ${APP_USER}
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
-CMD ["-Xms256m", "-Xmx512m"]
+ENTRYPOINT ["java", "-Xms256m", "-Xmx512m", "-jar", "app.jar"]
