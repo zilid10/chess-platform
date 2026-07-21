@@ -6,12 +6,11 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-
-import java.util.Objects;
 
 @Configuration
 @Profile("!prod")
@@ -19,16 +18,17 @@ public class OpenAPIConfig {
 
     private static final String SCHEME_NAME = "cookieAuth";
     private static final String DEFAULT_APP_VERSION = "0.1.0-SNAPSHOT";
-    private final BuildProperties buildProperties;
+    private final String appVersion;
 
-    public OpenAPIConfig(BuildProperties buildProperties) {
-        this.buildProperties = buildProperties;
+    public OpenAPIConfig(ObjectProvider<BuildProperties> buildProperties) {
+        this.appVersion = buildProperties.stream()
+                .findFirst()
+                .map(BuildProperties::getVersion)
+                .orElse(DEFAULT_APP_VERSION);
     }
 
     @Bean
     public OpenAPI chessPlatformOpenAPI() {
-        String appVersion = Objects.requireNonNullElse(buildProperties.getVersion(), DEFAULT_APP_VERSION);
-
         return new OpenAPI()
                 .info(new Info()
                         .title("ChessPlatform API")
