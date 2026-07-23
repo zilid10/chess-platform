@@ -143,7 +143,7 @@ public class Board {
     }
 
     public UndoInfo applyMove(Move move) {
-        int undoRights = castlingRights.getRightsRaw();
+        int undoRights = castlingRights.rights();
         Position undoEnPassantTarget = enPassantTarget;
         int undoHalfMoveClock = halfMoveClock;
         int undoFullMoveClock = fullMoveClock;
@@ -441,9 +441,9 @@ public class Board {
 
     private void updateCastlingRights(Piece piece, Piece capturedPiece, Position from, Position to) {
         if (piece.getType() == Piece.PieceType.KING && piece.getColor().isWhite()) {
-            castlingRights.removeWhite();
+            castlingRights = castlingRights.withoutWhite();
         } else if (piece.getType() == Piece.PieceType.KING && piece.getColor().isBlack()) {
-            castlingRights.removeBlack();
+            castlingRights = castlingRights.withoutBlack();
         }
 
         if (piece.getType() == Piece.PieceType.ROOK) {
@@ -458,13 +458,13 @@ public class Board {
 
     private void updateCastlingRightsByRook(Piece.Color color, Position rook) {
         if (color.isWhite() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
-            castlingRights.removeWhiteKingside();
+            castlingRights = castlingRights.withoutWhiteKingside();
         } else if (color.isWhite() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
-            castlingRights.removeWhiteQueenside();
+            castlingRights = castlingRights.withoutWhiteQueenside();
         } else if (color.isBlack() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
-            castlingRights.removeBlackKingside();
+            castlingRights = castlingRights.withoutBlackKingside();
         } else if (color.isBlack() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
-            castlingRights.removeBlackQueenside();
+            castlingRights = castlingRights.withoutBlackQueenside();
         }
     }
 
