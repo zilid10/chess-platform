@@ -72,21 +72,25 @@ public class Board {
         if (parsedFen.length != 6) {
             throw new IllegalArgumentException("Invalid fen: " + fen);
         }
+        // i = FEN rank row (rank 8 first), j = file; square (file j, rank 8-i) lives at board[j][7 - i]
         int i = 0, j = 0;
         for (char c : parsedFen[0].toCharArray()) {
+            if (j == 8 && c != '/') {
+                throw new IllegalArgumentException("Too many files in FEN rank: " + fen);
+            }
             switch (c) {
-                case 'Q' -> board[i][j++] = new Queen(Piece.Color.WHITE);
-                case 'q' -> board[i][j++] = new Queen(Piece.Color.BLACK);
-                case 'K' -> board[i][j++] = new King(Piece.Color.WHITE);
-                case 'k' -> board[i][j++] = new King(Piece.Color.BLACK);
-                case 'R' -> board[i][j++] = new Rook(Piece.Color.WHITE);
-                case 'r' -> board[i][j++] = new Rook(Piece.Color.BLACK);
-                case 'B' -> board[i][j++] = new Bishop(Piece.Color.WHITE);
-                case 'b' -> board[i][j++] = new Bishop(Piece.Color.BLACK);
-                case 'N' -> board[i][j++] = new Knight(Piece.Color.WHITE);
-                case 'n' -> board[i][j++] = new Knight(Piece.Color.BLACK);
-                case 'P' -> board[i][j++] = new Pawn(Piece.Color.WHITE);
-                case 'p' -> board[i][j++] = new Pawn(Piece.Color.BLACK);
+                case 'Q' -> board[j++][7 - i] = new Queen(Piece.Color.WHITE);
+                case 'q' -> board[j++][7 - i] = new Queen(Piece.Color.BLACK);
+                case 'K' -> board[j++][7 - i] = new King(Piece.Color.WHITE);
+                case 'k' -> board[j++][7 - i] = new King(Piece.Color.BLACK);
+                case 'R' -> board[j++][7 - i] = new Rook(Piece.Color.WHITE);
+                case 'r' -> board[j++][7 - i] = new Rook(Piece.Color.BLACK);
+                case 'B' -> board[j++][7 - i] = new Bishop(Piece.Color.WHITE);
+                case 'b' -> board[j++][7 - i] = new Bishop(Piece.Color.BLACK);
+                case 'N' -> board[j++][7 - i] = new Knight(Piece.Color.WHITE);
+                case 'n' -> board[j++][7 - i] = new Knight(Piece.Color.BLACK);
+                case 'P' -> board[j++][7 - i] = new Pawn(Piece.Color.WHITE);
+                case 'p' -> board[j++][7 - i] = new Pawn(Piece.Color.BLACK);
                 case '/' -> {
                     if (j != 8) {
                         throw new IllegalArgumentException("Invalid FEN rank width: " + fen);
@@ -108,7 +112,7 @@ public class Board {
                 throw new IllegalArgumentException("Too many files in FEN rank: " + fen);
             }
         }
-        if (i != 7 && j != 8) {
+        if (i != 7 || j != 8) {
             throw new IllegalArgumentException("Incomplete board in FEN: " + fen);
         }
         turnColor = Piece.Color.fromSymbol(parsedFen[1]);
@@ -263,9 +267,11 @@ public class Board {
         // Track the castling rights
         updateCastlingRights(piece, capturedPiece, from, to);
 
-        // Track en passant target
+        // Track en passant target; only valid for the single reply to a double push
         if (isPawnMove && from.x() == to.x() && Math.abs(from.y() - to.y()) == 2) {
             enPassantTarget = new Position(from.x(), (from.y() + to.y()) / 2);
+        } else {
+            enPassantTarget = null;
         }
 
         turnColor = turnColor.opposite();
