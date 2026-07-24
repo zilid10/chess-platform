@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.engine.pieces;
 
 
-import me.zilid.chessplatform.engine.Position;
+import me.zilid.chessplatform.engine.Square;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,10 +18,10 @@ public class Knight extends Piece {
     }
     
     @Override
-    public List<Position> getValidMoves(Position position, Piece[][] board) {
-        List<Position> validMoves = new ArrayList<>();
-        int x = position.x();
-        int y = position.y();
+    public List<Square> getValidMoves(Square square, Piece[][] board) {
+        List<Square> validMoves = new ArrayList<>();
+        int x = square.x();
+        int y = square.y();
 
         for (int[] move : moves) {
             int newX = x + move[0];
@@ -30,7 +30,7 @@ public class Knight extends Piece {
             if (isValidPosition(newX, newY)) {
                 Piece target = board[newX][newY];
                 if (target == null || isEnemyPiece(target)) {
-                    validMoves.add(new Position(newX, newY));
+                    validMoves.add(new Square(newX, newY));
                 }
             }
         }
@@ -39,17 +39,17 @@ public class Knight extends Piece {
     }
 
     @Override
-    public List<Position> getControlledSquares(Position position, Piece[][] board) {
-        List<Position> controlled = new ArrayList<>();
-        int x = position.x();
-        int y = position.y();
+    public List<Square> getControlledSquares(Square square, Piece[][] board) {
+        List<Square> controlled = new ArrayList<>();
+        int x = square.x();
+        int y = square.y();
 
         for (int[] move : moves) {
             int newX = x + move[0];
             int newY = y + move[1];
 
             if (isValidPosition(newX, newY)) {
-                controlled.add(new Position(newX, newY));
+                controlled.add(new Square(newX, newY));
             }
         }
 

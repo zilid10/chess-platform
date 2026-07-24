@@ -2,7 +2,6 @@ package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.formatter.PgnWriter;
 import me.zilid.chessplatform.engine.pieces.Piece;
-import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.Instant;
@@ -73,17 +72,17 @@ public class Game {
         }
 
         try {
-            Position fromPos = Position.fromNotation(from);
-            Position toPos = Position.fromNotation(to);
+            Square fromPos = Square.fromNotation(from);
+            Square toPos = Square.fromNotation(to);
             Move.MoveType moveType = Move.MoveType.NORMAL;
 
             // Get piece info before move
-            Piece movingPiece = engine.getBoard().getPiece(fromPos);
+            Piece movingPiece = engine.getPosition().getPiece(fromPos);
             if (movingPiece == null) {
                 return false;
             }
 
-            Piece capturedPiece = engine.getBoard().getPiece(toPos);
+            Piece capturedPiece = engine.getPosition().getPiece(toPos);
             Piece.PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
 
             // Check for special moves before making the move
@@ -110,7 +109,7 @@ public class Game {
             // Record the move with special move flags
             Move move = new Move(fromPos, toPos, moveType, movingPiece.getType(), capturedType, promotionType);
             history.add(move);
-            int boardHash = engine.getBoard().getBoardHash();
+            int boardHash = engine.getPosition().getPositionHash();
             positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
 
             // Update game status
@@ -125,7 +124,7 @@ public class Game {
     /**
      * Get valid moves for a piece at the given position
      */
-    public synchronized List<Position> getValidMoves(String position) {
+    public synchronized List<Square> getValidMoves(String position) {
         return engine.getValidMoves(position);
     }
 
@@ -187,15 +186,15 @@ public class Game {
     /**
      * Check if a move is an en passant capture
      */
-    private synchronized boolean isEnPassantMove(Position from, Position to) {
-        return engine.getBoard().isEnPassantMove(from, to);
+    private synchronized boolean isEnPassantMove(Square from, Square to) {
+        return engine.getPosition().isEnPassantMove(from, to);
     }
 
     /**
      * Check if a move is a castling move
      */
-    private synchronized boolean isCastlingMove(Position from, Position to) {
-        return engine.getBoard().isCastlingMove(from, to);
+    private synchronized boolean isCastlingMove(Square from, Square to) {
+        return engine.getPosition().isCastlingMove(from, to);
     }
 
     /**
@@ -223,7 +222,7 @@ public class Game {
     }
 
     private synchronized boolean isThreefoldRepetition() {
-        return positionHistory.getOrDefault(engine.getBoard().getBoardHash(), 0) >= 3;
+        return positionHistory.getOrDefault(engine.getPosition().getPositionHash(), 0) >= 3;
     }
 
 
@@ -253,7 +252,7 @@ public class Game {
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
-        sb.append(pgnWriter.format(new Board(), history)).append("\n");
+        sb.append(pgnWriter.format(Position.startingPosition(), history)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
     }

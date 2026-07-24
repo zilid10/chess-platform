@@ -46,33 +46,33 @@ class PerftTest {
             "'rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8', 3, 62379",
     })
     void perftMatchesKnownNodeCounts(String fen, int depth, long expected) {
-        assertThat(perft(new Board(fen), depth)).isEqualTo(expected);
+        assertThat(perft(Position.fromFen(fen), depth)).isEqualTo(expected);
     }
 
-    private long perft(Board board, int depth) {
+    private long perft(Position position, int depth) {
         if (depth == 0) {
             return 1;
         }
         long nodes = 0;
-        for (Move move : generateLegalMoves(board)) {
-            UndoInfo undo = board.applyMove(move);
-            nodes += perft(board, depth - 1);
-            board.undoMove(move, undo);
+        for (Move move : generateLegalMoves(position)) {
+            UndoInfo undo = position.applyMove(move);
+            nodes += perft(position, depth - 1);
+            position.undoMove(move, undo);
         }
         return nodes;
     }
 
-    private List<Move> generateLegalMoves(Board board) {
+    private List<Move> generateLegalMoves(Position position) {
         List<Move> moves = new ArrayList<>();
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Position from = new Position(x, y);
-                Piece piece = board.getPiece(from);
-                if (piece == null || piece.getColor() != board.getTurnColor()) {
+                Square from = new Square(x, y);
+                Piece piece = position.getPiece(from);
+                if (piece == null || piece.getColor() != position.getTurnColor()) {
                     continue;
                 }
-                for (Position to : board.getValidMovesForPiece(from)) {
-                    moves.addAll(toMoves(board, piece, from, to));
+                for (Square to : position.getValidMovesForPiece(from)) {
+                    moves.addAll(toMoves(position, piece, from, to));
                 }
             }
         }
@@ -80,21 +80,21 @@ class PerftTest {
     }
 
     /** Wraps a (from, to) pair into full Move records; a promotion square yields four moves. */
-    private List<Move> toMoves(Board board, Piece piece, Position from, Position to) {
+    private List<Move> toMoves(Position position, Piece piece, Square from, Square to) {
         Piece.PieceType type = piece.getType();
 
-        if (board.isCastlingMove(from, to)) {
+        if (position.isCastlingMove(from, to)) {
             Move.MoveType side = to.x() > from.x()
                     ? Move.MoveType.CASTLE_KINGSIDE
                     : Move.MoveType.CASTLE_QUEENSIDE;
             return List.of(new Move(from, to, side, type, null, null));
         }
 
-        if (board.isEnPassantMove(from, to)) {
+        if (position.isEnPassantMove(from, to)) {
             return List.of(new Move(from, to, Move.MoveType.EN_PASSANT, type, Piece.PieceType.PAWN, null));
         }
 
-        Piece captured = board.getPiece(to);
+        Piece captured = position.getPiece(to);
         Piece.PieceType captureType = captured == null ? null : captured.getType();
 
         if (type == Piece.PieceType.PAWN && (to.y() == 0 || to.y() == 7)) {
