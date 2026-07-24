@@ -2,27 +2,53 @@ package me.zilid.chessplatform.engine;
 
 import java.util.regex.Pattern;
 
-public record Square(int x, int y) {
+public record Square(int index) {
+    public static final Pattern SquarePattern = Pattern.compile("[a-h][1-8]");
+
     public Square {
-        if (x < 0 || y < 0 || x > 7 || y > 7) {
-            throw new IllegalArgumentException("Square out of bounds: (" + x + ", " + y + "), expected x and y in range 0-7");
+        if (index < 0 || index >= 64) {
+            throw new IllegalArgumentException("Square index out of range: " + index);
         }
     }
 
-    public static final Pattern SquarePattern = Pattern.compile("[a-h][1-8]");
+    public static Square of(int file, int rank) {
+        if (!isValid(file, rank)) {
+            throw new IllegalArgumentException("Square out of bounds: (" + file + ", " + rank + "), expected file and rank in range 0-7");
+        }
+        return new Square(rank * 8 + file);
+    }
+
+    public static boolean isValid(int file, int rank) {
+        return file >= 0 && rank >= 0 && file < 8 && rank < 8;
+    }
+
     public static Square fromNotation(String notation) {
         if (!SquarePattern.matcher(notation).matches()) {
             throw new IllegalArgumentException("Invalid notation: " + notation);
         }
 
-        return new Square(notation.charAt(0) - 'a', notation.charAt(1) - '1');
+        return Square.of(notation.charAt(0) - 'a', notation.charAt(1) - '1');
+    }
+
+    public int file() {
+        return index % 8;
+    }
+
+    public int rank() {
+        return index / 8;
+    }
+
+    @Deprecated
+    public int x() {
+        return file();
+    }
+
+    @Deprecated
+    public int y() {
+        return rank();
     }
 
     public String toNotation() {
-        return String.valueOf(new char[]{(char) (x + 'a'), (char)(y + '1')});
-    }
-
-    public static boolean isValid(int x, int y) {
-        return x < 0 || y < 0 || x > 7 || y > 7;
+        return String.valueOf(new char[]{(char) (file() + 'a'), (char) (rank() + '1')});
     }
 }

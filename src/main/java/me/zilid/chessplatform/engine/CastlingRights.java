@@ -7,6 +7,7 @@ public record CastlingRights(int rights) {
     private static final int WHITE_QUEENSIDE = 1 << 1;
     private static final int BLACK_KINGSIDE = 1 << 2;
     private static final int BLACK_QUEENSIDE = 1 << 3;
+    private static final int ALL_RIGHTS = 0b1111;
 
     public CastlingRights {
         if (rights < 0 || rights > 15) {
@@ -14,8 +15,8 @@ public record CastlingRights(int rights) {
         }
     }
 
-    public CastlingRights() {
-        this(WHITE_KINGSIDE | WHITE_QUEENSIDE | BLACK_KINGSIDE | BLACK_QUEENSIDE);
+    public static CastlingRights all() {
+        return new CastlingRights(ALL_RIGHTS);
     }
 
     public boolean whiteKingside() {

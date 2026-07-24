@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.model.converter;
 
 import me.zilid.chessplatform.engine.*;
+import me.zilid.chessplatform.engine.formatter.Fen;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.UserPrincipalService;
@@ -36,7 +37,7 @@ public class ActiveGameStateConverter {
     public Game toGame(ActiveGameState state) {
         UserPrincipal whiteUser = userPrincipalService.loadUserById(state.whitePlayerId());
         UserPrincipal blackUser = userPrincipalService.loadUserById(state.blackPlayerId());
-        Position position = Position.fromFen(state.fen());
+        Position position = Fen.read(state.fen());
         ChessEngine engine = new ChessEngine(position);
         return new Game(
                 engine,

@@ -11,11 +11,11 @@ import java.util.List;
 public class Rook extends Piece {
     // Horizontal and vertical directions
     private static final int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-    
+
     public Rook(Color color) {
         super(color);
     }
-    
+
     @Override
     public List<Square> getValidMoves(Square square, Piece[][] board) {
         List<Square> validMoves = new ArrayList<>();
@@ -25,19 +25,19 @@ public class Rook extends Piece {
         for (int[] dir : directions) {
             int newX = x + dir[0];
             int newY = y + dir[1];
-            
+
             while (Square.isValid(newX, newY)) {
                 Piece target = board[newX][newY];
-                
+
                 if (target == null) {
-                    validMoves.add(new Square(newX, newY));
+                    validMoves.add(Square.of(newX, newY));
                 } else {
                     if (isEnemyPiece(target)) {
-                        validMoves.add(new Square(newX, newY));
+                        validMoves.add(Square.of(newX, newY));
                     }
                     break; // Stop at any piece
                 }
-                
+
                 newX += dir[0];
                 newY += dir[1];
             }
@@ -57,7 +57,7 @@ public class Rook extends Piece {
 
             while (Square.isValid(newX, newY)) {
                 Piece target = board[newX][newY];
-                controlled.add(new Square(newX, newY));
+                controlled.add(Square.of(newX, newY));
                 if (target != null) {
                     break;
                 }
@@ -68,7 +68,7 @@ public class Rook extends Piece {
         }
         return controlled;
     }
-    
+
     @Override
     public PieceType getType() {
         return PieceType.ROOK;

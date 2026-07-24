@@ -29,7 +29,7 @@ public class Game {
     public Game() {
         this(null, null);
     }
-    
+
     public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
         engine = new ChessEngine();
         history = new ArrayList<>();
@@ -53,7 +53,7 @@ public class Game {
         this.history = history;
         this.positionHistory = positionHistory;
         this.startTime = startTime;
-        this.endTime = endTime ;
+        this.endTime = endTime;
         this.status = status;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
@@ -63,6 +63,7 @@ public class Game {
     public synchronized boolean makeMove(String from, String to) {
         return makeMove(from, to, PieceType.QUEEN);
     }
+
     /**
      * Make a move using chess notation
      */
@@ -77,12 +78,12 @@ public class Game {
             Move.MoveType moveType = Move.MoveType.NORMAL;
 
             // Get piece info before move
-            Piece movingPiece = engine.getPosition().getPiece(fromPos);
+            Piece movingPiece = engine.getPosition().getPieceAt(fromPos);
             if (movingPiece == null) {
                 return false;
             }
 
-            Piece capturedPiece = engine.getPosition().getPiece(toPos);
+            Piece capturedPiece = engine.getPosition().getPieceAt(toPos);
             PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
 
             // Check for special moves before making the move
@@ -202,7 +203,7 @@ public class Game {
      */
     private synchronized void updateGameStatus() {
         if (engine.isCheckmate()) {
-            status = engine.isWhiteTurn() ?
+            status = engine.getTurnColor().isWhite() ?
                     GameStatus.CHECKMATE_BLACK_WINS :
                     GameStatus.CHECKMATE_WHITE_WINS;
             endTime = Instant.now();

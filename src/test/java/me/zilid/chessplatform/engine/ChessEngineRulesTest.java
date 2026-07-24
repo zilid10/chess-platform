@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.formatter.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,14 +18,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ChessEngineRulesTest {
 
     private static ChessEngine engineFrom(String fen) {
-        return new ChessEngine(Position.fromFen(fen));
+        return new ChessEngine(Fen.read(fen));
     }
 
     private static List<String> legalMovesFrom(ChessEngine engine, String square) {
         return engine.getValidMoves(square).stream().map(Square::toNotation).toList();
     }
 
-    /** The castling field is the third space-separated part of a FEN, e.g. "KQkq". */
+    /**
+     * The castling field is the third space-separated part of a FEN, e.g. "KQkq".
+     */
     private static String castlingRightsOf(ChessEngine engine) {
         return engine.getFen().split(" ")[2];
     }
@@ -121,9 +124,9 @@ class ChessEngineRulesTest {
         void kingsideCastlingMovesKingAndRook() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
             assertThat(engine.makeMove("e1", "g1", null)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("g1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("g1")).getType())
                     .isEqualTo(PieceType.KING);
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("f1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("f1")).getType())
                     .isEqualTo(PieceType.ROOK);
             assertThat(castlingRightsOf(engine)).isEqualTo("kq");
         }
@@ -132,9 +135,9 @@ class ChessEngineRulesTest {
         void queensideCastlingMovesKingAndRook() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
             assertThat(engine.makeMove("e1", "c1", null)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("c1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("c1")).getType())
                     .isEqualTo(PieceType.KING);
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("d1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("d1")).getType())
                     .isEqualTo(PieceType.ROOK);
         }
 
@@ -187,7 +190,7 @@ class ChessEngineRulesTest {
             ChessEngine engine = engineFrom("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
             assertThat(legalMovesFrom(engine, "e5")).contains("d6");
             assertThat(engine.makeMove("e5", "d6", null)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("d5"))).isNull();
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("d5"))).isNull();
         }
 
         @Test
@@ -218,7 +221,7 @@ class ChessEngineRulesTest {
         void pawnPromotesToChosenPiece(PieceType promotion) {
             ChessEngine engine = engineFrom("7k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(engine.makeMove("a7", "a8", promotion)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("a8")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("a8")).getType())
                     .isEqualTo(promotion);
         }
 
@@ -228,7 +231,7 @@ class ChessEngineRulesTest {
             ChessEngine engine = engineFrom("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(engine, "a7")).containsExactlyInAnyOrder("a8", "b8");
             assertThat(engine.makeMove("a7", "b8", PieceType.QUEEN)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("b8")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("b8")).getType())
                     .isEqualTo(PieceType.QUEEN);
         }
     }

@@ -1,102 +1,45 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.formatter.Fen;
 import me.zilid.chessplatform.engine.pieces.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Position {
-    private static final String STARTING_POSITION_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    private List<PieceType> PROMOTION_CHOICES = List.of(PieceType.QUEEN, PieceType.BISHOP, PieceType.KNIGHT, PieceType.ROOK);
     private static final int KING_FILE = 4;
     private static final int KINGSIDE_ROOK_FILE = 7;
     private static final int QUEENSIDE_ROOK_FILE = 0;
     private static final int BLACK_BACK_RANK = 7;
     private static final int WHITE_BACK_RANK = 0;
 
-    private final Piece[][] board;
+    private final Board board;
     private Color turnColor;
     private CastlingRights castlingRights;
     private Square enPassantTarget;
     private int halfMoveClock;
     private int fullMoveClock;
 
-    private Position(String fen) {
-        board = new Piece[8][8];
-        initializeFromFen(fen);
+    public Position(Board board, Color turnColor, CastlingRights castlingRights, Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+        this.board = board;
+        this.turnColor = turnColor;
+        this.castlingRights = castlingRights;
+        this.enPassantTarget = enPassantTarget;
+        this.halfMoveClock = halfMoveClock;
+        this.fullMoveClock = fullMoveClock;
     }
 
     public static Position startingPosition() {
-        return new Position(STARTING_POSITION_FEN);
+        return new Position(Board.initial(), Color.WHITE, CastlingRights.all(), null, 0, 1);
     }
 
-    public static Position fromFen(String fen) {
-        return new Position(fen);
+    public Board getBoard() {
+        return board;
     }
 
-    private void initializeFromFen(String fen) {
-        String[] parsedFen = fen.split("\\s+");
-        if (parsedFen.length != 6) {
-            throw new IllegalArgumentException("Invalid fen: " + fen);
-        }
-        // i = FEN rank row (rank 8 first), j = file; square (file j, rank 8-i) lives at board[j][7 - i]
-        int i = 0, j = 0;
-        for (char c : parsedFen[0].toCharArray()) {
-            if (j == 8 && c != '/') {
-                throw new IllegalArgumentException("Too many files in FEN rank: " + fen);
-            }
-            switch (c) {
-                case 'Q' -> board[j++][7 - i] = new Queen(Color.WHITE);
-                case 'q' -> board[j++][7 - i] = new Queen(Color.BLACK);
-                case 'K' -> board[j++][7 - i] = new King(Color.WHITE);
-                case 'k' -> board[j++][7 - i] = new King(Color.BLACK);
-                case 'R' -> board[j++][7 - i] = new Rook(Color.WHITE);
-                case 'r' -> board[j++][7 - i] = new Rook(Color.BLACK);
-                case 'B' -> board[j++][7 - i] = new Bishop(Color.WHITE);
-                case 'b' -> board[j++][7 - i] = new Bishop(Color.BLACK);
-                case 'N' -> board[j++][7 - i] = new Knight(Color.WHITE);
-                case 'n' -> board[j++][7 - i] = new Knight(Color.BLACK);
-                case 'P' -> board[j++][7 - i] = new Pawn(Color.WHITE);
-                case 'p' -> board[j++][7 - i] = new Pawn(Color.BLACK);
-                case '/' -> {
-                    if (j != 8) {
-                        throw new IllegalArgumentException("Invalid FEN rank width: " + fen);
-                    }
-                    if (i >= 7) {
-                        throw new IllegalArgumentException("Too many ranks in FEN: " + fen);
-                    }
-                    i++;
-                    j = 0;
-                }
-                default -> {
-                    if (c > '8' || c < '1') {
-                        throw new IllegalArgumentException("Invalid fen: " + fen);
-                    }
-                    j += c - '0';
-                }
-            }
-            if (j > 8) {
-                throw new IllegalArgumentException("Too many files in FEN rank: " + fen);
-            }
-        }
-        if (i != 7 || j != 8) {
-            throw new IllegalArgumentException("Incomplete board in FEN: " + fen);
-        }
-        turnColor = Color.fromSymbol(parsedFen[1]);
-        castlingRights = CastlingRights.fromSymbol(parsedFen[2]);
-        enPassantTarget = parsedFen[3].equals("-") ? null : Square.fromNotation(parsedFen[3]);
-        try {
-            halfMoveClock = Integer.parseInt(parsedFen[4]);
-            fullMoveClock = Integer.parseInt(parsedFen[5]);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid fen: " + fen, e);
-        }
-    }
-    
-    public Piece getPiece(Square square) {
-        return board[square.x()][square.y()];
-    }
-    
-    public boolean isWhiteTurn() {
-        return turnColor.isWhite();
+    public Piece getPieceAt(Square square) {
+        return board.pieceAt(square);
     }
 
     public Color getTurnColor() {
@@ -105,6 +48,18 @@ public class Position {
 
     public Square getEnPassantTarget() {
         return enPassantTarget;
+    }
+
+    public CastlingRights getCastlingRights() {
+        return castlingRights;
+    }
+
+    public int getHalfMoveClock() {
+        return halfMoveClock;
+    }
+
+    public int getFullMoveClock() {
+        return fullMoveClock;
     }
 
     public UndoInfo applyMove(Move move) {
@@ -117,9 +72,9 @@ public class Position {
         if (move.isCapture()) {
             capturedSquare = move.to();
             if (move.isEnPassant()) {
-                int x = capturedSquare.x();
-                int y = capturedSquare.y();
-                capturedSquare = turnColor.isWhite() ? new Square(x, y - 1) : new Square(x, y + 1);
+                int file = capturedSquare.file();
+                int rank = capturedSquare.rank();
+                capturedSquare = turnColor.isWhite() ? Square.of(file, rank - 1) : Square.of(file, rank + 1);
             }
         }
 
@@ -140,22 +95,22 @@ public class Position {
         int fromY = move.from().y();
 
         // remove the piece from the destination square and restore the piece to the source square (works for promotion)
-        board[toX][toY] = null;
-        board[fromX][fromY] = Piece.of(move.pieceType(), moverColor);
+        board.put(move.to(), null);
+        board.put(move.from(), Piece.of(move.pieceType(), moverColor))
 
         // restore the captured piece
         if (move.isCapture()) {
-            int captureX = undo.capturedSquare().x();
-            int captureY = undo.capturedSquare().y();
-            board[captureX][captureY] = Piece.of(move.captureType(), capturedColor);
+            board.put(undo.capturedSquare(), Piece.of(move.captureType(), capturedColor));
         }
         // undo rook movement for castling
         if (move.moveType() == Move.MoveType.CASTLE_KINGSIDE) {
-            board[KINGSIDE_ROOK_FILE][fromY] = board[KING_FILE + 1][fromY];
-            board[KING_FILE + 1][fromY] = null;
+            Square rookSquare = Square.of(KINGSIDE_ROOK_FILE, fromY);
+            Square kingSquare = Square.of(KING_FILE, fromY);
+            board.put(rookSquare, board.pieceAt(kingSquare));
+            board.put(Square.of(KING_FILE + 1, fromY), null);
         } else if (move.moveType() == Move.MoveType.CASTLE_QUEENSIDE) {
-            board[QUEENSIDE_ROOK_FILE][fromY] = board[KING_FILE - 1][fromY];
-            board[KING_FILE - 1][fromY] = null;
+            board.put(Square.of(QUEENSIDE_ROOK_FILE, fromY), board.pieceAt(Square.of(KING_FILE - 1, fromY)));
+            board.put(Square.of(KING_FILE - 1, fromY), null);
         }
 
         turnColor = moverColor;
@@ -166,21 +121,21 @@ public class Position {
     }
 
     public boolean makeMove(Square from, Square to, PieceType promotionType) {
-        Piece piece = getPiece(from);
+        Piece piece = getPieceAt(from);
         if (piece == null || piece.getColor() != turnColor) {
             return false;
         }
 
-        List<Square> validMoves = getValidMovesForPiece(from);
+        List<Square> validMoves = MoveGenerator.legalDestinations(this, from);
         if (!validMoves.contains(to)) {
             return false;
         }
 
         // Track for fifty-move rule: reset if pawn move or capture
-        Piece capturedPiece = getPiece(to);
+        Piece capturedPiece = getPieceAt(to);
         boolean isPawnMove = piece.getType() == PieceType.PAWN;
         boolean isCapture = capturedPiece != null || isEnPassantMove(from, to);
-        
+
         if (isPawnMove || isCapture) {
             halfMoveClock = 0;
         } else {
@@ -194,47 +149,46 @@ public class Position {
         boolean isCastling = isCastlingMove(from, to);
 
         // Make the move
-        board[to.x()][to.y()] = piece;
-        board[from.x()][from.y()] = null;
+        board.put(to, piece);
+        board.put(from, null);
 
         // Handle Pawn Promotion
         if (piece.getType() == PieceType.PAWN) {
             int rank = piece.getColor().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
-            if (to.y() == rank) {
-                board[to.x()][to.y()] = switch (promotionType) {
-                    case PieceType.QUEEN -> new Queen(piece.getColor());
-                    case PieceType.ROOK ->  new Rook(piece.getColor());
-                    case PieceType.KNIGHT -> new Knight(piece.getColor());
-                    case PieceType.BISHOP -> new Bishop(piece.getColor());
-                    default -> throw new IllegalStateException("Invalid promotion type");
-                };
+            if (to.rank() == rank) {
+                if (!PROMOTION_CHOICES.contains(promotionType)) {
+                    throw new IllegalStateException("Invalid promotion type: " + promotionType);
+                }
+                board.put(to, Piece.of(promotionType, turnColor));
             }
         }
 
         // Handle en passant capture
         if (isEnPassant) {
-            int captureY = piece.isWhite() ? to.y() - 1 : to.y() + 1;
-            board[to.x()][captureY] = null; // Remove the captured pawn
+            int capturedRank = piece.isWhite() ? to.rank() - 1 : to.rank() + 1;
+            Square capturedSquare = Square.of(to.file(), capturedRank);
+            board.put(capturedSquare, null); // Remove the captured pawn
         }
-        
+
         // Handle castling - move the rook
         if (isCastling) {
-            int rookFromX = to.x() > from.x() ? KINGSIDE_ROOK_FILE : QUEENSIDE_ROOK_FILE; // Kingside or queenside
-            int rookToX = to.x() > from.x() ? to.x() - 1 : to.x() + 1;
-            int y = from.y();
+            int rookFromFile = to.file() > from.file() ? KINGSIDE_ROOK_FILE : QUEENSIDE_ROOK_FILE; // Kingside or queenside
+            int rookToFile = to.file() > from.file() ? to.file() - 1 : to.file() + 1;
+            int rookRank = from.rank();
 
+            Square rookFromSquare = Square.of(rookFromFile, rookRank);
+            Square rookToSquare = Square.of(rookToFile, rookRank);
             // move the rook
-            Piece rook = board[rookFromX][y];
-            board[rookToX][y] = rook;
-            board[rookFromX][y] = null;
+            Piece rook = board.put(rookFromSquare, null);
+            board.put(rookToSquare, rook);
         }
 
         // Track the castling rights
         updateCastlingRights(piece, capturedPiece, from, to);
 
         // Track en passant target; only valid for the single reply to a double push
-        if (isPawnMove && from.x() == to.x() && Math.abs(from.y() - to.y()) == 2) {
-            enPassantTarget = new Square(from.x(), (from.y() + to.y()) / 2);
+        if (isPawnMove && from.file() == to.file() && Math.abs(from.rank() - to.rank()) == 2) {
+            enPassantTarget = Square.of(from.file(), (from.rank() + to.rank()) / 2);
         } else {
             enPassantTarget = null;
         }
@@ -244,7 +198,7 @@ public class Position {
     }
 
     public List<Square> getValidMovesForPiece(Square pieceSquare) {
-        Piece piece = getPiece(pieceSquare);
+        Piece piece = getPieceAt(pieceSquare);
         if (piece == null) {
             return List.of();
         }
@@ -299,8 +253,8 @@ public class Position {
             }
 
             // Undo the move
-            board[pieceSquare.x()][pieceSquare.y()] = piece;
-            board[move.x()][move.y()] = capturedPiece;
+            board.put(pieceSquare, piece);
+            board.put(move, capturedPiece);
             if (isEnPassant && enPassantCaptured != null) {
                 int captureY = piece.isWhite() ? move.y() - 1 : move.y() + 1;
                 board[move.x()][captureY] = enPassantCaptured;
@@ -318,7 +272,7 @@ public class Position {
      * Get possible en passant moves for a pawn at the given position
      */
     private List<Square> getEnPassantMoves(Square pawnSquare) {
-        Piece pawn = getPiece(pawnSquare);
+        Piece pawn = getPieceAt(pawnSquare);
         if (enPassantTarget == null) {
             return List.of();
         }
@@ -332,13 +286,13 @@ public class Position {
      * Check if a move is an en passant capture
      */
     public boolean isEnPassantMove(Square from, Square to) {
-        Piece piece = board[from.x()][from.y()];
+        Piece piece = board.pieceAt(from);
         if (piece == null || piece.getType() != PieceType.PAWN) {
             return false;
         }
 
         // En passant is a diagonal move to an empty square
-        if (board[to.x()][to.y()] == null && from.x() != to.x()) {
+        if (board.pieceAt(to) == null && from.x() != to.x()) {
             return getEnPassantMoves(from).contains(to);
         }
 
@@ -350,20 +304,20 @@ public class Position {
      */
     private List<Square> getCastlingMoves(Square kingSquare) {
         List<Square> castlingMoves = new ArrayList<>();
-        Piece piece = getPiece(kingSquare);
+        Piece piece = getPieceAt(kingSquare);
         if (piece == null) {
             return castlingMoves;
         }
 
         Color color = piece.getColor();
         // Kingside castling
-        if (canCastle(color, true)){
-            castlingMoves.add(new Square(KING_FILE + 2, kingSquare.y()));
+        if (canCastle(color, true)) {
+            castlingMoves.add(Square.of(KING_FILE + 2, kingSquare.y()));
         }
 
         // Queenside castling
         if (canCastle(color, false)) {
-            castlingMoves.add(new Square(KING_FILE - 2, kingSquare.y()));
+            castlingMoves.add(Square.of(KING_FILE - 2, kingSquare.y()));
         }
 
         return castlingMoves;
@@ -386,8 +340,8 @@ public class Position {
                 ? board[5][rank] == null && board[6][rank] == null
                 : board[2][rank] == null && board[3][rank] == null && board[1][rank] == null;
         boolean noSquareUnderAttackBetween = kingside
-                ? !isSquareUnderAttack(new Square(5, rank), king.getColor()) && !isSquareUnderAttack(new Square(6, rank), king.getColor())
-                : !isSquareUnderAttack(new Square(2, rank), king.getColor()) && !isSquareUnderAttack(new Square(3, rank), king.getColor());
+                ? !isSquareUnderAttack(Square.of(5, rank), king.getColor()) && !isSquareUnderAttack(Square.of(6, rank), king.getColor())
+                : !isSquareUnderAttack(Square.of(2, rank), king.getColor()) && !isSquareUnderAttack(Square.of(3, rank), king.getColor());
         return noPiecesBetween && notInCheck && noSquareUnderAttackBetween;
     }
 
@@ -395,7 +349,7 @@ public class Position {
      * Check if a move is a castling move
      */
     public boolean isCastlingMove(Square from, Square to) {
-        Piece piece = board[from.x()][from.y()];
+        Piece piece = board.pieceAt(from);
         if (piece == null || piece.getType() != PieceType.KING) {
             return false;
         }
@@ -439,9 +393,9 @@ public class Position {
     private boolean isSquareUnderAttack(Square square, Color color) {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Piece piece = board[x][y];
+                Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null && piece.getColor() != color) {
-                    Square enemySquare = new Square(x, y);
+                    Square enemySquare = Square.of(x, y);
                     List<Square> controlledSquares = piece.getControlledSquares(enemySquare, board);
                     if (controlledSquares.contains(square)) {
                         return true;
@@ -464,10 +418,10 @@ public class Position {
         // Check if there are any legal moves
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Piece piece = board[x][y];
+                Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null && piece.getColor() == color) {
-                    Square pieceSquare = new Square(x, y);
-                    List<Square> legalMoves = getValidMovesForPiece(pieceSquare);
+                    Square pieceSquare = Square.of(x, y);
+                    List<Square> legalMoves = MoveGenerator.legalDestinations(this, pieceSquare);
                     if (!legalMoves.isEmpty()) {
                         return false; // Found a legal move
                     }
@@ -489,10 +443,10 @@ public class Position {
         // Check if there are any legal moves
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Piece piece = board[x][y];
+                Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null && piece.getColor() == color) {
-                    Square pieceSquare = new Square(x, y);
-                    List<Square> legalMoves = getValidMovesForPiece(pieceSquare);
+                    Square pieceSquare = Square.of(x, y);
+                    List<Square> legalMoves = MoveGenerator.legalDestinations(this, pieceSquare);
                     if (!legalMoves.isEmpty()) {
                         return false; // Found a legal move
                     }
@@ -508,9 +462,9 @@ public class Position {
         Square kingSquare = null;
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Piece piece = board[x][y];
+                Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null && piece.getType() == PieceType.KING && piece.getColor() == color) {
-                    kingSquare = new Square(x, y);
+                    kingSquare = Square.of(x, y);
                     break;
                 }
             }
@@ -524,9 +478,9 @@ public class Position {
         // Check if any enemy piece can attack the king
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Piece piece = board[x][y];
+                Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null && piece.getColor() != color) {
-                    Square enemySquare = new Square(x, y);
+                    Square enemySquare = Square.of(x, y);
                     List<Square> moves = piece.getControlledSquares(enemySquare, board);
                     if (moves.contains(kingSquare)) {
                         return true;
@@ -537,7 +491,7 @@ public class Position {
 
         return false;
     }
-    
+
     /**
      * Check if fifty moves have been made without pawn move or capture
      */
@@ -554,7 +508,7 @@ public class Position {
         int whiteCount = 0, blackCount = 0;
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Piece piece = board[x][y];
+                Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null) {
                     if (piece.isWhite()) {
                         whiteCount++;
@@ -562,7 +516,7 @@ public class Position {
                         blackCount++;
                     }
                     if (piece.getType() == PieceType.BISHOP) {
-                        bishopSquares.add(new Square(x, y));
+                        bishopSquares.add(Square.of(x, y));
                     }
                     if (piece.getType() != PieceType.KING) {
                         otherPieces.add(piece);
@@ -592,52 +546,18 @@ public class Position {
     }
 
     /**
-     * Get the fen representation of the current position
-     */
-    public String getFen() {
-        StringBuilder fen = new StringBuilder();
-        for (int y = 7; y >= 0; y--) {
-            int count = 0;
-            for (int x = 0; x < 8; x++) {
-                Piece piece = board[x][y];
-                if (piece != null && count != 0) {
-                    fen.append(count);
-                    fen.append(piece.getSymbol());
-                    count = 0;
-                } else if (piece != null) {
-                    fen.append(piece.getSymbol());
-                } else {
-                    count++;
-                }
-                if (x == 7 && count != 0) {
-                    fen.append(count);
-                }
-            }
-            if (y != 0) {
-                fen.append("/");
-            }
-        }
-        fen.append(" ").append(turnColor.getSymbol());
-        fen.append(" ").append(castlingRights.getSymbol());
-        fen.append(" ").append(enPassantTarget == null ? "-" : enPassantTarget.toNotation());
-        fen.append(" ").append(halfMoveClock);
-        fen.append(" ").append(fullMoveClock);
-        return fen.toString();
-    }
-
-    /**
      * Generate a hash of the current board position
      */
     @Override
     public int hashCode() {
-        return getFen().hashCode();
+        return Fen.write(this).hashCode();
     }
 
     /**
      * calculate the disambiguation string (when multiple same pieces can move to the same square, requires disambiguation)
      */
     public String getDisambiguation(Square from, Square to) {
-        Piece movingPiece = board[from.x()][from.y()];
+        Piece movingPiece = board.pieceAt(from);
         if (movingPiece == null || movingPiece.getType() == PieceType.PAWN || movingPiece.getType() == PieceType.KING) {
             return "";
         }
@@ -651,12 +571,12 @@ public class Position {
                 // exclude self
                 if (x == from.x() && y == from.y()) continue;
 
-                Piece other = board[x][y];
+                Piece other = board.pieceAt(Square.of(x, y));
 
                 if (other != null && other.getColor() == movingPiece.getColor() && other.getType() == movingPiece.getType()) {
 
 
-                    List<Square> moves = getValidMovesForPiece(new Square(x, y));
+                    List<Square> moves = MoveGenerator.legalDestinations(this, Square.of(x, y));
 
                     if (moves.contains(to)) {
                         needDisambiguation = true;

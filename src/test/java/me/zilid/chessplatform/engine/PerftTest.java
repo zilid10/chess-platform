@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.formatter.Fen;
 import me.zilid.chessplatform.engine.pieces.Piece;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -50,7 +51,7 @@ class PerftTest {
             "'r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10', 3, 89890",
     })
     void perftMatchesKnownNodeCounts(String fen, int depth, long expected) {
-        assertThat(perft(Position.fromFen(fen), depth)).isEqualTo(expected);
+        assertThat(perft(Fen.read(fen), depth)).isEqualTo(expected);
     }
 
     private long perft(Position position, int depth) {
@@ -70,12 +71,12 @@ class PerftTest {
         List<Move> moves = new ArrayList<>();
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                Square from = new Square(x, y);
-                Piece piece = position.getPiece(from);
+                Square from = Square.of(x, y);
+                Piece piece = position.getPieceAt(from);
                 if (piece == null || piece.getColor() != position.getTurnColor()) {
                     continue;
                 }
-                for (Square to : position.getValidMovesForPiece(from)) {
+                for (Square to : MoveGenerator.legalDestinations(position, from)) {
                     moves.addAll(toMoves(position, piece, from, to));
                 }
             }
@@ -83,7 +84,9 @@ class PerftTest {
         return moves;
     }
 
-    /** Wraps a (from, to) pair into full Move records; a promotion square yields four moves. */
+    /**
+     * Wraps a (from, to) pair into full Move records; a promotion square yields four moves.
+     */
     private List<Move> toMoves(Position position, Piece piece, Square from, Square to) {
         PieceType type = piece.getType();
 
@@ -98,7 +101,7 @@ class PerftTest {
             return List.of(new Move(from, to, Move.MoveType.EN_PASSANT, type, PieceType.PAWN, null));
         }
 
-        Piece captured = position.getPiece(to);
+        Piece captured = position.getPieceAt(to);
         PieceType captureType = captured == null ? null : captured.getType();
 
         if (type == PieceType.PAWN && (to.y() == 0 || to.y() == 7)) {

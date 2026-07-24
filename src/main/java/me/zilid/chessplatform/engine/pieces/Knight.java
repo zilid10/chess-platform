@@ -32,7 +32,7 @@ public class Knight extends Piece {
             if (Square.isValid(newX, newY)) {
                 Piece target = board[newX][newY];
                 if (target == null || isEnemyPiece(target)) {
-                    validMoves.add(new Square(newX, newY));
+                    validMoves.add(Square.of(newX, newY));
                 }
             }
         }
@@ -51,7 +51,7 @@ public class Knight extends Piece {
             int newY = y + move[1];
 
             if (Square.isValid(newX, newY)) {
-                controlled.add(new Square(newX, newY));
+                controlled.add(Square.of(newX, newY));
             }
         }
 

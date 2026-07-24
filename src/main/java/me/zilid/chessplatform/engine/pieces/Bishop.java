@@ -30,10 +30,10 @@ public class Bishop extends Piece {
                 Piece target = board[newX][newY];
                 
                 if (target == null) {
-                    validMoves.add(new Square(newX, newY));
+                    validMoves.add(Square.of(newX, newY));
                 } else {
                     if (isEnemyPiece(target)) {
-                        validMoves.add(new Square(newX, newY));
+                        validMoves.add(Square.of(newX, newY));
                     }
                     break; // Stop at any piece
                 }
@@ -58,7 +58,7 @@ public class Bishop extends Piece {
 
             while (Square.isValid(newX, newY)) {
                 Piece target = board[newX][newY];
-                controlled.add(new Square(newX, newY));
+                controlled.add(Square.of(newX, newY));
 
                 if (target != null) {
                     break; // Stop at the first piece encountered, but include its square.

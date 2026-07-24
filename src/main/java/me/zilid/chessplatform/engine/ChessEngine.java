@@ -1,10 +1,12 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.formatter.Fen;
+
 import java.util.List;
 
 public class ChessEngine {
     private final Position position;
-    
+
     public ChessEngine() {
         position = Position.startingPosition();
     }
@@ -44,12 +46,12 @@ public class ChessEngine {
             return List.of();
         }
     }
-    
+
     /**
      * Get all valid moves for a piece at the given position
      */
     public List<Square> getValidMoves(Square square) {
-        return position.getValidMovesForPiece(square);
+        return MoveGenerator.legalDestinations(position, square);
     }
 
     public UndoInfo applyMove(Move move) {
@@ -80,14 +82,14 @@ public class ChessEngine {
     public boolean isStalemate() {
         return position.isStalemate(position.getTurnColor());
     }
-    
+
     /**
      * Check for fifty-move rule
      */
     public boolean isFiftyMoveRule() {
         return position.isFiftyMoveRule();
     }
-    
+
     /**
      * Check for insufficient material
      */
@@ -96,17 +98,10 @@ public class ChessEngine {
     }
 
     /**
-     * Get the current board state
+     * Get the current position
      */
     public Position getPosition() {
         return position;
-    }
-    
-    /**
-     * Get whose turn it is
-     */
-    public boolean isWhiteTurn() {
-        return position.isWhiteTurn();
     }
 
     /**
@@ -120,6 +115,6 @@ public class ChessEngine {
      * Get fen representation of current board
      */
     public String getFen() {
-        return position.getFen();
+        return Fen.write(position);
     }
 }

@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.engine;
 
+import me.zilid.chessplatform.engine.formatter.Fen;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,49 +18,49 @@ class PositionFenTest {
 
     @Test
     void defaultBoardProducesStartingFen() {
-        assertThat(Position.startingPosition().getFen()).isEqualTo(START);
+        assertThat(Fen.write(Position.startingPosition())).isEqualTo(START);
     }
 
     @Test
     void startingPositionRoundTrips() {
-        assertThat(Position.fromFen(START).getFen()).isEqualTo(START);
+        assertThat(Fen.write(Fen.read(START))).isEqualTo(START);
     }
 
     @Test
     void complexPositionRoundTrips() {
-        assertThat(Position.fromFen(KIWIPETE).getFen()).isEqualTo(KIWIPETE);
+        assertThat(Fen.write(Fen.read(KIWIPETE))).isEqualTo(KIWIPETE);
     }
 
     @Test
     void placesPiecesOnCorrectSquares() {
-        Position position = Position.fromFen(START);
-        assertThat(position.getPiece(Square.fromNotation("e1")).getType()).isEqualTo(PieceType.KING);
-        assertThat(position.getPiece(Square.fromNotation("e1")).getColor()).isEqualTo(Color.WHITE);
-        assertThat(position.getPiece(Square.fromNotation("d8")).getType()).isEqualTo(PieceType.QUEEN);
-        assertThat(position.getPiece(Square.fromNotation("d8")).getColor()).isEqualTo(Color.BLACK);
-        assertThat(position.getPiece(Square.fromNotation("e4"))).isNull();
+        Position position = Fen.read(START);
+        assertThat(position.getPieceAt(Square.fromNotation("e1")).getType()).isEqualTo(PieceType.KING);
+        assertThat(position.getPieceAt(Square.fromNotation("e1")).getColor()).isEqualTo(Color.WHITE);
+        assertThat(position.getPieceAt(Square.fromNotation("d8")).getType()).isEqualTo(PieceType.QUEEN);
+        assertThat(position.getPieceAt(Square.fromNotation("d8")).getColor()).isEqualTo(Color.BLACK);
+        assertThat(position.getPieceAt(Square.fromNotation("e4"))).isNull();
     }
 
     @Test
     void parsesSideToMove() {
-        assertThat(Position.fromFen("7k/8/8/8/8/8/8/K7 b - - 0 1").getTurnColor()).isEqualTo(Color.BLACK);
+        assertThat(Fen.read("7k/8/8/8/8/8/8/K7 b - - 0 1").getTurnColor()).isEqualTo(Color.BLACK);
     }
 
     @Test
     void parsesEnPassantTarget() {
-        Position position = Position.fromFen("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
+        Position position = Fen.read("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
         assertThat(position.getEnPassantTarget()).isEqualTo(Square.fromNotation("d6"));
     }
 
     @Test
     void rejectsMalformedFen() {
-        assertThatThrownBy(() -> Position.fromFen("not a fen"))
+        assertThatThrownBy(() -> Fen.read("not a fen"))
                 .isInstanceOf(IllegalArgumentException.class);
         // only seven ranks on the board
-        assertThatThrownBy(() -> Position.fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1"))
+        assertThatThrownBy(() -> Fen.read("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1"))
                 .isInstanceOf(IllegalArgumentException.class);
         // nine files in the first rank
-        assertThatThrownBy(() -> Position.fromFen("rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"))
+        assertThatThrownBy(() -> Fen.read("rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

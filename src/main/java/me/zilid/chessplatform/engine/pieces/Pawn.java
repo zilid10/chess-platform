@@ -27,12 +27,12 @@ public class Pawn extends Piece {
         // Forward moves
         int newY = y + direction;
         if (Square.isValid(x, newY) && board[x][newY] == null) {
-            validMoves.add(new Square(x, newY));
+            validMoves.add(Square.of(x, newY));
 
             // Double move from starting position, only possible when there is no blockade in front of the pawn
             int doubleY = y + (2 * direction);
             if (isOnStartingRank(square) && Square.isValid(x, doubleY) && board[x][doubleY] == null) {
-                validMoves.add(new Square(x, doubleY));
+                validMoves.add(Square.of(x, doubleY));
             }
         }
 
@@ -43,7 +43,7 @@ public class Pawn extends Piece {
             if (Square.isValid(captureX, captureY)) {
                 Piece target = board[captureX][captureY];
                 if (isEnemyPiece(target)) {
-                    validMoves.add(new Square(captureX, captureY));
+                    validMoves.add(Square.of(captureX, captureY));
                 }
             }
         }
@@ -71,7 +71,7 @@ public class Pawn extends Piece {
             int captureX = x + dx;
             int captureY = y + dy;
             if (Square.isValid(captureX, captureY)) {
-                controlledSquares.add(new Square(captureX, captureY));
+                controlledSquares.add(Square.of(captureX, captureY));
             }
         }
 

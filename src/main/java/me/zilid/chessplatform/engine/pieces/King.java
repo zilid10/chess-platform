@@ -14,11 +14,11 @@ public class King extends Piece {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1},
             {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
-    
+
     public King(Color color) {
         super(color);
     }
-    
+
     @Override
     public List<Square> getValidMoves(Square square, Piece[][] board) {
         List<Square> validMoves = new ArrayList<>();
@@ -28,11 +28,11 @@ public class King extends Piece {
         for (int[] move : moves) {
             int newX = x + move[0];
             int newY = y + move[1];
-            
+
             if (Square.isValid(newX, newY)) {
                 Piece target = board[newX][newY];
                 if (target == null || isEnemyPiece(target)) {
-                    validMoves.add(new Square(newX, newY));
+                    validMoves.add(Square.of(newX, newY));
                 }
             }
         }
@@ -51,12 +51,12 @@ public class King extends Piece {
             int newY = y + move[1];
 
             if (Square.isValid(newX, newY)) {
-                controlled.add(new Square(newX, newY));
+                controlled.add(Square.of(newX, newY));
             }
         }
         return controlled;
     }
-    
+
     @Override
     public PieceType getType() {
         return PieceType.KING;
