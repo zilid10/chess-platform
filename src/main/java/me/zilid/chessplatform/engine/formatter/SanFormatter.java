@@ -6,9 +6,9 @@ import me.zilid.chessplatform.engine.*;
 public class SanFormatter {
     public String format(Position preMovePosition, Move move) {
         StringBuilder sb = new StringBuilder();
-        if (move.moveType() == MoveType.CASTLE_KINGSIDE) {
+        if (move.type() == MoveType.CASTLE_KINGSIDE) {
             sb.append("O-O");
-        } else if (move.moveType() == MoveType.CASTLE_QUEENSIDE) {
+        } else if (move.type() == MoveType.CASTLE_QUEENSIDE) {
             sb.append("O-O-O");
         } else {
             // piece symbol (pawn symbol is empty string)

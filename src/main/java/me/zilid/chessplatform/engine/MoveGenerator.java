@@ -21,7 +21,7 @@ public class MoveGenerator {
     }
 
     private static List<Move> getValidMovesForPiece(Position position, Square pieceSquare) {
-        
+        return List.of();
     }
 
 //    private List<Square> slidingMoves() {

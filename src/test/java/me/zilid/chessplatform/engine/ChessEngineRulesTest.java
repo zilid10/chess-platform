@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Rule and edge-case tests: check, checkmate/stalemate, castling, en passant,
- * promotion, draw conditions, and apply/undo. These are the targeted tests that
+ * promotionType, draw conditions, and apply/undo. These are the targeted tests that
  * tell you WHICH rule broke when the perft counts in {@link PerftTest} diverge.
  */
 class ChessEngineRulesTest {
@@ -227,7 +227,7 @@ class ChessEngineRulesTest {
 
         @Test
         void pawnCanPromoteByCapturing() {
-            // Black rook on b8 can be taken with promotion
+            // Black rook on b8 can be taken with promotionType
             ChessEngine engine = engineFrom("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(engine, "a7")).containsExactlyInAnyOrder("a8", "b8");
             assertThat(engine.makeMove("a7", "b8", PieceType.QUEEN)).isTrue();

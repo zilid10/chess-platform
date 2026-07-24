@@ -93,7 +93,7 @@ public class Position {
         int fromX = move.from().x();
         int fromY = move.from().y();
 
-        // remove the piece from the destination square and restore the piece to the source square (works for promotion)
+        // remove the piece from the destination square and restore the piece to the source square (works for promotionType)
         board.put(move.to(), null);
         board.put(move.from(), Piece.of(moverColor, move.pieceType()))
 
@@ -102,12 +102,12 @@ public class Position {
             board.put(undo.capturedSquare(), Piece.of(capturedColor, move.captureType()));
         }
         // undo rook movement for castling
-        if (move.moveType() == MoveType.CASTLE_KINGSIDE) {
+        if (move.type() == MoveType.CASTLE_KINGSIDE) {
             Square rookSquare = Square.of(KINGSIDE_ROOK_FILE, fromY);
             Square kingSquare = Square.of(KING_FILE, fromY);
             board.put(rookSquare, board.pieceAt(kingSquare));
             board.put(Square.of(KING_FILE + 1, fromY), null);
-        } else if (move.moveType() == MoveType.CASTLE_QUEENSIDE) {
+        } else if (move.type() == MoveType.CASTLE_QUEENSIDE) {
             board.put(Square.of(QUEENSIDE_ROOK_FILE, fromY), board.pieceAt(Square.of(KING_FILE - 1, fromY)));
             board.put(Square.of(KING_FILE - 1, fromY), null);
         }
@@ -156,7 +156,7 @@ public class Position {
             int rank = piece.color().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
             if (to.rank() == rank) {
                 if (!PROMOTION_CHOICES.contains(promotionType)) {
-                    throw new IllegalStateException("Invalid promotion type: " + promotionType);
+                    throw new IllegalStateException("Invalid promotionType type: " + promotionType);
                 }
                 board.put(to, Piece.of(turnColor, promotionType));
             }

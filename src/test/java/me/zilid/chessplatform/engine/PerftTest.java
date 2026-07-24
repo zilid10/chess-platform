@@ -36,7 +36,7 @@ class PerftTest {
             "'8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1', 2, 191",
             "'8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1', 3, 2812",
             "'8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1', 4, 43238",
-            // Position 4: promotion-heavy position
+            // Position 4: promotionType-heavy position
             "'r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1', 1, 6",
             "'r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1', 2, 264",
             "'r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1', 3, 9467",
@@ -84,7 +84,7 @@ class PerftTest {
     }
 
     /**
-     * Wraps a (from, to) pair into full Move records; a promotion square yields four moves.
+     * Wraps a (from, to) pair into full Move records; a promotionType square yields four moves.
      */
     private List<Move> toMoves(Position position, Piece piece, Square from, Square to) {
         PieceType type = piece.type();
