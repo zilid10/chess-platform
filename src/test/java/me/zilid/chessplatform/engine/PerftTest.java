@@ -1,7 +1,6 @@
 package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.formatter.Fen;
-import me.zilid.chessplatform.engine.pieces.Piece;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -73,7 +72,7 @@ class PerftTest {
             for (int y = 0; y < 8; y++) {
                 Square from = Square.of(x, y);
                 Piece piece = position.getPieceAt(from);
-                if (piece == null || piece.getColor() != position.getTurnColor()) {
+                if (piece == null || piece.color() != position.getTurnColor()) {
                     continue;
                 }
                 for (Square to : MoveGenerator.legalDestinations(position, from)) {
@@ -88,30 +87,30 @@ class PerftTest {
      * Wraps a (from, to) pair into full Move records; a promotion square yields four moves.
      */
     private List<Move> toMoves(Position position, Piece piece, Square from, Square to) {
-        PieceType type = piece.getType();
+        PieceType type = piece.type();
 
         if (position.isCastlingMove(from, to)) {
-            Move.MoveType side = to.x() > from.x()
-                    ? Move.MoveType.CASTLE_KINGSIDE
-                    : Move.MoveType.CASTLE_QUEENSIDE;
+            MoveType side = to.x() > from.x()
+                    ? MoveType.CASTLE_KINGSIDE
+                    : MoveType.CASTLE_QUEENSIDE;
             return List.of(new Move(from, to, side, type, null, null));
         }
 
         if (position.isEnPassantMove(from, to)) {
-            return List.of(new Move(from, to, Move.MoveType.EN_PASSANT, type, PieceType.PAWN, null));
+            return List.of(new Move(from, to, MoveType.EN_PASSANT, type, PieceType.PAWN, null));
         }
 
         Piece captured = position.getPieceAt(to);
-        PieceType captureType = captured == null ? null : captured.getType();
+        PieceType captureType = captured == null ? null : captured.type();
 
         if (type == PieceType.PAWN && (to.y() == 0 || to.y() == 7)) {
             List<Move> promotions = new ArrayList<>();
             for (PieceType choice : PROMOTION_CHOICES) {
-                promotions.add(new Move(from, to, Move.MoveType.PROMOTION, type, captureType, choice));
+                promotions.add(new Move(from, to, MoveType.PROMOTION, type, captureType, choice));
             }
             return promotions;
         }
 
-        return List.of(new Move(from, to, Move.MoveType.NORMAL, type, captureType, null));
+        return List.of(new Move(from, to, MoveType.NORMAL, type, captureType, null));
     }
 }

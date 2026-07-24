@@ -1,7 +1,5 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
-
 import java.util.Arrays;
 
 public class Board {
@@ -21,28 +19,28 @@ public class Board {
 
     public static Board initial() {
         Piece[] pieces = new Piece[BOARD_SIZE];
-        pieces[0] = Piece.of(PieceType.ROOK, Color.WHITE);
-        pieces[1] = Piece.of(PieceType.KNIGHT, Color.WHITE);
-        pieces[2] = Piece.of(PieceType.BISHOP, Color.WHITE);
-        pieces[3] = Piece.of(PieceType.QUEEN, Color.WHITE);
-        pieces[4] = Piece.of(PieceType.KING, Color.WHITE);
-        pieces[5] = Piece.of(PieceType.BISHOP, Color.WHITE);
-        pieces[6] = Piece.of(PieceType.KNIGHT, Color.WHITE);
-        pieces[7] = Piece.of(PieceType.ROOK, Color.WHITE);
+        pieces[0] = Piece.WHITE_ROOK;
+        pieces[1] = Piece.WHITE_KNIGHT;
+        pieces[2] = Piece.WHITE_BISHOP;
+        pieces[3] = Piece.WHITE_QUEEN;
+        pieces[4] = Piece.WHITE_KING;
+        pieces[5] = Piece.WHITE_BISHOP;
+        pieces[6] = Piece.WHITE_KNIGHT;
+        pieces[7] = Piece.WHITE_ROOK;
         for (int i = 8; i < 16; i++) {
-            pieces[i] = Piece.of(PieceType.PAWN, Color.WHITE);
+            pieces[i] = Piece.WHITE_PAWN;
         }
         for (int i = 48; i < 56; i++) {
-            pieces[i] = Piece.of(PieceType.PAWN, Color.BLACK);
+            pieces[i] = Piece.BLACK_PAWN;
         }
-        pieces[56] = Piece.of(PieceType.ROOK, Color.BLACK);
-        pieces[57] = Piece.of(PieceType.KNIGHT, Color.BLACK);
-        pieces[58] = Piece.of(PieceType.BISHOP, Color.BLACK);
-        pieces[59] = Piece.of(PieceType.QUEEN, Color.BLACK);
-        pieces[60] = Piece.of(PieceType.KING, Color.BLACK);
-        pieces[61] = Piece.of(PieceType.BISHOP, Color.BLACK);
-        pieces[62] = Piece.of(PieceType.KNIGHT, Color.BLACK);
-        pieces[63] = Piece.of(PieceType.ROOK, Color.BLACK);
+        pieces[56] = Piece.BLACK_ROOK;
+        pieces[57] = Piece.BLACK_KNIGHT;
+        pieces[58] = Piece.BLACK_BISHOP;
+        pieces[59] = Piece.BLACK_QUEEN;
+        pieces[60] = Piece.BLACK_KING;
+        pieces[61] = Piece.BLACK_BISHOP;
+        pieces[62] = Piece.BLACK_KNIGHT;
+        pieces[63] = Piece.BLACK_ROOK;
         return new Board(pieces);
     }
 

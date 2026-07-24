@@ -1,13 +1,29 @@
 package me.zilid.chessplatform.engine;
 
-import java.util.regex.Pattern;
+import java.util.Arrays;
 
 public record CastlingRights(int rights) {
-    private static final int WHITE_KINGSIDE = 1;
-    private static final int WHITE_QUEENSIDE = 1 << 1;
-    private static final int BLACK_KINGSIDE = 1 << 2;
-    private static final int BLACK_QUEENSIDE = 1 << 3;
-    private static final int ALL_RIGHTS = 0b1111;
+    private static final int WHITE_KINGSIDE = mask(Color.WHITE, CastlingSide.KINGSIDE);
+    private static final int WHITE_QUEENSIDE = mask(Color.WHITE, CastlingSide.QUEENSIDE);
+    private static final int BLACK_KINGSIDE = mask(Color.BLACK, CastlingSide.KINGSIDE);
+    private static final int BLACK_QUEENSIDE = mask(Color.BLACK, CastlingSide.QUEENSIDE);
+    private static final int ALL_RIGHTS = WHITE_KINGSIDE | WHITE_QUEENSIDE | BLACK_KINGSIDE | BLACK_QUEENSIDE;
+    public static final CastlingRights ALL = new CastlingRights(ALL_RIGHTS);
+    private static final int NO_RIGHTS = 0;
+    public static final CastlingRights NONE = new CastlingRights(NO_RIGHTS);
+
+    private static final int[] SQUARE_MASK = new int[64];
+
+    static {
+        Arrays.fill(SQUARE_MASK, ALL_RIGHTS);
+        SQUARE_MASK[Square.fromNotation("a1").index()] &= ~WHITE_QUEENSIDE;
+        SQUARE_MASK[Square.fromNotation("e1").index()] &= ~(WHITE_KINGSIDE | WHITE_QUEENSIDE);
+        SQUARE_MASK[Square.fromNotation("h1").index()] &= ~WHITE_KINGSIDE;
+
+        SQUARE_MASK[Square.fromNotation("a8").index()] &= ~BLACK_QUEENSIDE;
+        SQUARE_MASK[Square.fromNotation("e8").index()] &= ~(BLACK_KINGSIDE | BLACK_QUEENSIDE);
+        SQUARE_MASK[Square.fromNotation("h8").index()] &= ~BLACK_KINGSIDE;
+    }
 
     public CastlingRights {
         if (rights < 0 || rights > 15) {
@@ -15,103 +31,27 @@ public record CastlingRights(int rights) {
         }
     }
 
-    public static CastlingRights all() {
-        return new CastlingRights(ALL_RIGHTS);
+    private static int mask(Color color, CastlingSide side) {
+        return 1 << (color.ordinal() * 2 + side.ordinal());
     }
 
-    public boolean whiteKingside() {
-        return (WHITE_KINGSIDE & rights) != 0;
+    public boolean has(Color color, CastlingSide side) {
+        return (rights & mask(color, side)) != 0;
     }
 
-    public boolean whiteQueenside() {
-        return (WHITE_QUEENSIDE & rights) != 0;
+    public CastlingRights with(Color color, CastlingSide side) {
+        return new CastlingRights(rights | mask(color, side));
     }
 
-    public boolean blackKingside() {
-        return (BLACK_KINGSIDE & rights) != 0;
+    public CastlingRights without(Color color, CastlingSide side) {
+        return new CastlingRights(rights & ~mask(color, side));
     }
 
-    public boolean blackQueenside() {
-        return (BLACK_QUEENSIDE & rights) != 0;
+    public CastlingRights without(Color color) {
+        return new CastlingRights(rights & ~mask(color, CastlingSide.KINGSIDE) & ~mask(color, CastlingSide.QUEENSIDE));
     }
 
-    public CastlingRights withoutWhiteKingside() {
-        int newRights = rights & ~WHITE_KINGSIDE;
-        return new CastlingRights(newRights);
-    }
-
-    public CastlingRights withoutWhiteQueenside() {
-        int newRights = rights & ~WHITE_QUEENSIDE;
-        return new CastlingRights(newRights);
-    }
-
-    public CastlingRights withoutBlackKingside() {
-        int newRights = rights & ~BLACK_KINGSIDE;
-        return new CastlingRights(newRights);
-    }
-
-    public CastlingRights withoutBlackQueenside() {
-        int newRights = rights & ~BLACK_QUEENSIDE;
-        return new CastlingRights(newRights);
-    }
-
-    public CastlingRights withoutBlack() {
-        int newRights = rights & ~BLACK_KINGSIDE & ~BLACK_QUEENSIDE;
-        return new CastlingRights(newRights);
-    }
-
-    public CastlingRights withoutWhite() {
-        int newRights = rights & ~WHITE_KINGSIDE & ~WHITE_QUEENSIDE;
-        return new CastlingRights(newRights);
-    }
-
-    public boolean hasCastlingRight(Color color, boolean isKingside) {
-        return switch (color) {
-            case WHITE -> isKingside ? whiteKingside() : whiteQueenside();
-            case BLACK -> isKingside ? blackKingside() : blackQueenside();
-        };
-    }
-
-    public String getSymbol() {
-        if (rights == 0) {
-            return "-";
-        }
-        StringBuilder sb = new StringBuilder();
-        if ((rights & WHITE_KINGSIDE) != 0) {
-            sb.append("K");
-        }
-        if ((rights & WHITE_QUEENSIDE) != 0) {
-            sb.append("Q");
-        }
-        if ((rights & BLACK_KINGSIDE) != 0) {
-            sb.append("k");
-        }
-        if ((rights & BLACK_QUEENSIDE) != 0) {
-            sb.append("q");
-        }
-        return sb.toString();
-    }
-
-    private static final Pattern castlingRightsPattern = Pattern.compile("^(-|(?!$)K?Q?k?q?)$");
-
-    public static CastlingRights fromSymbol(String symbol) {
-        if (symbol == null || !castlingRightsPattern.matcher(symbol).matches()) {
-            throw new IllegalArgumentException("castling rights symbol is not valid: '" + symbol + "'");
-        }
-
-        int rights = 0;
-        if (symbol.contains("K")) {
-            rights |= WHITE_KINGSIDE;
-        }
-        if (symbol.contains("Q")) {
-            rights |= WHITE_QUEENSIDE;
-        }
-        if (symbol.contains("k")) {
-            rights |= BLACK_KINGSIDE;
-        }
-        if (symbol.contains("q")) {
-            rights |= BLACK_QUEENSIDE;
-        }
-        return new CastlingRights(rights);
+    public CastlingRights afterMove(Square from, Square to) {
+        return new CastlingRights(rights & SQUARE_MASK[from.index()] & SQUARE_MASK[to.index()]);
     }
 }

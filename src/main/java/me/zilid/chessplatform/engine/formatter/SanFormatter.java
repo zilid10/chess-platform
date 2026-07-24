@@ -1,48 +1,57 @@
 package me.zilid.chessplatform.engine.formatter;
 
-import me.zilid.chessplatform.engine.PieceType;
-import me.zilid.chessplatform.engine.Position;
-import me.zilid.chessplatform.engine.Move;
-import me.zilid.chessplatform.engine.UndoInfo;
+import me.zilid.chessplatform.engine.*;
+
 
 public class SanFormatter {
     public String format(Position preMovePosition, Move move) {
-            StringBuilder sb = new StringBuilder();
-            if (move.moveType() == Move.MoveType.CASTLE_KINGSIDE) {
-                sb.append("O-O");
-            } else if (move.moveType() == Move.MoveType.CASTLE_QUEENSIDE) {
-                sb.append("O-O-O");
-            } else {
-                // piece symbol (pawn symbol is empty string)
-                sb.append(move.pieceType().getSymbol());
-                // add ambiguation
-                String disambiguation = preMovePosition.getDisambiguation(move.from(), move.to());
-                sb.append(disambiguation); // disambiguation for pawn and king is empty string
+        StringBuilder sb = new StringBuilder();
+        if (move.moveType() == MoveType.CASTLE_KINGSIDE) {
+            sb.append("O-O");
+        } else if (move.moveType() == MoveType.CASTLE_QUEENSIDE) {
+            sb.append("O-O-O");
+        } else {
+            // piece symbol (pawn symbol is empty string)
+            sb.append(pieceTypeToSymbol(move.pieceType()));
+            // add ambiguation
+            String disambiguation = preMovePosition.getDisambiguation(move.from(), move.to());
+            sb.append(disambiguation); // disambiguation for pawn and king is empty string
 
-                // add 'x' for captures (including en-passant)
-                if (move.isCapture()) {
-                    if (move.pieceType() == PieceType.PAWN || move.isEnPassant()) {
-                        sb.append(move.from().toNotation().charAt(0));
-                    }
-                    sb.append('x');
+            // add 'x' for captures (including en-passant)
+            if (move.isCapture()) {
+                if (move.pieceType() == PieceType.PAWN || move.isEnPassant()) {
+                    sb.append(move.from().toNotation().charAt(0));
                 }
-
-                // add destination square notation
-                sb.append(move.to().toNotation());
+                sb.append('x');
             }
 
-            if (move.isPromotion()) {
-                sb.append("=").append(move.promotionType().getSymbol());
-            }
+            // add destination square notation
+            sb.append(move.to().toNotation());
+        }
 
-            UndoInfo undo = preMovePosition.applyMove(move);
-            if (preMovePosition.isCheckmate(preMovePosition.getTurnColor())) {
-                sb.append("#");
-            } else if (preMovePosition.isInCheck(preMovePosition.getTurnColor())) {
-                sb.append("+");
-            }
-            preMovePosition.undoMove(move, undo);
+        if (move.isPromotion()) {
+            sb.append("=").append(pieceTypeToSymbol(move.promotionType()));
+        }
 
-            return sb.toString();
+        UndoInfo undo = preMovePosition.applyMove(move);
+        if (preMovePosition.isCheckmate(preMovePosition.getTurnColor())) {
+            sb.append("#");
+        } else if (preMovePosition.isInCheck(preMovePosition.getTurnColor())) {
+            sb.append("+");
+        }
+        preMovePosition.undoMove(move, undo);
+
+        return sb.toString();
+    }
+
+    public String pieceTypeToSymbol(PieceType pieceType) {
+        return switch (pieceType) {
+            case PAWN -> "";
+            case KNIGHT -> "N";
+            case BISHOP -> "B";
+            case ROOK -> "R";
+            case QUEEN -> "Q";
+            case KING -> "K";
+        };
     }
 }

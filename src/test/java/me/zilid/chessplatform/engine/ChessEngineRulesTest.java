@@ -124,9 +124,9 @@ class ChessEngineRulesTest {
         void kingsideCastlingMovesKingAndRook() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
             assertThat(engine.makeMove("e1", "g1", null)).isTrue();
-            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("g1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("g1")).type())
                     .isEqualTo(PieceType.KING);
-            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("f1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("f1")).type())
                     .isEqualTo(PieceType.ROOK);
             assertThat(castlingRightsOf(engine)).isEqualTo("kq");
         }
@@ -135,9 +135,9 @@ class ChessEngineRulesTest {
         void queensideCastlingMovesKingAndRook() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
             assertThat(engine.makeMove("e1", "c1", null)).isTrue();
-            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("c1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("c1")).type())
                     .isEqualTo(PieceType.KING);
-            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("d1")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("d1")).type())
                     .isEqualTo(PieceType.ROOK);
         }
 
@@ -221,7 +221,7 @@ class ChessEngineRulesTest {
         void pawnPromotesToChosenPiece(PieceType promotion) {
             ChessEngine engine = engineFrom("7k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(engine.makeMove("a7", "a8", promotion)).isTrue();
-            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("a8")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("a8")).type())
                     .isEqualTo(promotion);
         }
 
@@ -231,7 +231,7 @@ class ChessEngineRulesTest {
             ChessEngine engine = engineFrom("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(engine, "a7")).containsExactlyInAnyOrder("a8", "b8");
             assertThat(engine.makeMove("a7", "b8", PieceType.QUEEN)).isTrue();
-            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("b8")).getType())
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("b8")).type())
                     .isEqualTo(PieceType.QUEEN);
         }
     }
@@ -270,7 +270,7 @@ class ChessEngineRulesTest {
             ChessEngine engine = new ChessEngine();
             String before = engine.getFen();
             Move move = new Move(Square.fromNotation("e2"), Square.fromNotation("e4"),
-                    Move.MoveType.NORMAL, PieceType.PAWN, null, null);
+                    MoveType.NORMAL, PieceType.PAWN, null, null);
 
             UndoInfo undo = engine.applyMove(move);
             assertThat(engine.getFen()).isNotEqualTo(before);
@@ -284,7 +284,7 @@ class ChessEngineRulesTest {
             String fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
             ChessEngine engine = engineFrom(fen);
             Move capture = new Move(Square.fromNotation("e5"), Square.fromNotation("g6"),
-                    Move.MoveType.NORMAL, PieceType.KNIGHT, PieceType.PAWN, null);
+                    MoveType.NORMAL, PieceType.KNIGHT, PieceType.PAWN, null);
 
             UndoInfo undo = engine.applyMove(capture);
             engine.undoMove(capture, undo);

@@ -34,10 +34,10 @@ class PositionFenTest {
     @Test
     void placesPiecesOnCorrectSquares() {
         Position position = Fen.read(START);
-        assertThat(position.getPieceAt(Square.fromNotation("e1")).getType()).isEqualTo(PieceType.KING);
-        assertThat(position.getPieceAt(Square.fromNotation("e1")).getColor()).isEqualTo(Color.WHITE);
-        assertThat(position.getPieceAt(Square.fromNotation("d8")).getType()).isEqualTo(PieceType.QUEEN);
-        assertThat(position.getPieceAt(Square.fromNotation("d8")).getColor()).isEqualTo(Color.BLACK);
+        assertThat(position.getPieceAt(Square.fromNotation("e1")).type()).isEqualTo(PieceType.KING);
+        assertThat(position.getPieceAt(Square.fromNotation("e1")).color()).isEqualTo(Color.WHITE);
+        assertThat(position.getPieceAt(Square.fromNotation("d8")).type()).isEqualTo(PieceType.QUEEN);
+        assertThat(position.getPieceAt(Square.fromNotation("d8")).color()).isEqualTo(Color.BLACK);
         assertThat(position.getPieceAt(Square.fromNotation("e4"))).isNull();
     }
 

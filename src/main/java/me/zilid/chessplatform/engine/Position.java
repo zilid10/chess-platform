@@ -1,7 +1,6 @@
 package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.formatter.Fen;
-import me.zilid.chessplatform.engine.pieces.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,7 @@ public class Position {
     }
 
     public static Position startingPosition() {
-        return new Position(Board.initial(), Color.WHITE, CastlingRights.all(), null, 0, 1);
+        return new Position(Board.initial(), Color.WHITE, CastlingRights.ALL, null, 0, 1);
     }
 
     public Board getBoard() {
@@ -96,19 +95,19 @@ public class Position {
 
         // remove the piece from the destination square and restore the piece to the source square (works for promotion)
         board.put(move.to(), null);
-        board.put(move.from(), Piece.of(move.pieceType(), moverColor))
+        board.put(move.from(), Piece.of(moverColor, move.pieceType()))
 
         // restore the captured piece
         if (move.isCapture()) {
-            board.put(undo.capturedSquare(), Piece.of(move.captureType(), capturedColor));
+            board.put(undo.capturedSquare(), Piece.of(capturedColor, move.captureType()));
         }
         // undo rook movement for castling
-        if (move.moveType() == Move.MoveType.CASTLE_KINGSIDE) {
+        if (move.moveType() == MoveType.CASTLE_KINGSIDE) {
             Square rookSquare = Square.of(KINGSIDE_ROOK_FILE, fromY);
             Square kingSquare = Square.of(KING_FILE, fromY);
             board.put(rookSquare, board.pieceAt(kingSquare));
             board.put(Square.of(KING_FILE + 1, fromY), null);
-        } else if (move.moveType() == Move.MoveType.CASTLE_QUEENSIDE) {
+        } else if (move.moveType() == MoveType.CASTLE_QUEENSIDE) {
             board.put(Square.of(QUEENSIDE_ROOK_FILE, fromY), board.pieceAt(Square.of(KING_FILE - 1, fromY)));
             board.put(Square.of(KING_FILE - 1, fromY), null);
         }
@@ -122,7 +121,7 @@ public class Position {
 
     public boolean makeMove(Square from, Square to, PieceType promotionType) {
         Piece piece = getPieceAt(from);
-        if (piece == null || piece.getColor() != turnColor) {
+        if (piece == null || piece.color() != turnColor) {
             return false;
         }
 
@@ -133,7 +132,7 @@ public class Position {
 
         // Track for fifty-move rule: reset if pawn move or capture
         Piece capturedPiece = getPieceAt(to);
-        boolean isPawnMove = piece.getType() == PieceType.PAWN;
+        boolean isPawnMove = piece.type() == PieceType.PAWN;
         boolean isCapture = capturedPiece != null || isEnPassantMove(from, to);
 
         if (isPawnMove || isCapture) {
@@ -141,7 +140,7 @@ public class Position {
         } else {
             halfMoveClock++;
         }
-        if (piece.getColor().isBlack()) {
+        if (piece.color().isBlack()) {
             fullMoveClock++;
         }
 
@@ -153,19 +152,19 @@ public class Position {
         board.put(from, null);
 
         // Handle Pawn Promotion
-        if (piece.getType() == PieceType.PAWN) {
-            int rank = piece.getColor().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
+        if (piece.type() == PieceType.PAWN) {
+            int rank = piece.color().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
             if (to.rank() == rank) {
                 if (!PROMOTION_CHOICES.contains(promotionType)) {
                     throw new IllegalStateException("Invalid promotion type: " + promotionType);
                 }
-                board.put(to, Piece.of(promotionType, turnColor));
+                board.put(to, Piece.of(turnColor, promotionType));
             }
         }
 
         // Handle en passant capture
         if (isEnPassant) {
-            int capturedRank = piece.isWhite() ? to.rank() - 1 : to.rank() + 1;
+            int capturedRank = piece.color().isWhite() ? to.rank() - 1 : to.rank() + 1;
             Square capturedSquare = Square.of(to.file(), capturedRank);
             board.put(capturedSquare, null); // Remove the captured pawn
         }
@@ -206,12 +205,12 @@ public class Position {
         List<Square> pseudoLegalMoves = piece.getValidMoves(pieceSquare, board);
 
         // Try to add en passant moves for pawns
-        if (piece.getType() == PieceType.PAWN) {
+        if (piece.type() == PieceType.PAWN) {
             pseudoLegalMoves.addAll(getEnPassantMoves(pieceSquare));
         }
 
         // Try to add castling moves for king
-        if (piece.getType() == PieceType.KING) {
+        if (piece.type() == PieceType.KING) {
             pseudoLegalMoves.addAll(getCastlingMoves(pieceSquare));
         }
 
@@ -230,7 +229,7 @@ public class Position {
 
             // Handle en passant in simulation
             if (isEnPassant) {
-                int captureY = piece.isWhite() ? move.y() - 1 : move.y() + 1;
+                int captureY = piece.color().isWhite() ? move.y() - 1 : move.y() + 1;
                 enPassantCaptured = board[move.x()][captureY];
                 board[move.x()][captureY] = null;
             }
@@ -248,7 +247,7 @@ public class Position {
             }
 
             // Check if this move leaves the king in check
-            if (!isInCheck(piece.getColor())) {
+            if (!isInCheck(piece.color())) {
                 legalMoves.add(move);
             }
 
@@ -256,7 +255,7 @@ public class Position {
             board.put(pieceSquare, piece);
             board.put(move, capturedPiece);
             if (isEnPassant && enPassantCaptured != null) {
-                int captureY = piece.isWhite() ? move.y() - 1 : move.y() + 1;
+                int captureY = piece.color().isWhite() ? move.y() - 1 : move.y() + 1;
                 board[move.x()][captureY] = enPassantCaptured;
             }
             if (isCastling && rookMoved != null) {
@@ -287,7 +286,7 @@ public class Position {
      */
     public boolean isEnPassantMove(Square from, Square to) {
         Piece piece = board.pieceAt(from);
-        if (piece == null || piece.getType() != PieceType.PAWN) {
+        if (piece == null || piece.type() != PieceType.PAWN) {
             return false;
         }
 
@@ -309,14 +308,14 @@ public class Position {
             return castlingMoves;
         }
 
-        Color color = piece.getColor();
+        Color color = piece.color();
         // Kingside castling
-        if (canCastle(color, true)) {
+        if (canCastle(color, CastlingSide.KINGSIDE)) {
             castlingMoves.add(Square.of(KING_FILE + 2, kingSquare.y()));
         }
 
         // Queenside castling
-        if (canCastle(color, false)) {
+        if (canCastle(color, CastlingSide.QUEENSIDE)) {
             castlingMoves.add(Square.of(KING_FILE - 2, kingSquare.y()));
         }
 
@@ -326,22 +325,22 @@ public class Position {
     /**
      * Check if the king can castle.
      */
-    private boolean canCastle(Color color, boolean kingside) {
+    private boolean canCastle(Color color, CastlingSide side) {
         int rank = switch (color) {
             case Color.WHITE -> WHITE_BACK_RANK;
             case Color.BLACK -> BLACK_BACK_RANK;
         };
-        if (!castlingRights.hasCastlingRight(color, kingside)) {
+        if (!castlingRights.has(color, side)) {
             return false;
         }
         Piece king = board[KING_FILE][rank];
-        boolean notInCheck = !isInCheck(king.getColor());
-        boolean noPiecesBetween = kingside
+        boolean notInCheck = !isInCheck(king.color());
+        boolean noPiecesBetween = side == CastlingSide.KINGSIDE;
                 ? board[5][rank] == null && board[6][rank] == null
                 : board[2][rank] == null && board[3][rank] == null && board[1][rank] == null;
-        boolean noSquareUnderAttackBetween = kingside
-                ? !isSquareUnderAttack(Square.of(5, rank), king.getColor()) && !isSquareUnderAttack(Square.of(6, rank), king.getColor())
-                : !isSquareUnderAttack(Square.of(2, rank), king.getColor()) && !isSquareUnderAttack(Square.of(3, rank), king.getColor());
+        boolean noSquareUnderAttackBetween = side == CastlingSide.KINGSIDE
+                ? !isSquareUnderAttack(Square.of(5, rank), king.color()) && !isSquareUnderAttack(Square.of(6, rank), king.color())
+                : !isSquareUnderAttack(Square.of(2, rank), king.color()) && !isSquareUnderAttack(Square.of(3, rank), king.color());
         return noPiecesBetween && notInCheck && noSquareUnderAttackBetween;
     }
 
@@ -350,7 +349,7 @@ public class Position {
      */
     public boolean isCastlingMove(Square from, Square to) {
         Piece piece = board.pieceAt(from);
-        if (piece == null || piece.getType() != PieceType.KING) {
+        if (piece == null || piece.type() != PieceType.KING) {
             return false;
         }
 
@@ -359,32 +358,33 @@ public class Position {
     }
 
     private void updateCastlingRights(Piece piece, Piece capturedPiece, Square from, Square to) {
-        if (piece.getType() == PieceType.KING && piece.getColor().isWhite()) {
-            castlingRights = castlingRights.withoutWhite();
-        } else if (piece.getType() == PieceType.KING && piece.getColor().isBlack()) {
-            castlingRights = castlingRights.withoutBlack();
+        if (piece.type() == PieceType.KING) {
+            castlingRights = castlingRights.without(piece.color());
         }
 
-        if (piece.getType() == PieceType.ROOK) {
-            updateCastlingRightsByRook(piece.getColor(), from);
+        if (piece.type() == PieceType.ROOK) {
+            updateCastlingRightsByRook(piece.color(), from);
         }
 
-        if (capturedPiece != null && capturedPiece.getType() == PieceType.ROOK) {
+        if (capturedPiece != null && capturedPiece.type() == PieceType.ROOK) {
             // en-passant can't happen in the corner, so it's safe to pass `to` to the function
-            updateCastlingRightsByRook(capturedPiece.getColor(), to);
+            updateCastlingRightsByRook(capturedPiece.color(), to);
         }
     }
 
     private void updateCastlingRightsByRook(Color color, Square rook) {
-        if (color.isWhite() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
-            castlingRights = castlingRights.withoutWhiteKingside();
-        } else if (color.isWhite() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
-            castlingRights = castlingRights.withoutWhiteQueenside();
-        } else if (color.isBlack() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
-            castlingRights = castlingRights.withoutBlackKingside();
-        } else if (color.isBlack() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
-            castlingRights = castlingRights.withoutBlackQueenside();
-        }
+        CastlingSide side = rook.file() == KINGSIDE_ROOK_FILE ? CastlingSide.KINGSIDE : CastlingSide.QUEENSIDE;
+        castlingRights = castlingRights.without(color, side);
+
+//        if (color.isWhite() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
+//            castlingRights = castlingRights.without(color, CastlingSide.KINGSIDE);
+//        } else if (color.isWhite() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
+//            castlingRights = castlingRights.withoutWhiteQueenside();
+//        } else if (color.isBlack() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
+//            castlingRights = castlingRights.withoutBlackKingside();
+//        } else if (color.isBlack() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
+//            castlingRights = castlingRights.withoutBlackQueenside();
+//        }
     }
 
     /**
@@ -394,7 +394,7 @@ public class Position {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
                 Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.getColor() != color) {
+                if (piece != null && piece.color() != color) {
                     Square enemySquare = Square.of(x, y);
                     List<Square> controlledSquares = piece.getControlledSquares(enemySquare, board);
                     if (controlledSquares.contains(square)) {
@@ -419,7 +419,7 @@ public class Position {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
                 Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.getColor() == color) {
+                if (piece != null && piece.color() == color) {
                     Square pieceSquare = Square.of(x, y);
                     List<Square> legalMoves = MoveGenerator.legalDestinations(this, pieceSquare);
                     if (!legalMoves.isEmpty()) {
@@ -444,7 +444,7 @@ public class Position {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
                 Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.getColor() == color) {
+                if (piece != null && piece.color() == color) {
                     Square pieceSquare = Square.of(x, y);
                     List<Square> legalMoves = MoveGenerator.legalDestinations(this, pieceSquare);
                     if (!legalMoves.isEmpty()) {
@@ -463,7 +463,7 @@ public class Position {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
                 Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.getType() == PieceType.KING && piece.getColor() == color) {
+                if (piece != null && piece.type() == PieceType.KING && piece.color() == color) {
                     kingSquare = Square.of(x, y);
                     break;
                 }
@@ -479,7 +479,7 @@ public class Position {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
                 Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.getColor() != color) {
+                if (piece != null && piece.color() != color) {
                     Square enemySquare = Square.of(x, y);
                     List<Square> moves = piece.getControlledSquares(enemySquare, board);
                     if (moves.contains(kingSquare)) {
@@ -510,15 +510,15 @@ public class Position {
             for (int y = 0; y < 8; y++) {
                 Piece piece = board.pieceAt(Square.of(x, y));
                 if (piece != null) {
-                    if (piece.isWhite()) {
+                    if (piece.color().isWhite()) {
                         whiteCount++;
                     } else {
                         blackCount++;
                     }
-                    if (piece.getType() == PieceType.BISHOP) {
+                    if (piece.type() == PieceType.BISHOP) {
                         bishopSquares.add(Square.of(x, y));
                     }
-                    if (piece.getType() != PieceType.KING) {
+                    if (piece.type() != PieceType.KING) {
                         otherPieces.add(piece);
                     }
                 }
@@ -531,7 +531,7 @@ public class Position {
         }
 
         // King and Bishop vs King or King and Knight vs King
-        if (otherPieces.size() == 1 && (otherPieces.getFirst().getType() == PieceType.KNIGHT || otherPieces.getFirst().getType() == PieceType.BISHOP)) {
+        if (otherPieces.size() == 1 && (otherPieces.getFirst().type() == PieceType.KNIGHT || otherPieces.getFirst().type() == PieceType.BISHOP)) {
             return true;
         }
 
@@ -558,7 +558,7 @@ public class Position {
      */
     public String getDisambiguation(Square from, Square to) {
         Piece movingPiece = board.pieceAt(from);
-        if (movingPiece == null || movingPiece.getType() == PieceType.PAWN || movingPiece.getType() == PieceType.KING) {
+        if (movingPiece == null || movingPiece.type() == PieceType.PAWN || movingPiece.type() == PieceType.KING) {
             return "";
         }
 
@@ -573,7 +573,7 @@ public class Position {
 
                 Piece other = board.pieceAt(Square.of(x, y));
 
-                if (other != null && other.getColor() == movingPiece.getColor() && other.getType() == movingPiece.getType()) {
+                if (other != null && other.color() == movingPiece.color() && other.type() == movingPiece.type()) {
 
 
                     List<Square> moves = MoveGenerator.legalDestinations(this, Square.of(x, y));

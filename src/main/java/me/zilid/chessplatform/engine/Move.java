@@ -42,11 +42,4 @@ public record Move(
         return moveType == MoveType.CASTLE_QUEENSIDE;
     }
 
-    public enum MoveType {
-        NORMAL,
-        EN_PASSANT,
-        CASTLE_KINGSIDE,
-        CASTLE_QUEENSIDE,
-        PROMOTION
-    }
 }

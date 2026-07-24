@@ -1,7 +1,6 @@
 package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.formatter.PgnWriter;
-import me.zilid.chessplatform.engine.pieces.Piece;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.Instant;
@@ -75,7 +74,7 @@ public class Game {
         try {
             Square fromPos = Square.fromNotation(from);
             Square toPos = Square.fromNotation(to);
-            Move.MoveType moveType = Move.MoveType.NORMAL;
+            MoveType moveType = MoveType.NORMAL;
 
             // Get piece info before move
             Piece movingPiece = engine.getPosition().getPieceAt(fromPos);
@@ -84,20 +83,20 @@ public class Game {
             }
 
             Piece capturedPiece = engine.getPosition().getPieceAt(toPos);
-            PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
+            PieceType capturedType = capturedPiece != null ? capturedPiece.type() : null;
 
             // Check for special moves before making the move
             boolean isEnPassant = isEnPassantMove(fromPos, toPos);
             boolean isCastling = isCastlingMove(fromPos, toPos);
             boolean isKingsideCastle = isCastling && toPos.x() > fromPos.x();
-            boolean isPromotion = movingPiece.getType() == PieceType.PAWN && (
+            boolean isPromotion = movingPiece.type() == PieceType.PAWN && (
                     (getTurnColor().isWhite() && toPos.y() == 7) || (getTurnColor().isBlack() && toPos.y() == 0));
             if (isCastling) {
-                moveType = isKingsideCastle ? Move.MoveType.CASTLE_KINGSIDE : Move.MoveType.CASTLE_QUEENSIDE;
+                moveType = isKingsideCastle ? MoveType.CASTLE_KINGSIDE : MoveType.CASTLE_QUEENSIDE;
             } else if (isPromotion) {
-                moveType = Move.MoveType.PROMOTION;
+                moveType = MoveType.PROMOTION;
             } else if (isEnPassant) {
-                moveType = Move.MoveType.EN_PASSANT;
+                moveType = MoveType.EN_PASSANT;
                 capturedType = PieceType.PAWN;
             }
 
@@ -108,7 +107,7 @@ public class Game {
             }
 
             // Record the move with special move flags
-            Move move = new Move(fromPos, toPos, moveType, movingPiece.getType(), capturedType, promotionType);
+            Move move = new Move(fromPos, toPos, moveType, movingPiece.type(), capturedType, promotionType);
             history.add(move);
             int boardHash = engine.getPosition().hashCode();
             positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);

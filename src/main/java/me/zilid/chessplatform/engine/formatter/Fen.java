@@ -1,9 +1,12 @@
 package me.zilid.chessplatform.engine.formatter;
 
 import me.zilid.chessplatform.engine.*;
-import me.zilid.chessplatform.engine.pieces.Piece;
+
+import java.util.regex.Pattern;
 
 public class Fen {
+
+    private static final Pattern castlingRightsPattern = Pattern.compile("^(-|(?!$)K?Q?k?q?)$");
 
     public static Position read(String fen) {
         String[] parsedFen = fen.split("\\s+");
@@ -18,7 +21,7 @@ public class Fen {
         for (char c : parsedFen[0].toCharArray()) {
             switch (c) {
                 case 'Q', 'q', 'K', 'k', 'R', 'r', 'B', 'b', 'N', 'n', 'P', 'p' -> {
-                    board.put(Square.of(file, rank), Piece.fromNotation(c));
+                    board.put(Square.of(file, rank), notationToPiece(c));
                     file++;
                 }
                 case '/' -> {
@@ -45,8 +48,8 @@ public class Fen {
         if (file != 8 || rank != 0) {
             throw new IllegalArgumentException("Incomplete board in FEN: " + fen);
         }
-        Color turnColor = Color.fromSymbol(parsedFen[1]);
-        CastlingRights castlingRights = CastlingRights.fromSymbol(parsedFen[2]);
+        Color turnColor = notationToColor(parsedFen[1]);
+        CastlingRights castlingRights = castlingRightsFromSymbol(parsedFen[2]);
         Square enPassantTarget = parsedFen[3].equals("-") ? null : Square.fromNotation(parsedFen[3]);
         try {
             int halfMoveClock = Integer.parseInt(parsedFen[4]);
@@ -56,7 +59,6 @@ public class Fen {
             throw new IllegalArgumentException("Invalid fen: " + fen, e);
         }
     }
-
 
     /**
      * Get the fen representation of the current position
@@ -69,10 +71,10 @@ public class Fen {
                 Piece piece = position.getBoard().pieceAt(Square.of(file, rank));
                 if (piece != null && count != 0) {
                     fen.append(count);
-                    fen.append(piece.getNotation());
+                    fen.append(pieceToNotation(piece));
                     count = 0;
                 } else if (piece != null) {
-                    fen.append(piece.getNotation());
+                    fen.append(pieceToNotation(piece));
                 } else {
                     count++;
                 }
@@ -84,11 +86,94 @@ public class Fen {
                 fen.append("/");
             }
         }
-        fen.append(" ").append(position.getTurnColor().getSymbol());
-        fen.append(" ").append(position.getCastlingRights().getSymbol());
+        fen.append(" ").append(colorToNotation(position.getTurnColor()));
+        fen.append(" ").append(castlingRightsToSymbol(position.getCastlingRights()));
         fen.append(" ").append(position.getEnPassantTarget() == null ? "-" : position.getEnPassantTarget().toNotation());
         fen.append(" ").append(position.getHalfMoveClock());
         fen.append(" ").append(position.getFullMoveClock());
         return fen.toString();
     }
+
+    public static Piece notationToPiece(char c) {
+        Color color = Character.isUpperCase(c) ? Color.WHITE : Color.BLACK;
+        PieceType type = switch (c) {
+            case 'Q', 'q' -> PieceType.QUEEN;
+            case 'K', 'k' -> PieceType.KING;
+            case 'R', 'r' -> PieceType.ROOK;
+            case 'B', 'b' -> PieceType.BISHOP;
+            case 'N', 'n' -> PieceType.KNIGHT;
+            case 'P', 'p' -> PieceType.PAWN;
+            default -> throw new IllegalArgumentException("Invalid notation: " + c);
+
+        };
+        return Piece.of(color, type);
+    }
+
+    public static char pieceToNotation(Piece piece) {
+        char notation = switch (piece.type()) {
+            case KING -> 'k';
+            case QUEEN -> 'q';
+            case ROOK -> 'r';
+            case BISHOP -> 'b';
+            case KNIGHT -> 'n';
+            case PAWN -> 'p';
+        };
+        return piece.color().isWhite() ? Character.toUpperCase(notation) : Character.toLowerCase(notation);
+    }
+
+    public static char colorToNotation(Color color) {
+        return switch (color) {
+            case WHITE -> 'w';
+            case BLACK -> 'b';
+        };
+    }
+
+    public static Color notationToColor(String color) {
+        if (color.equals("w")) {
+            return Color.WHITE;
+        }
+        if (color.equals("b")) {
+            return Color.BLACK;
+        }
+        throw new IllegalArgumentException("invalid color: " + color);
+    }
+
+    public static String castlingRightsToSymbol(CastlingRights castlingRights) {
+        StringBuilder sb = new StringBuilder();
+        if (castlingRights.has(Color.WHITE, CastlingSide.KINGSIDE)) {
+            sb.append("K");
+        }
+        if (castlingRights.has(Color.WHITE, CastlingSide.QUEENSIDE)) {
+            sb.append("Q");
+        }
+        if (castlingRights.has(Color.BLACK, CastlingSide.KINGSIDE)) {
+            sb.append("k");
+        }
+        if (castlingRights.has(Color.BLACK, CastlingSide.QUEENSIDE)) {
+            sb.append("q");
+        }
+        return sb.toString();
+    }
+
+    public static CastlingRights castlingRightsFromSymbol(String symbol) {
+        if (symbol == null || !castlingRightsPattern.matcher(symbol).matches()) {
+            throw new IllegalArgumentException("castling rights symbol is not valid: '" + symbol + "'");
+        }
+
+        CastlingRights castlingRights = CastlingRights.NONE;
+        if (symbol.contains("K")) {
+            castlingRights = castlingRights.with(Color.WHITE, CastlingSide.KINGSIDE);
+        }
+        if (symbol.contains("Q")) {
+            castlingRights = castlingRights.with(Color.WHITE, CastlingSide.QUEENSIDE);
+        }
+        if (symbol.contains("k")) {
+            castlingRights = castlingRights.with(Color.BLACK, CastlingSide.KINGSIDE);
+        }
+        if (symbol.contains("q")) {
+            castlingRights = castlingRights.with(Color.BLACK, CastlingSide.QUEENSIDE);
+        }
+        return castlingRights;
+    }
 }
+
