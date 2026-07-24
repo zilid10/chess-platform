@@ -21,4 +21,8 @@ public record Square(int x, int y) {
     public String toNotation() {
         return String.valueOf(new char[]{(char) (x + 'a'), (char)(y + '1')});
     }
+
+    public static boolean isValid(int x, int y) {
+        return x < 0 || y < 0 || x > 7 || y > 7;
+    }
 }

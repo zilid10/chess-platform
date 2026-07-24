@@ -1,6 +1,8 @@
 package me.zilid.chessplatform.engine.pieces;
 
 
+import me.zilid.chessplatform.engine.Color;
+import me.zilid.chessplatform.engine.PieceType;
 import me.zilid.chessplatform.engine.Square;
 
 import java.util.ArrayList;
@@ -27,7 +29,7 @@ public class King extends Piece {
             int newX = x + move[0];
             int newY = y + move[1];
             
-            if (isValidPosition(newX, newY)) {
+            if (Square.isValid(newX, newY)) {
                 Piece target = board[newX][newY];
                 if (target == null || isEnemyPiece(target)) {
                     validMoves.add(new Square(newX, newY));
@@ -48,7 +50,7 @@ public class King extends Piece {
             int newX = x + move[0];
             int newY = y + move[1];
 
-            if (isValidPosition(newX, newY)) {
+            if (Square.isValid(newX, newY)) {
                 controlled.add(new Square(newX, newY));
             }
         }

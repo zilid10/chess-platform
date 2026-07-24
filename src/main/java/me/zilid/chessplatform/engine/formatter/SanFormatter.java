@@ -1,9 +1,9 @@
 package me.zilid.chessplatform.engine.formatter;
 
+import me.zilid.chessplatform.engine.PieceType;
 import me.zilid.chessplatform.engine.Position;
 import me.zilid.chessplatform.engine.Move;
 import me.zilid.chessplatform.engine.UndoInfo;
-import me.zilid.chessplatform.engine.pieces.Piece;
 
 public class SanFormatter {
     public String format(Position preMovePosition, Move move) {
@@ -21,7 +21,7 @@ public class SanFormatter {
 
                 // add 'x' for captures (including en-passant)
                 if (move.isCapture()) {
-                    if (move.pieceType() == Piece.PieceType.PAWN || move.isEnPassant()) {
+                    if (move.pieceType() == PieceType.PAWN || move.isEnPassant()) {
                         sb.append(move.from().toNotation().charAt(0));
                     }
                     sb.append('x');

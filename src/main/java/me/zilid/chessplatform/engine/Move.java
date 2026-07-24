@@ -1,14 +1,12 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
-
 public record Move(
         Square from,
         Square to,
         MoveType moveType,
-        Piece.PieceType pieceType,
-        Piece.PieceType captureType, // nullable
-        Piece.PieceType promotionType // nullable
+        PieceType pieceType,
+        PieceType captureType, // nullable
+        PieceType promotionType // nullable
 ) {
 
     public Move {

@@ -1,6 +1,5 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -123,9 +122,9 @@ class ChessEngineRulesTest {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
             assertThat(engine.makeMove("e1", "g1", null)).isTrue();
             assertThat(engine.getPosition().getPiece(Square.fromNotation("g1")).getType())
-                    .isEqualTo(Piece.PieceType.KING);
+                    .isEqualTo(PieceType.KING);
             assertThat(engine.getPosition().getPiece(Square.fromNotation("f1")).getType())
-                    .isEqualTo(Piece.PieceType.ROOK);
+                    .isEqualTo(PieceType.ROOK);
             assertThat(castlingRightsOf(engine)).isEqualTo("kq");
         }
 
@@ -134,9 +133,9 @@ class ChessEngineRulesTest {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
             assertThat(engine.makeMove("e1", "c1", null)).isTrue();
             assertThat(engine.getPosition().getPiece(Square.fromNotation("c1")).getType())
-                    .isEqualTo(Piece.PieceType.KING);
+                    .isEqualTo(PieceType.KING);
             assertThat(engine.getPosition().getPiece(Square.fromNotation("d1")).getType())
-                    .isEqualTo(Piece.PieceType.ROOK);
+                    .isEqualTo(PieceType.ROOK);
         }
 
         @Test
@@ -215,8 +214,8 @@ class ChessEngineRulesTest {
     class Promotion {
 
         @ParameterizedTest
-        @EnumSource(value = Piece.PieceType.class, names = {"QUEEN", "ROOK", "BISHOP", "KNIGHT"})
-        void pawnPromotesToChosenPiece(Piece.PieceType promotion) {
+        @EnumSource(value = PieceType.class, names = {"QUEEN", "ROOK", "BISHOP", "KNIGHT"})
+        void pawnPromotesToChosenPiece(PieceType promotion) {
             ChessEngine engine = engineFrom("7k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(engine.makeMove("a7", "a8", promotion)).isTrue();
             assertThat(engine.getPosition().getPiece(Square.fromNotation("a8")).getType())
@@ -228,9 +227,9 @@ class ChessEngineRulesTest {
             // Black rook on b8 can be taken with promotion
             ChessEngine engine = engineFrom("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(engine, "a7")).containsExactlyInAnyOrder("a8", "b8");
-            assertThat(engine.makeMove("a7", "b8", Piece.PieceType.QUEEN)).isTrue();
+            assertThat(engine.makeMove("a7", "b8", PieceType.QUEEN)).isTrue();
             assertThat(engine.getPosition().getPiece(Square.fromNotation("b8")).getType())
-                    .isEqualTo(Piece.PieceType.QUEEN);
+                    .isEqualTo(PieceType.QUEEN);
         }
     }
 
@@ -268,7 +267,7 @@ class ChessEngineRulesTest {
             ChessEngine engine = new ChessEngine();
             String before = engine.getFen();
             Move move = new Move(Square.fromNotation("e2"), Square.fromNotation("e4"),
-                    Move.MoveType.NORMAL, Piece.PieceType.PAWN, null, null);
+                    Move.MoveType.NORMAL, PieceType.PAWN, null, null);
 
             UndoInfo undo = engine.applyMove(move);
             assertThat(engine.getFen()).isNotEqualTo(before);
@@ -282,7 +281,7 @@ class ChessEngineRulesTest {
             String fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
             ChessEngine engine = engineFrom(fen);
             Move capture = new Move(Square.fromNotation("e5"), Square.fromNotation("g6"),
-                    Move.MoveType.NORMAL, Piece.PieceType.KNIGHT, Piece.PieceType.PAWN, null);
+                    Move.MoveType.NORMAL, PieceType.KNIGHT, PieceType.PAWN, null);
 
             UndoInfo undo = engine.applyMove(capture);
             engine.undoMove(capture, undo);

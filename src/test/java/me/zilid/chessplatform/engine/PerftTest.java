@@ -17,8 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PerftTest {
 
-    private static final List<Piece.PieceType> PROMOTION_CHOICES = List.of(
-            Piece.PieceType.QUEEN, Piece.PieceType.ROOK, Piece.PieceType.BISHOP, Piece.PieceType.KNIGHT);
+    private static final List<PieceType> PROMOTION_CHOICES = List.of(
+            PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT);
 
     @ParameterizedTest(name = "perft(depth {1}) of {0} = {2}")
     @CsvSource({
@@ -85,7 +85,7 @@ class PerftTest {
 
     /** Wraps a (from, to) pair into full Move records; a promotion square yields four moves. */
     private List<Move> toMoves(Position position, Piece piece, Square from, Square to) {
-        Piece.PieceType type = piece.getType();
+        PieceType type = piece.getType();
 
         if (position.isCastlingMove(from, to)) {
             Move.MoveType side = to.x() > from.x()
@@ -95,15 +95,15 @@ class PerftTest {
         }
 
         if (position.isEnPassantMove(from, to)) {
-            return List.of(new Move(from, to, Move.MoveType.EN_PASSANT, type, Piece.PieceType.PAWN, null));
+            return List.of(new Move(from, to, Move.MoveType.EN_PASSANT, type, PieceType.PAWN, null));
         }
 
         Piece captured = position.getPiece(to);
-        Piece.PieceType captureType = captured == null ? null : captured.getType();
+        PieceType captureType = captured == null ? null : captured.getType();
 
-        if (type == Piece.PieceType.PAWN && (to.y() == 0 || to.y() == 7)) {
+        if (type == PieceType.PAWN && (to.y() == 0 || to.y() == 7)) {
             List<Move> promotions = new ArrayList<>();
-            for (Piece.PieceType choice : PROMOTION_CHOICES) {
+            for (PieceType choice : PROMOTION_CHOICES) {
                 promotions.add(new Move(from, to, Move.MoveType.PROMOTION, type, captureType, choice));
             }
             return promotions;

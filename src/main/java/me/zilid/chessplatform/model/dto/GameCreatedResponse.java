@@ -1,8 +1,8 @@
 package me.zilid.chessplatform.model.dto;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.engine.Color;
 
 import java.util.UUID;
 
-public record GameCreatedResponse(UUID gameId, Piece.Color color, String fen, String socketUrl) {
+public record GameCreatedResponse(UUID gameId, Color color, String fen, String socketUrl) {
 }

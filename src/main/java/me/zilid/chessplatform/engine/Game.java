@@ -24,7 +24,7 @@ public class Game {
     private volatile GameStatus status;
     private volatile UserPrincipal whitePlayer;
     private volatile UserPrincipal blackPlayer;
-    private volatile Piece.Color drawOfferedBy;
+    private volatile Color drawOfferedBy;
 
     public Game() {
         this(null, null);
@@ -48,7 +48,7 @@ public class Game {
                 GameStatus status,
                 UserPrincipal whitePlayer,
                 UserPrincipal blackPlayer,
-                Piece.Color drawOfferedBy) {
+                Color drawOfferedBy) {
         this.engine = engine;
         this.history = history;
         this.positionHistory = positionHistory;
@@ -61,12 +61,12 @@ public class Game {
     }
 
     public synchronized boolean makeMove(String from, String to) {
-        return makeMove(from, to, Piece.PieceType.QUEEN);
+        return makeMove(from, to, PieceType.QUEEN);
     }
     /**
      * Make a move using chess notation
      */
-    public synchronized boolean makeMove(String from, String to, Piece.PieceType promotionType) {
+    public synchronized boolean makeMove(String from, String to, PieceType promotionType) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
@@ -83,13 +83,13 @@ public class Game {
             }
 
             Piece capturedPiece = engine.getPosition().getPiece(toPos);
-            Piece.PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
+            PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
 
             // Check for special moves before making the move
             boolean isEnPassant = isEnPassantMove(fromPos, toPos);
             boolean isCastling = isCastlingMove(fromPos, toPos);
             boolean isKingsideCastle = isCastling && toPos.x() > fromPos.x();
-            boolean isPromotion = movingPiece.getType() == Piece.PieceType.PAWN && (
+            boolean isPromotion = movingPiece.getType() == PieceType.PAWN && (
                     (getTurnColor().isWhite() && toPos.y() == 7) || (getTurnColor().isBlack() && toPos.y() == 0));
             if (isCastling) {
                 moveType = isKingsideCastle ? Move.MoveType.CASTLE_KINGSIDE : Move.MoveType.CASTLE_QUEENSIDE;
@@ -97,7 +97,7 @@ public class Game {
                 moveType = Move.MoveType.PROMOTION;
             } else if (isEnPassant) {
                 moveType = Move.MoveType.EN_PASSANT;
-                capturedType = Piece.PieceType.PAWN;
+                capturedType = PieceType.PAWN;
             }
 
             // Attempt the move
@@ -160,7 +160,7 @@ public class Game {
     /**
      * Resign the game for the current player
      */
-    public synchronized void resign(Piece.Color color) {
+    public synchronized void resign(Color color) {
         if (status.isGameOver()) {
             return;
         }
@@ -226,7 +226,7 @@ public class Game {
     }
 
 
-    public synchronized Piece.Color getTurnColor() {
+    public synchronized Color getTurnColor() {
         return engine.getTurnColor();
     }
 
@@ -291,16 +291,16 @@ public class Game {
         this.blackPlayer = blackPlayer;
     }
 
-    public synchronized Piece.Color getDrawOfferedBy() {
+    public synchronized Color getDrawOfferedBy() {
         return drawOfferedBy;
     }
 
-    public synchronized boolean offerDraw(Piece.Color by) {
+    public synchronized boolean offerDraw(Color by) {
         drawOfferedBy = by;
         return true;
     }
 
-    public synchronized boolean acceptDraw(Piece.Color by) {
+    public synchronized boolean acceptDraw(Color by) {
         if (drawOfferedBy == null) return false;
         if (drawOfferedBy != by.opposite()) return false;
         agreeDraw();
@@ -320,12 +320,12 @@ public class Game {
     /**
      * Get the color in this game of the given user, spectator will get a null
      */
-    public Piece.Color getPlayerColor(UserPrincipal currentUser) {
+    public Color getPlayerColor(UserPrincipal currentUser) {
         if (currentUser.equals(whitePlayer)) {
-            return Piece.Color.WHITE;
+            return Color.WHITE;
         }
         if (currentUser.equals(blackPlayer)) {
-            return Piece.Color.BLACK;
+            return Color.BLACK;
         }
         return null;
     }

@@ -1,7 +1,5 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +19,6 @@ public record GameSnapShot(
         GameStatus status,
         UUID whitePlayerId,
         UUID blackPlayerId,
-        Piece.Color drawOfferedBy
+        Color drawOfferedBy
 ) {
 }

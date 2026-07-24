@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.controller;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.engine.Color;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -44,7 +44,7 @@ public class GameController {
     @ResponseStatus(HttpStatus.CREATED)
     public GameCreatedResponse createGame(
             @AuthenticationPrincipal UserPrincipal currentUser,
-            @RequestParam("color") Piece.Color color) {
+            @RequestParam("color") Color color) {
         logger.info("User {} creating game with color {}", currentUser.getUsername(), color);
         return matchService.createGame(currentUser, color);
     }

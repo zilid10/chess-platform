@@ -1,7 +1,5 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
-
 import java.util.List;
 
 public class ChessEngine {
@@ -18,7 +16,7 @@ public class ChessEngine {
     /**
      * Make a move using chess notation (e.g., "e2" to "e4")
      */
-    public boolean makeMove(String from, String to, Piece.PieceType promotionType) {
+    public boolean makeMove(String from, String to, PieceType promotionType) {
         try {
             Square fromSquare = Square.fromNotation(from);
             Square toSquare = Square.fromNotation(to);
@@ -31,7 +29,7 @@ public class ChessEngine {
     /**
      * Make a move from a given position
      */
-    public boolean makeMove(Square from, Square to, Piece.PieceType promotionType) {
+    public boolean makeMove(Square from, Square to, PieceType promotionType) {
         return position.makeMove(from, to, promotionType);
     }
 
@@ -114,7 +112,7 @@ public class ChessEngine {
     /**
      * Get the current turn color
      */
-    public Piece.Color getTurnColor() {
+    public Color getTurnColor() {
         return position.getTurnColor();
     }
 

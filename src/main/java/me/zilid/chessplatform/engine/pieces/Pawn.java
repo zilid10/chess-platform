@@ -1,6 +1,8 @@
 package me.zilid.chessplatform.engine.pieces;
 
 
+import me.zilid.chessplatform.engine.Color;
+import me.zilid.chessplatform.engine.PieceType;
 import me.zilid.chessplatform.engine.Square;
 
 import java.util.ArrayList;
@@ -24,12 +26,12 @@ public class Pawn extends Piece {
 
         // Forward moves
         int newY = y + direction;
-        if (isValidPosition(x, newY) && board[x][newY] == null) {
+        if (Square.isValid(x, newY) && board[x][newY] == null) {
             validMoves.add(new Square(x, newY));
 
             // Double move from starting position, only possible when there is no blockade in front of the pawn
             int doubleY = y + (2 * direction);
-            if (isOnStartingRank(square) && isValidPosition(x, doubleY) && board[x][doubleY] == null) {
+            if (isOnStartingRank(square) && Square.isValid(x, doubleY) && board[x][doubleY] == null) {
                 validMoves.add(new Square(x, doubleY));
             }
         }
@@ -38,7 +40,7 @@ public class Pawn extends Piece {
         for (int dx : new int[]{-1, 1}) {
             int captureX = x + dx;
             int captureY = y + direction;
-            if (isValidPosition(captureX, captureY)) {
+            if (Square.isValid(captureX, captureY)) {
                 Piece target = board[captureX][captureY];
                 if (isEnemyPiece(target)) {
                     validMoves.add(new Square(captureX, captureY));
@@ -68,7 +70,7 @@ public class Pawn extends Piece {
         for (int dx : new int[]{-1, 1}) {
             int captureX = x + dx;
             int captureY = y + dy;
-            if (isValidPosition(captureX, captureY)) {
+            if (Square.isValid(captureX, captureY)) {
                 controlledSquares.add(new Square(captureX, captureY));
             }
         }

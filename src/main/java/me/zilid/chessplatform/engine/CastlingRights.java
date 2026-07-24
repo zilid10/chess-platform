@@ -1,8 +1,5 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
-import org.apache.logging.log4j.util.Cast;
-
 import java.util.regex.Pattern;
 
 public record CastlingRights(int rights) {
@@ -67,7 +64,7 @@ public record CastlingRights(int rights) {
         return new CastlingRights(newRights);
     }
 
-    public boolean hasCastlingRight(Piece.Color color, boolean isKingside) {
+    public boolean hasCastlingRight(Color color, boolean isKingside) {
         return switch (color) {
             case WHITE -> isKingside ? whiteKingside() : whiteQueenside();
             case BLACK -> isKingside ? blackKingside() : blackQueenside();

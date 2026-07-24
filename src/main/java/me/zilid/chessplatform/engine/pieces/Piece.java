@@ -1,12 +1,15 @@
 package me.zilid.chessplatform.engine.pieces;
 
 
+import me.zilid.chessplatform.engine.Color;
+import me.zilid.chessplatform.engine.PieceType;
 import me.zilid.chessplatform.engine.Square;
 
 import java.util.List;
+import java.util.Objects;
 
 public abstract class Piece {
-    protected Color color;
+    protected final Color color;
 
     public Piece(Color color) {
         this.color = color;
@@ -25,16 +28,23 @@ public abstract class Piece {
         return isWhite() ? type : type.toLowerCase();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Piece piece)) return false;
+        return color == piece.color && getType() == piece.getType();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(color, getType());
+    }
+
     public Color getColor() {
         return color;
     }
     
     public boolean isWhite() {
         return color == Color.WHITE;
-    }
-    
-    protected boolean isValidPosition(int x, int y) {
-        return x >= 0 && x < 8 && y >= 0 && y < 8;
     }
     
     protected boolean isEnemyPiece(Piece piece) {
@@ -55,51 +65,5 @@ public abstract class Piece {
             case PAWN ->  new Pawn(color);
         };
     }
-    
-    public enum PieceType {
-        PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING;
-        public String getSymbol() {
-            return switch (this) {
-                case PAWN -> "";
-                case KNIGHT -> "N";
-                case BISHOP -> "B";
-                case ROOK -> "R";
-                case QUEEN -> "Q";
-                case KING -> "K";
-            };
-        }
-    }
 
-    public enum Color {
-        WHITE, BLACK;
-
-        public Color opposite() {
-            return this == WHITE ? BLACK : WHITE;
-        }
-
-        public boolean isWhite() {
-            return this == WHITE;
-        }
-
-        public boolean isBlack() {
-            return this == BLACK;
-        }
-
-        public String getSymbol() {
-            return switch (this) {
-                case WHITE -> "w";
-                case BLACK -> "b";
-            };
-        }
-
-        public static Color fromSymbol(String color) {
-            if (color.equals("w")) {
-                return WHITE;
-            }
-            if (color.equals("b")) {
-                return BLACK;
-            }
-            throw new IllegalArgumentException("invalid color: " + color);
-        }
-    }
 }

@@ -1,6 +1,5 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,16 +33,16 @@ class PositionFenTest {
     @Test
     void placesPiecesOnCorrectSquares() {
         Position position = Position.fromFen(START);
-        assertThat(position.getPiece(Square.fromNotation("e1")).getType()).isEqualTo(Piece.PieceType.KING);
-        assertThat(position.getPiece(Square.fromNotation("e1")).getColor()).isEqualTo(Piece.Color.WHITE);
-        assertThat(position.getPiece(Square.fromNotation("d8")).getType()).isEqualTo(Piece.PieceType.QUEEN);
-        assertThat(position.getPiece(Square.fromNotation("d8")).getColor()).isEqualTo(Piece.Color.BLACK);
+        assertThat(position.getPiece(Square.fromNotation("e1")).getType()).isEqualTo(PieceType.KING);
+        assertThat(position.getPiece(Square.fromNotation("e1")).getColor()).isEqualTo(Color.WHITE);
+        assertThat(position.getPiece(Square.fromNotation("d8")).getType()).isEqualTo(PieceType.QUEEN);
+        assertThat(position.getPiece(Square.fromNotation("d8")).getColor()).isEqualTo(Color.BLACK);
         assertThat(position.getPiece(Square.fromNotation("e4"))).isNull();
     }
 
     @Test
     void parsesSideToMove() {
-        assertThat(Position.fromFen("7k/8/8/8/8/8/8/K7 b - - 0 1").getTurnColor()).isEqualTo(Piece.Color.BLACK);
+        assertThat(Position.fromFen("7k/8/8/8/8/8/8/K7 b - - 0 1").getTurnColor()).isEqualTo(Color.BLACK);
     }
 
     @Test
