@@ -3,8 +3,8 @@ package me.zilid.chessplatform.engine;
 import me.zilid.chessplatform.engine.pieces.Piece;
 
 public record Move(
-        Position from,
-        Position to,
+        Square from,
+        Square to,
         MoveType moveType,
         Piece.PieceType pieceType,
         Piece.PieceType captureType, // nullable

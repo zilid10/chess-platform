@@ -1,12 +1,12 @@
 package me.zilid.chessplatform.engine.formatter;
 
-import me.zilid.chessplatform.engine.Board;
+import me.zilid.chessplatform.engine.Position;
 import me.zilid.chessplatform.engine.Move;
 import me.zilid.chessplatform.engine.UndoInfo;
 import me.zilid.chessplatform.engine.pieces.Piece;
 
 public class SanFormatter {
-    public String format(Board preMoveBoard, Move move) {
+    public String format(Position preMovePosition, Move move) {
             StringBuilder sb = new StringBuilder();
             if (move.moveType() == Move.MoveType.CASTLE_KINGSIDE) {
                 sb.append("O-O");
@@ -16,7 +16,7 @@ public class SanFormatter {
                 // piece symbol (pawn symbol is empty string)
                 sb.append(move.pieceType().getSymbol());
                 // add ambiguation
-                String disambiguation = preMoveBoard.getDisambiguation(move.from(), move.to());
+                String disambiguation = preMovePosition.getDisambiguation(move.from(), move.to());
                 sb.append(disambiguation); // disambiguation for pawn and king is empty string
 
                 // add 'x' for captures (including en-passant)
@@ -35,13 +35,13 @@ public class SanFormatter {
                 sb.append("=").append(move.promotionType().getSymbol());
             }
 
-            UndoInfo undo = preMoveBoard.applyMove(move);
-            if (preMoveBoard.isCheckmate(preMoveBoard.getTurnColor())) {
+            UndoInfo undo = preMovePosition.applyMove(move);
+            if (preMovePosition.isCheckmate(preMovePosition.getTurnColor())) {
                 sb.append("#");
-            } else if (preMoveBoard.isInCheck(preMoveBoard.getTurnColor())) {
+            } else if (preMovePosition.isInCheck(preMovePosition.getTurnColor())) {
                 sb.append("+");
             }
-            preMoveBoard.undoMove(move, undo);
+            preMovePosition.undoMove(move, undo);
 
             return sb.toString();
     }

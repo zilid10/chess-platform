@@ -1,9 +1,9 @@
 package me.zilid.chessplatform.engine;
 
 public record UndoInfo (
-    Position capturedPosition,
+    Square capturedSquare,
     int rights,
-    Position enPassantTarget,
+    Square enPassantTarget,
     int halfMoveClock,
     int fullMoveClock
 ) {

@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.engine.pieces;
 
 
-import me.zilid.chessplatform.engine.Position;
+import me.zilid.chessplatform.engine.Square;
 
 import java.util.List;
 
@@ -12,9 +12,9 @@ public abstract class Piece {
         this.color = color;
     }
     
-    public abstract List<Position> getValidMoves(Position position, Piece[][] board);
+    public abstract List<Square> getValidMoves(Square square, Piece[][] board);
 
-    public abstract List<Position> getControlledSquares(Position position, Piece[][] board);
+    public abstract List<Square> getControlledSquares(Square square, Piece[][] board);
 
     public abstract PieceType getType();
 

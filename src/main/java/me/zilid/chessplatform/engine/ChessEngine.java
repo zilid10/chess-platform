@@ -5,14 +5,14 @@ import me.zilid.chessplatform.engine.pieces.Piece;
 import java.util.List;
 
 public class ChessEngine {
-    private final Board board;
+    private final Position position;
     
     public ChessEngine() {
-        board = new Board();
+        position = Position.startingPosition();
     }
 
-    public ChessEngine(Board board) {
-        this.board = board;
+    public ChessEngine(Position position) {
+        this.position = position;
     }
 
     /**
@@ -20,9 +20,9 @@ public class ChessEngine {
      */
     public boolean makeMove(String from, String to, Piece.PieceType promotionType) {
         try {
-            Position fromPos = Position.fromNotation(from);
-            Position toPos = Position.fromNotation(to);
-            return makeMove(fromPos, toPos, promotionType);
+            Square fromSquare = Square.fromNotation(from);
+            Square toSquare = Square.fromNotation(to);
+            return makeMove(fromSquare, toSquare, promotionType);
         } catch (IllegalArgumentException e) {
             return false;
         }
@@ -31,16 +31,16 @@ public class ChessEngine {
     /**
      * Make a move from a given position
      */
-    public boolean makeMove(Position from, Position to, Piece.PieceType promotionType) {
-        return board.makeMove(from, to, promotionType);
+    public boolean makeMove(Square from, Square to, Piece.PieceType promotionType) {
+        return position.makeMove(from, to, promotionType);
     }
 
     /**
      * Get all valid moves for a piece at the given position
      */
-    public List<Position> getValidMoves(String position) {
+    public List<Square> getValidMoves(String position) {
         try {
-            Position pos = Position.fromNotation(position);
+            Square pos = Square.fromNotation(position);
             return getValidMoves(pos);
         } catch (IllegalArgumentException e) {
             return List.of();
@@ -50,78 +50,78 @@ public class ChessEngine {
     /**
      * Get all valid moves for a piece at the given position
      */
-    public List<Position> getValidMoves(Position position) {
-        return board.getValidMovesForPiece(position);
+    public List<Square> getValidMoves(Square square) {
+        return position.getValidMovesForPiece(square);
     }
 
     public UndoInfo applyMove(Move move) {
-        return board.applyMove(move);
+        return position.applyMove(move);
     }
 
     public void undoMove(Move move, UndoInfo undoInfo) {
-        board.undoMove(move, undoInfo);
+        position.undoMove(move, undoInfo);
     }
 
     /**
      * Check if the current player is in check
      */
     public boolean isInCheck() {
-        return board.isInCheck(board.getTurnColor());
+        return position.isInCheck(position.getTurnColor());
     }
 
     /**
      * Check if the current player is in checkmate
      */
     public boolean isCheckmate() {
-        return board.isCheckmate(board.getTurnColor());
+        return position.isCheckmate(position.getTurnColor());
     }
 
     /**
      * Check if the current player is in stalemate
      */
     public boolean isStalemate() {
-        return board.isStalemate(board.getTurnColor());
+        return position.isStalemate(position.getTurnColor());
     }
     
     /**
      * Check for fifty-move rule
      */
     public boolean isFiftyMoveRule() {
-        return board.isFiftyMoveRule();
+        return position.isFiftyMoveRule();
     }
     
     /**
      * Check for insufficient material
      */
     public boolean isInsufficientMaterial() {
-        return board.isInsufficientMaterial();
+        return position.isInsufficientMaterial();
     }
 
     /**
      * Get the current board state
      */
-    public Board getBoard() {
-        return board;
+    public Position getPosition() {
+        return position;
     }
     
     /**
      * Get whose turn it is
      */
     public boolean isWhiteTurn() {
-        return board.isWhiteTurn();
+        return position.isWhiteTurn();
     }
 
     /**
      * Get the current turn color
      */
     public Piece.Color getTurnColor() {
-        return board.getTurnColor();
+        return position.getTurnColor();
     }
 
     /**
      * Get fen representation of current board
      */
     public String getFen() {
-        return board.getFen();
+        return position.getFen();
     }
 }

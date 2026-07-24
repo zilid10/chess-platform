@@ -1,27 +1,24 @@
 package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.pieces.Piece;
+import org.apache.logging.log4j.util.Cast;
 
 import java.util.regex.Pattern;
 
-public class CastlingRights {
-    private int rights;
-
+public record CastlingRights(int rights) {
     private static final int WHITE_KINGSIDE = 1;
     private static final int WHITE_QUEENSIDE = 1 << 1;
     private static final int BLACK_KINGSIDE = 1 << 2;
     private static final int BLACK_QUEENSIDE = 1 << 3;
 
+    public CastlingRights {
+        if (rights < 0 || rights > 15) {
+            throw new IllegalArgumentException("Illegal rights value: " + rights);
+        }
+    }
+
     public CastlingRights() {
-        rights = WHITE_KINGSIDE | WHITE_QUEENSIDE | BLACK_KINGSIDE | BLACK_QUEENSIDE;
-    }
-
-    public CastlingRights(int rights) {
-        this.rights = rights;
-    }
-
-    public int getRightsRaw() {
-        return rights;
+        this(WHITE_KINGSIDE | WHITE_QUEENSIDE | BLACK_KINGSIDE | BLACK_QUEENSIDE);
     }
 
     public boolean whiteKingside() {
@@ -40,30 +37,34 @@ public class CastlingRights {
         return (BLACK_QUEENSIDE & rights) != 0;
     }
 
-    public void removeWhiteKingside() {
-        rights &= ~WHITE_KINGSIDE;
+    public CastlingRights withoutWhiteKingside() {
+        int newRights = rights & ~WHITE_KINGSIDE;
+        return new CastlingRights(newRights);
     }
 
-    public void removeWhiteQueenside() {
-        rights &= ~WHITE_QUEENSIDE;
+    public CastlingRights withoutWhiteQueenside() {
+        int newRights = rights & ~WHITE_QUEENSIDE;
+        return new CastlingRights(newRights);
     }
 
-    public void removeBlackKingside() {
-        rights &= ~BLACK_KINGSIDE;
+    public CastlingRights withoutBlackKingside() {
+        int newRights = rights & ~BLACK_KINGSIDE;
+        return new CastlingRights(newRights);
     }
 
-    public void removeBlackQueenside() {
-        rights &= ~BLACK_QUEENSIDE;
+    public CastlingRights withoutBlackQueenside() {
+        int newRights = rights & ~BLACK_QUEENSIDE;
+        return new CastlingRights(newRights);
     }
 
-    public void removeBlack() {
-        rights &= ~BLACK_KINGSIDE;
-        rights &= ~BLACK_QUEENSIDE;
+    public CastlingRights withoutBlack() {
+        int newRights = rights & ~BLACK_KINGSIDE & ~BLACK_QUEENSIDE;
+        return new CastlingRights(newRights);
     }
 
-    public void removeWhite() {
-        rights &= ~WHITE_KINGSIDE;
-        rights &= ~WHITE_QUEENSIDE;
+    public CastlingRights withoutWhite() {
+        int newRights = rights & ~WHITE_KINGSIDE & ~WHITE_QUEENSIDE;
+        return new CastlingRights(newRights);
     }
 
     public boolean hasCastlingRight(Piece.Color color, boolean isKingside) {
@@ -93,47 +94,25 @@ public class CastlingRights {
         return sb.toString();
     }
 
-    private static final Pattern castlingRightsPattern = Pattern.compile("^(K?Q?k?q?|-)$");
+    private static final Pattern castlingRightsPattern = Pattern.compile("^(-|(?!$)K?Q?k?q?)$");
 
-    public static CastlingRights fromSymbol(String string) {
-        if (string == null || string.isEmpty()) {
-            throw new IllegalArgumentException("string is null or empty");
-        }
-        if (string.equals("-")) {
-            return new CastlingRights(0);
+    public static CastlingRights fromSymbol(String symbol) {
+        if (symbol == null || !castlingRightsPattern.matcher(symbol).matches()) {
+            throw new IllegalArgumentException("castling rights symbol is not valid: '" + symbol + "'");
         }
 
         int rights = 0;
-        for (char c : string.toCharArray()) {
-            switch (c) {
-                case 'K' -> {
-                    if ((rights & WHITE_KINGSIDE) != 0) {
-                        throw new IllegalArgumentException("illegal castling rights symbol: duplicate K");
-                    }
-                    rights |= WHITE_KINGSIDE;
-                }
-                case 'Q' -> {
-                    if ((rights & WHITE_QUEENSIDE) != 0) {
-                        throw new IllegalArgumentException("illegal castling rights symbol: duplicate Q");
-                    }
-                    rights |= WHITE_QUEENSIDE;
-                }
-                case 'k' -> {
-                    if ((rights & BLACK_KINGSIDE) != 0) {
-                        throw new IllegalArgumentException("illegal castling rights symbol: duplicate k");
-                    }
-                    rights |= BLACK_KINGSIDE;
-                }
-                case 'q' -> {
-                    if ((rights & BLACK_QUEENSIDE) != 0) {
-                        throw new IllegalArgumentException("illegal castling rights symbol: duplicate q");
-                    }
-                    rights |= BLACK_QUEENSIDE;
-                }
-                default -> {
-                    throw new IllegalArgumentException("illegal castling rights symbol: " + c);
-                }
-            }
+        if (symbol.contains("K")) {
+            rights |= WHITE_KINGSIDE;
+        }
+        if (symbol.contains("Q")) {
+            rights |= WHITE_QUEENSIDE;
+        }
+        if (symbol.contains("k")) {
+            rights |= BLACK_KINGSIDE;
+        }
+        if (symbol.contains("q")) {
+            rights |= BLACK_QUEENSIDE;
         }
         return new CastlingRights(rights);
     }

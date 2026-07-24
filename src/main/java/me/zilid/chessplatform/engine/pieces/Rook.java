@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.engine.pieces;
 
 
-import me.zilid.chessplatform.engine.Position;
+import me.zilid.chessplatform.engine.Square;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,10 +15,10 @@ public class Rook extends Piece {
     }
     
     @Override
-    public List<Position> getValidMoves(Position position, Piece[][] board) {
-        List<Position> validMoves = new ArrayList<>();
-        int x = position.x();
-        int y = position.y();
+    public List<Square> getValidMoves(Square square, Piece[][] board) {
+        List<Square> validMoves = new ArrayList<>();
+        int x = square.x();
+        int y = square.y();
 
         for (int[] dir : directions) {
             int newX = x + dir[0];
@@ -28,10 +28,10 @@ public class Rook extends Piece {
                 Piece target = board[newX][newY];
                 
                 if (target == null) {
-                    validMoves.add(new Position(newX, newY));
+                    validMoves.add(new Square(newX, newY));
                 } else {
                     if (isEnemyPiece(target)) {
-                        validMoves.add(new Position(newX, newY));
+                        validMoves.add(new Square(newX, newY));
                     }
                     break; // Stop at any piece
                 }
@@ -44,10 +44,10 @@ public class Rook extends Piece {
     }
 
     @Override
-    public List<Position> getControlledSquares(Position position, Piece[][] board) {
-        List<Position> controlled = new ArrayList<>();
-        int x = position.x();
-        int y = position.y();
+    public List<Square> getControlledSquares(Square square, Piece[][] board) {
+        List<Square> controlled = new ArrayList<>();
+        int x = square.x();
+        int y = square.y();
 
         for (int[] dir : directions) {
             int newX = x + dir[0];
@@ -55,7 +55,7 @@ public class Rook extends Piece {
 
             while (isValidPosition(newX, newY)) {
                 Piece target = board[newX][newY];
-                controlled.add(new Position(newX, newY));
+                controlled.add(new Square(newX, newY));
                 if (target != null) {
                     break;
                 }

@@ -78,7 +78,7 @@ Advanced Chess Rules Implemented:
    - Fifty-Move Rule
    - Insufficient Material
    - Stalemate detection
-6. FEN (Forsyth-Edwards Notation) generation for board state
+6. FEN (Forsyth-Edwards Notation) generation for position state
 7. PGN (Portable Game Notation) export for game history
 8. File/Rank/Square Disambiguation for move notation
 
