@@ -11,6 +11,12 @@ public record CastlingRights(int rights) {
     private static final int BLACK_KINGSIDE = 1 << 2;
     private static final int BLACK_QUEENSIDE = 1 << 3;
 
+    public CastlingRights {
+        if (rights < 0 || rights > 15) {
+            throw new IllegalArgumentException("Illegal rights value: " + rights);
+        }
+    }
+
     public CastlingRights() {
         this(WHITE_KINGSIDE | WHITE_QUEENSIDE | BLACK_KINGSIDE | BLACK_QUEENSIDE);
     }
