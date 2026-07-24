@@ -626,18 +626,11 @@ public class Position {
     }
 
     /**
-     * Generate a hash of the current board position for threefold repetition detection
+     * Generate a hash of the current board position
      */
-    public int getPositionHash() {
-        StringBuilder boardRepresentation = new StringBuilder();
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                Piece piece = board[x][y];
-                boardRepresentation.append(piece == null ? "." : piece.getSymbol());
-            }
-        }
-        boardRepresentation.append(turnColor.getSymbol());
-        return boardRepresentation.toString().hashCode();
+    @Override
+    public int hashCode() {
+        return getFen().hashCode();
     }
 
     /**

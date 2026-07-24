@@ -109,7 +109,7 @@ public class Game {
             // Record the move with special move flags
             Move move = new Move(fromPos, toPos, moveType, movingPiece.getType(), capturedType, promotionType);
             history.add(move);
-            int boardHash = engine.getPosition().getPositionHash();
+            int boardHash = engine.getPosition().hashCode();
             positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
 
             // Update game status
@@ -222,7 +222,7 @@ public class Game {
     }
 
     private synchronized boolean isThreefoldRepetition() {
-        return positionHistory.getOrDefault(engine.getPosition().getPositionHash(), 0) >= 3;
+        return positionHistory.getOrDefault(engine.getPosition().hashCode(), 0) >= 3;
     }
 
 
