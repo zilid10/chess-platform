@@ -2,7 +2,6 @@ package me.zilid.chessplatform.engine.formatter;
 
 import me.zilid.chessplatform.engine.Move;
 import me.zilid.chessplatform.engine.PieceType;
-import me.zilid.chessplatform.engine.Position;
 import me.zilid.chessplatform.engine.Square;
 
 import java.util.Optional;
@@ -21,12 +20,11 @@ public class Uci {
         return uciMove.promotion() != null ? base + promotionChar(uciMove.promotion()) : base;
     }
 
-    public static Optional<UciMove> parse(Position position, String uci) {
+    public static Optional<UciMove> parse(String uci) {
         if (uci.length() != 4 && uci.length() != 5) {
             return Optional.empty();
         }
-        Square from = null;
-        Square to = null;
+        Square from, to;
         PieceType promotion = null;
         try {
             from = Square.fromNotation(uci.substring(0, 2));

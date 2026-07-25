@@ -4,13 +4,11 @@ import me.zilid.chessplatform.engine.formatter.Fen;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Perft ("performance test") counts every legal move sequence to a fixed depth and
- * compares against published reference values (https://www.chessprogramming.org/Perft_Results).
+ * compares against <a href="https://www.chessprogramming.org/Perft_Results">published reference values</a>.
  * The positions were designed to stress castling, en passant, pins, and promotions
  * simultaneously — a single wrong rule makes the node count diverge.
  */
