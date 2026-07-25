@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.engine;
 
-import me.zilid.chessplatform.engine.formatter.PgnWriter;
+import me.zilid.chessplatform.engine.formatter.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.Instant;
@@ -197,7 +197,7 @@ public class Game {
         if (!isGameOver()) {
             return "";
         }
-        PgnWriter pgnWriter = new PgnWriter();
+        PgnFormatter pgnFormatter = new PgnFormatter();
         StringBuilder sb = new StringBuilder();
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
@@ -207,7 +207,7 @@ public class Game {
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
-        sb.append(pgnWriter.format(Position.startingPosition(), history)).append("\n");
+        sb.append(pgnFormatter.format(Position.startingPosition(), history)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
     }
@@ -250,17 +250,15 @@ public class Game {
         return drawOfferedBy;
     }
 
-    public synchronized boolean offerDraw(Color by) {
+    public synchronized void offerDraw(Color by) {
         drawOfferedBy = by;
-        return true;
     }
 
-    public synchronized boolean acceptDraw(Color by) {
-        if (drawOfferedBy == null) return false;
-        if (drawOfferedBy != by.opposite()) return false;
+    public synchronized void acceptDraw(Color by) {
+        if (drawOfferedBy == null) return;
+        if (drawOfferedBy != by.opposite()) return;
         agreeDraw();
         drawOfferedBy = null;
-        return true;
     }
 
     public GameStatus getStatus() {

@@ -99,6 +99,6 @@ public class ChessEngine {
      * Get fen representation of current board
      */
     public String getFen() {
-        return Fen.write(position);
+        return Fen.format(position);
     }
 }

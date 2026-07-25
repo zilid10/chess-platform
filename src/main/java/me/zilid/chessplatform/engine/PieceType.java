@@ -1,5 +1,5 @@
 package me.zilid.chessplatform.engine;
 
 public enum PieceType {
-    PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING;
+    PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 }

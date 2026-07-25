@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: parse
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

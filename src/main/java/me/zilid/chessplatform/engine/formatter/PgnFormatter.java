@@ -1,11 +1,11 @@
 package me.zilid.chessplatform.engine.formatter;
 
-import me.zilid.chessplatform.engine.Position;
 import me.zilid.chessplatform.engine.Move;
+import me.zilid.chessplatform.engine.Position;
 
 import java.util.List;
 
-public class PgnWriter {
+public class PgnFormatter {
     private static final SanFormatter sanFormatter = new SanFormatter();
 
     public String format(Position replayPosition, List<Move> moveHistory) {

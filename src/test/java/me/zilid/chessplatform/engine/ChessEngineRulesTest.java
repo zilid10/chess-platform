@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ChessEngineRulesTest {
 
     private static ChessEngine engineFrom(String fen) {
-        return new ChessEngine(Fen.read(fen));
+        return new ChessEngine(Fen.parse(fen));
     }
 
     private static List<String> legalMovesFrom(ChessEngine engine, String square) {

@@ -27,4 +27,4 @@
 
 ## Screenshots
 
-<!-- Include before/after images for user-interface changes, or write "Not applicable". -->
+<!-- Include before/after images for user-interface changes, or format "Not applicable". -->

@@ -5,10 +5,12 @@ import me.zilid.chessplatform.engine.*;
 import java.util.regex.Pattern;
 
 public class Fen {
-
     private static final Pattern castlingRightsPattern = Pattern.compile("^(-|(?!$)K?Q?k?q?)$");
 
-    public static Position read(String fen) {
+    private Fen() {
+    }
+
+    public static Position parse(String fen) {
         String[] parsedFen = fen.split("\\s+");
         if (parsedFen.length != 6) {
             throw new IllegalArgumentException("Invalid fen: " + fen);
@@ -63,7 +65,7 @@ public class Fen {
     /**
      * Get the fen representation of the current position
      */
-    public static String write(Position position) {
+    public static String format(Position position) {
         StringBuilder fen = new StringBuilder();
         for (int rank = 7; rank >= 0; rank--) {
             int count = 0;

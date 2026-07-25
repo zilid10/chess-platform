@@ -38,12 +38,12 @@ public record Square(int index) {
         return index / 8;
     }
 
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public int x() {
         return file();
     }
 
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public int y() {
         return rank();
     }

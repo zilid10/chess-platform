@@ -6,8 +6,6 @@ public class Position {
     private static final int KING_FILE = 4;
     private static final int KINGSIDE_ROOK_FILE = 7;
     private static final int QUEENSIDE_ROOK_FILE = 0;
-    private static final int BLACK_BACK_RANK = 7;
-    private static final int WHITE_BACK_RANK = 0;
     private final Board board;
     private Color turnColor;
     private CastlingRights castlingRights;
@@ -170,6 +168,6 @@ public class Position {
     @Override
     public int hashCode() {
         // TODO: implement Zobrist as hash method
-        return Fen.write(this).hashCode();
+        return Fen.format(this).hashCode();
     }
 }

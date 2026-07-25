@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PieceTest {
 
     private static List<String> legalMovesFrom(String fen, String square) {
-        return new ChessEngine(Fen.read(fen)).getValidMoves(square).stream()
+        return new ChessEngine(Fen.parse(fen)).getValidMoves(square).stream()
                 .map(Square::toNotation)
                 .toList();
     }

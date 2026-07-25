@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests for FEN parsing and serialization. Round-tripping (parse a FEN, write it
+ * Tests for FEN parsing and serialization. Round-tripping (parse a FEN, format it
  * back out, expect the identical string) is the backbone check: it exercises piece
  * placement, side to move, castling rights, en passant target, and both clocks at once.
  */
@@ -18,22 +18,22 @@ class PositionFenTest {
 
     @Test
     void defaultBoardProducesStartingFen() {
-        assertThat(Fen.write(Position.startingPosition())).isEqualTo(START);
+        assertThat(Fen.format(Position.startingPosition())).isEqualTo(START);
     }
 
     @Test
     void startingPositionRoundTrips() {
-        assertThat(Fen.write(Fen.read(START))).isEqualTo(START);
+        assertThat(Fen.format(Fen.parse(START))).isEqualTo(START);
     }
 
     @Test
     void complexPositionRoundTrips() {
-        assertThat(Fen.write(Fen.read(KIWIPETE))).isEqualTo(KIWIPETE);
+        assertThat(Fen.format(Fen.parse(KIWIPETE))).isEqualTo(KIWIPETE);
     }
 
     @Test
     void placesPiecesOnCorrectSquares() {
-        Position position = Fen.read(START);
+        Position position = Fen.parse(START);
         assertThat(position.getPieceAt(Square.fromNotation("e1")).type()).isEqualTo(PieceType.KING);
         assertThat(position.getPieceAt(Square.fromNotation("e1")).color()).isEqualTo(Color.WHITE);
         assertThat(position.getPieceAt(Square.fromNotation("d8")).type()).isEqualTo(PieceType.QUEEN);
@@ -43,24 +43,24 @@ class PositionFenTest {
 
     @Test
     void parsesSideToMove() {
-        assertThat(Fen.read("7k/8/8/8/8/8/8/K7 b - - 0 1").getTurnColor()).isEqualTo(Color.BLACK);
+        assertThat(Fen.parse("7k/8/8/8/8/8/8/K7 b - - 0 1").getTurnColor()).isEqualTo(Color.BLACK);
     }
 
     @Test
     void parsesEnPassantTarget() {
-        Position position = Fen.read("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
+        Position position = Fen.parse("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
         assertThat(position.getEnPassantTarget()).isEqualTo(Square.fromNotation("d6"));
     }
 
     @Test
     void rejectsMalformedFen() {
-        assertThatThrownBy(() -> Fen.read("not a fen"))
+        assertThatThrownBy(() -> Fen.parse("not a fen"))
                 .isInstanceOf(IllegalArgumentException.class);
         // only seven ranks on the board
-        assertThatThrownBy(() -> Fen.read("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1"))
+        assertThatThrownBy(() -> Fen.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1"))
                 .isInstanceOf(IllegalArgumentException.class);
         // nine files in the first rank
-        assertThatThrownBy(() -> Fen.read("rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"))
+        assertThatThrownBy(() -> Fen.parse("rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
