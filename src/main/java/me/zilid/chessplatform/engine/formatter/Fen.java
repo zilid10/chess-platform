@@ -16,7 +16,6 @@ public class Fen {
             throw new IllegalArgumentException("Invalid fen: " + fen);
         }
 
-        Piece[] pieces = new Piece[64];
         Board board = new Board();
         // i = FEN rank row (rank 8 first), j = file; square (file j, rank 8-i) lives at board[j][7 - i]
         int rank = 7, file = 0;
@@ -56,7 +55,7 @@ public class Fen {
         try {
             int halfMoveClock = Integer.parseInt(parsedFen[4]);
             int fullMoveClock = Integer.parseInt(parsedFen[5]);
-            return new Position(new Board(pieces), turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
+            return new Position(board, turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid fen: " + fen, e);
         }

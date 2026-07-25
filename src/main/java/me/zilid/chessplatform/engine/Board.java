@@ -17,6 +17,11 @@ public class Board {
         }
         kingLocations = new EnumMap<>(Color.class);
         this.pieces = Arrays.copyOf(pieces, pieces.length);
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            if (this.pieces[i] != null && this.pieces[i].type() == PieceType.KING) {
+                kingLocations.put(this.pieces[i].color(), new Square(i));
+            }
+        }
     }
 
     public Board() {
@@ -48,10 +53,7 @@ public class Board {
         pieces[61] = Piece.BLACK_BISHOP;
         pieces[62] = Piece.BLACK_KNIGHT;
         pieces[63] = Piece.BLACK_ROOK;
-        Board board = new Board(pieces);
-        board.kingLocations.put(Color.WHITE, new Square(4));
-        board.kingLocations.put(Color.BLACK, new Square(60));
-        return board;
+        return new Board(pieces);
     }
 
     public boolean isInCheck(Color color) {
@@ -124,10 +126,10 @@ public class Board {
 
     public Piece put(Square square, Piece piece) {
         Piece oldPiece = pieces[square.index()];
-        if (oldPiece != null && oldPiece.type() == PieceType.KING) {
-
-        }
         pieces[square.index()] = piece;
+        if (piece != null && piece.type() == PieceType.KING) {
+            kingLocations.put(piece.color(), square);
+        }
         return oldPiece;
     }
 

@@ -68,14 +68,15 @@ public class SanFormatter {
             sb.append("O-O-O");
         } else {
             // piece symbol (pawn symbol is empty string)
-            sb.append(pieceTypeToSymbol(move.pieceType()));
+            sb.append(pieceTypeToSymbol(move.moved()));
             // add ambiguation
             String disambiguation = getDisambiguation(preMovePosition, move.to(), move.from());
             sb.append(disambiguation); // disambiguation for pawn and king is empty string
 
             // add 'x' for captures (including en-passant)
-            if (move.isCapture()) {
-                if (move.pieceType() == PieceType.PAWN || move.isEnPassant()) {
+            boolean isCapture = move.isEnPassant() || preMovePosition.getPieceAt(move.to()) != null;
+            if (isCapture) {
+                if (move.moved() == PieceType.PAWN || move.isEnPassant()) {
                     sb.append(move.from().toNotation().charAt(0));
                 }
                 sb.append('x');

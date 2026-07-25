@@ -4,7 +4,6 @@ import me.zilid.chessplatform.engine.formatter.Fen;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,9 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * simultaneously — a single wrong rule makes the node count diverge.
  */
 class PerftTest {
-
-    private static final List<PieceType> PROMOTION_CHOICES = List.of(
-            PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT);
 
     @ParameterizedTest(name = "perft(depth {1}) of {0} = {2}")
     @CsvSource({
@@ -58,59 +54,11 @@ class PerftTest {
             return 1;
         }
         long nodes = 0;
-        for (Move move : generateLegalMoves(position)) {
+        for (Move move : MoveGenerator.legalMoves(position, position.getTurnColor())) {
             UndoInfo undo = position.applyMove(move);
             nodes += perft(position, depth - 1);
             position.undoMove(move, undo);
         }
         return nodes;
-    }
-
-    private List<Move> generateLegalMoves(Position position) {
-        List<Move> moves = new ArrayList<>();
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Square from = Square.of(x, y);
-                Piece piece = position.getPieceAt(from);
-                if (piece == null || piece.color() != position.getTurnColor()) {
-                    continue;
-                }
-                for (Square to : MoveGenerator.legalDestinations(position, from)) {
-                    moves.addAll(toMoves(position, piece, from, to));
-                }
-            }
-        }
-        return moves;
-    }
-
-    /**
-     * Wraps a (from, to) pair into full Move records; a promotionType square yields four moves.
-     */
-    private List<Move> toMoves(Position position, Piece piece, Square from, Square to) {
-        PieceType type = piece.type();
-
-        if (position.isCastlingMove(from, to)) {
-            MoveType side = to.x() > from.x()
-                    ? MoveType.CASTLE_KINGSIDE
-                    : MoveType.CASTLE_QUEENSIDE;
-            return List.of(new Move(from, to, side, type, null, null));
-        }
-
-        if (position.isEnPassantMove(from, to)) {
-            return List.of(new Move(from, to, MoveType.EN_PASSANT, type, PieceType.PAWN, null));
-        }
-
-        Piece captured = position.getPieceAt(to);
-        PieceType captureType = captured == null ? null : captured.type();
-
-        if (type == PieceType.PAWN && (to.y() == 0 || to.y() == 7)) {
-            List<Move> promotions = new ArrayList<>();
-            for (PieceType choice : PROMOTION_CHOICES) {
-                promotions.add(new Move(from, to, MoveType.PROMOTION, type, captureType, choice));
-            }
-            return promotions;
-        }
-
-        return List.of(new Move(from, to, MoveType.NORMAL, type, captureType, null));
     }
 }

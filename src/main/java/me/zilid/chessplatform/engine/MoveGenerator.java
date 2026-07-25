@@ -23,6 +23,7 @@ public class MoveGenerator {
     public static List<Square> legalDestinations(Position position, Square square) {
         return legalMoves(position, square).stream()
                 .map(Move::to)
+                .distinct()
                 .toList();
     }
 
@@ -83,7 +84,10 @@ public class MoveGenerator {
             while (Square.isValid(file, rank)) {
                 Square to = Square.of(file, rank);
                 Piece target = board.pieceAt(to);
-                if (target != null && Piece.isFriendlyPiece(piece, target)) {
+                if (target != null) {
+                    if (Piece.isEnemyPiece(piece, target)) {
+                        moves.add(Move.normal(from, to, type));
+                    }
                     break;
                 }
                 moves.add(Move.normal(from, to, type));
@@ -120,6 +124,7 @@ public class MoveGenerator {
         int oneUp = rank + forward;
         int twoUp = rank + forward + forward;
 
+        // pawn push one square up (can promote)
         if (Square.isValid(file, oneUp) && position.getPieceAt(Square.of(file, oneUp)) == null) {
             if (oneUp == promotionRank) {
                 for (PieceType promotionType : Move.PROMOTION_CHOICES) {
@@ -130,11 +135,20 @@ public class MoveGenerator {
             }
         }
 
+        // pawn push two squares up
         if (rank == startingRank && position.getPieceAt(Square.of(file, oneUp)) == null &&
                 Square.isValid(file, twoUp) && position.getPieceAt(Square.of(file, twoUp)) == null) {
             moves.add(Move.doublePush(from, Square.of(file, twoUp)));
         }
 
+        // en-passant capture
+        Square enPassantTarget = position.getEnPassantTarget();
+        if (enPassantTarget != null && enPassantTarget.rank() == oneUp
+                && Math.abs(enPassantTarget.file() - file) == 1) {
+            moves.add(Move.enPassant(from, enPassantTarget));
+        }
+
+        // pawn capture (can promote)
         for (int dir : List.of(-1, 1)) {
             if (!Square.isValid(file + dir, oneUp) || position.getPieceAt(Square.of(file + dir, oneUp)) == null
                     || Piece.isFriendlyPiece(piece, position.getPieceAt(Square.of(file + dir, oneUp)))) {
@@ -156,19 +170,23 @@ public class MoveGenerator {
         Color attackerColor = position.getTurnColor().opposite();
         String rank = color.isWhite() ? "1" : "8";
         Board board = position.getBoard();
+        if (board.isInCheck(color)) {
+            return;
+        }
 
+        // kingside castle: the squares between can't be attacked or blocked by other pieces
         Square fFile = Square.fromNotation("f" + rank);
         Square gFile = Square.fromNotation("g" + rank);
         if (position.getCastlingRights().has(color, CastlingSide.KINGSIDE) && board.pieceAt(fFile) == null
-                && board.pieceAt(gFile) == null && board.isSquareAttackedBy(fFile, attackerColor)
-                && board.isSquareAttackedBy(gFile, attackerColor)) {
+                && board.pieceAt(gFile) == null && !board.isSquareAttackedBy(fFile, attackerColor)
+                && !board.isSquareAttackedBy(gFile, attackerColor)) {
             moves.add(Move.castleKingside(color));
         }
 
+        // queenside castle: the squares between can't be attacked or blocked by other pieces
         Square bFile = Square.fromNotation("b" + rank);
         Square cFile = Square.fromNotation("c" + rank);
         Square dFile = Square.fromNotation("d" + rank);
-
         if (position.getCastlingRights().has(color, CastlingSide.QUEENSIDE) && board.pieceAt(bFile) == null
                 && board.pieceAt(cFile) == null && board.pieceAt(dFile) == null
                 && !board.isSquareAttackedBy(cFile, attackerColor) && !board.isSquareAttackedBy(dFile, attackerColor)) {

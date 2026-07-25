@@ -66,7 +66,7 @@ public class Position {
 
         // update the board
         if (move.isEnPassant()) {
-            capturedSquare = enPassantTarget;
+            capturedSquare = Square.of(move.to().file(), move.from().rank());
             Piece piece = board.put(move.from(), null);
             board.put(move.to(), piece);
             capturedPiece = board.put(capturedSquare, null);
