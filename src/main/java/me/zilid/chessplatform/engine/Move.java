@@ -67,4 +67,16 @@ public record Move(
     public boolean isCastle() {
         return type == MoveType.CASTLE_KINGSIDE || type == MoveType.CASTLE_QUEENSIDE;
     }
+
+    public boolean isKingsideCastle() {
+        return type == MoveType.CASTLE_KINGSIDE;
+    }
+
+    public boolean isQueensideCastle() {
+        return type == MoveType.CASTLE_QUEENSIDE;
+    }
+
+    public boolean isDoublePush() {
+        return type == MoveType.DOUBLE_PUSH;
+    }
 }

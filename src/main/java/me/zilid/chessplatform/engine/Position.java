@@ -6,13 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Position {
-    private List<PieceType> PROMOTION_CHOICES = List.of(PieceType.QUEEN, PieceType.BISHOP, PieceType.KNIGHT, PieceType.ROOK);
     private static final int KING_FILE = 4;
     private static final int KINGSIDE_ROOK_FILE = 7;
     private static final int QUEENSIDE_ROOK_FILE = 0;
     private static final int BLACK_BACK_RANK = 7;
     private static final int WHITE_BACK_RANK = 0;
-
     private final Board board;
     private Color turnColor;
     private CastlingRights castlingRights;
@@ -62,27 +60,53 @@ public class Position {
     }
 
     public UndoInfo applyMove(Move move) {
-        int undoRights = castlingRights.rights();
+        // track the undo information
+        CastlingRights undoCastlingRights = castlingRights;
         Square undoEnPassantTarget = enPassantTarget;
         int undoHalfMoveClock = halfMoveClock;
         int undoFullMoveClock = fullMoveClock;
+        Square capturedSquare = move.to();
+        Piece capturedPiece = null;
+        boolean isPawnMove = board.pieceAt(move.from()).type() == PieceType.PAWN;
 
-        Square capturedSquare = null;
-        if (move.isCapture()) {
-            capturedSquare = move.to();
-            if (move.isEnPassant()) {
-                int file = capturedSquare.file();
-                int rank = capturedSquare.rank();
-                capturedSquare = turnColor.isWhite() ? Square.of(file, rank - 1) : Square.of(file, rank + 1);
+        // update the board
+        if (move.isEnPassant()) {
+            capturedSquare = enPassantTarget;
+            Piece piece = board.put(move.from(), null);
+            board.put(move.to(), piece);
+            capturedPiece = board.put(capturedSquare, null);
+        } else if (move.isCastle()) {
+            int rookFile = move.isKingsideCastle() ? KINGSIDE_ROOK_FILE : QUEENSIDE_ROOK_FILE;
+            int offset = move.isKingsideCastle() ? -1 : 1;
+            Square rookFrom = Square.of(rookFile, move.to().rank());
+            Square rookTo = Square.of(move.to().file() + offset, move.to().rank());
+            Piece king = board.put(move.from(), null);
+            Piece rook = board.put(rookFrom, null);
+            board.put(move.to(), king);
+            board.put(rookTo, rook);
+        } else {
+            Piece piece = board.put(move.from(), null);
+            if (move.isPromotion()) {
+                capturedPiece = board.put(move.to(), Piece.of(turnColor, move.promotionType()));
+            } else {
+                capturedPiece = board.put(move.to(), piece);
             }
         }
 
-        boolean successful = makeMove(move.from(), move.to(), move.promotionType());
-        if (!successful) {
-            throw new IllegalStateException("Cannot apply move " + move + " to " + this);
+        // update the metadata of the position
+        boolean isCapture = capturedPiece != null;
+        if (isPawnMove || isCapture) {
+            halfMoveClock = 0;
+        } else {
+            halfMoveClock++;
         }
-
-        return new UndoInfo(capturedSquare, undoRights, undoEnPassantTarget, undoHalfMoveClock, undoFullMoveClock);
+        if (turnColor.isBlack()) {
+            fullMoveClock++;
+        }
+        turnColor = turnColor.opposite();
+        castlingRights = castlingRights.afterMove(move.from(), move.to());
+        enPassantTarget = move.isDoublePush() ? Square.of(move.from().file(), (move.from().rank() + move.to().rank()) / 2) : null;
+        return new UndoInfo(capturedSquare, capturedPiece, undoCastlingRights, undoEnPassantTarget, undoHalfMoveClock, undoFullMoveClock);
     }
 
     public void undoMove(Move move, UndoInfo undo) {
@@ -119,229 +143,12 @@ public class Position {
         fullMoveClock = undo.fullMoveClock();
     }
 
-    public boolean makeMove(Square from, Square to, PieceType promotionType) {
-        Piece piece = getPieceAt(from);
-        if (piece == null || piece.color() != turnColor) {
-            return false;
-        }
-
-        List<Square> validMoves = MoveGenerator.legalDestinations(this, from);
-        if (!validMoves.contains(to)) {
-            return false;
-        }
-
-        // Track for fifty-move rule: reset if pawn move or capture
-        Piece capturedPiece = getPieceAt(to);
-        boolean isPawnMove = piece.type() == PieceType.PAWN;
-        boolean isCapture = capturedPiece != null || isEnPassantMove(from, to);
-
-        if (isPawnMove || isCapture) {
-            halfMoveClock = 0;
-        } else {
-            halfMoveClock++;
-        }
-        if (piece.color().isBlack()) {
-            fullMoveClock++;
-        }
-
-        boolean isEnPassant = isEnPassantMove(from, to);
-        boolean isCastling = isCastlingMove(from, to);
-
-        // Make the move
-        board.put(to, piece);
-        board.put(from, null);
-
-        // Handle Pawn Promotion
-        if (piece.type() == PieceType.PAWN) {
-            int rank = piece.color().isWhite() ? BLACK_BACK_RANK : WHITE_BACK_RANK;
-            if (to.rank() == rank) {
-                if (!PROMOTION_CHOICES.contains(promotionType)) {
-                    throw new IllegalStateException("Invalid promotionType type: " + promotionType);
-                }
-                board.put(to, Piece.of(turnColor, promotionType));
-            }
-        }
-
-        // Handle en passant capture
-        if (isEnPassant) {
-            int capturedRank = piece.color().isWhite() ? to.rank() - 1 : to.rank() + 1;
-            Square capturedSquare = Square.of(to.file(), capturedRank);
-            board.put(capturedSquare, null); // Remove the captured pawn
-        }
-
-        // Handle castling - move the rook
-        if (isCastling) {
-            int rookFromFile = to.file() > from.file() ? KINGSIDE_ROOK_FILE : QUEENSIDE_ROOK_FILE; // Kingside or queenside
-            int rookToFile = to.file() > from.file() ? to.file() - 1 : to.file() + 1;
-            int rookRank = from.rank();
-
-            Square rookFromSquare = Square.of(rookFromFile, rookRank);
-            Square rookToSquare = Square.of(rookToFile, rookRank);
-            // move the rook
-            Piece rook = board.put(rookFromSquare, null);
-            board.put(rookToSquare, rook);
-        }
-
-        // Track the castling rights
-        updateCastlingRights(piece, capturedPiece, from, to);
-
-        // Track en passant target; only valid for the single reply to a double push
-        if (isPawnMove && from.file() == to.file() && Math.abs(from.rank() - to.rank()) == 2) {
-            enPassantTarget = Square.of(from.file(), (from.rank() + to.rank()) / 2);
-        } else {
-            enPassantTarget = null;
-        }
-
-        turnColor = turnColor.opposite();
-        return true;
-    }
-
-    public List<Square> getValidMovesForPiece(Square pieceSquare) {
-        Piece piece = getPieceAt(pieceSquare);
-        if (piece == null) {
-            return List.of();
-        }
-
-        List<Square> pseudoLegalMoves = piece.getValidMoves(pieceSquare, board);
-
-        // Try to add en passant moves for pawns
-        if (piece.type() == PieceType.PAWN) {
-            pseudoLegalMoves.addAll(getEnPassantMoves(pieceSquare));
-        }
-
-        // Try to add castling moves for king
-        if (piece.type() == PieceType.KING) {
-            pseudoLegalMoves.addAll(getCastlingMoves(pieceSquare));
-        }
-
-        List<Square> legalMoves = new ArrayList<>();
-
-        for (Square move : pseudoLegalMoves) {
-            // Simulate the move
-            boolean isEnPassant = isEnPassantMove(pieceSquare, move);
-            boolean isCastling = isCastlingMove(pieceSquare, move);
-
-            Piece capturedPiece = board[move.x()][move.y()];
-            Piece enPassantCaptured = null;
-
-            board[move.x()][move.y()] = piece;
-            board[pieceSquare.x()][pieceSquare.y()] = null;
-
-            // Handle en passant in simulation
-            if (isEnPassant) {
-                int captureY = piece.color().isWhite() ? move.y() - 1 : move.y() + 1;
-                enPassantCaptured = board[move.x()][captureY];
-                board[move.x()][captureY] = null;
-            }
-
-            // Handle castling in simulation
-            Piece rookMoved = null;
-            int rookFromX = 0, rookToX = 0, rookY = 0;
-            if (isCastling) {
-                rookFromX = move.x() > pieceSquare.x() ? 7 : 0;
-                rookToX = move.x() > pieceSquare.x() ? move.x() - 1 : move.x() + 1;
-                rookY = pieceSquare.y();
-                rookMoved = board[rookFromX][rookY];
-                board[rookToX][rookY] = rookMoved;
-                board[rookFromX][rookY] = null;
-            }
-
-            // Check if this move leaves the king in check
-            if (!isInCheck(piece.color())) {
-                legalMoves.add(move);
-            }
-
-            // Undo the move
-            board.put(pieceSquare, piece);
-            board.put(move, capturedPiece);
-            if (isEnPassant && enPassantCaptured != null) {
-                int captureY = piece.color().isWhite() ? move.y() - 1 : move.y() + 1;
-                board[move.x()][captureY] = enPassantCaptured;
-            }
-            if (isCastling && rookMoved != null) {
-                board[rookFromX][rookY] = rookMoved;
-                board[rookToX][rookY] = null;
-            }
-        }
-
-        return legalMoves;
-    }
-
-    /**
-     * Get possible en passant moves for a pawn at the given position
-     */
-    private List<Square> getEnPassantMoves(Square pawnSquare) {
-        Piece pawn = getPieceAt(pawnSquare);
-        if (enPassantTarget == null) {
-            return List.of();
-        }
-        if (pawn.getControlledSquares(pawnSquare, board).contains(enPassantTarget)) {
-            return List.of(enPassantTarget);
-        }
-        return List.of();
-    }
-
     /**
      * Check if a move is an en passant capture
      */
     public boolean isEnPassantMove(Square from, Square to) {
         Piece piece = board.pieceAt(from);
-        if (piece == null || piece.type() != PieceType.PAWN) {
-            return false;
-        }
-
-        // En passant is a diagonal move to an empty square
-        if (board.pieceAt(to) == null && from.x() != to.x()) {
-            return getEnPassantMoves(from).contains(to);
-        }
-
-        return false;
-    }
-
-    /**
-     * Get possible castling moves for a king at the given position
-     */
-    private List<Square> getCastlingMoves(Square kingSquare) {
-        List<Square> castlingMoves = new ArrayList<>();
-        Piece piece = getPieceAt(kingSquare);
-        if (piece == null) {
-            return castlingMoves;
-        }
-
-        Color color = piece.color();
-        // Kingside castling
-        if (canCastle(color, CastlingSide.KINGSIDE)) {
-            castlingMoves.add(Square.of(KING_FILE + 2, kingSquare.y()));
-        }
-
-        // Queenside castling
-        if (canCastle(color, CastlingSide.QUEENSIDE)) {
-            castlingMoves.add(Square.of(KING_FILE - 2, kingSquare.y()));
-        }
-
-        return castlingMoves;
-    }
-
-    /**
-     * Check if the king can castle.
-     */
-    private boolean canCastle(Color color, CastlingSide side) {
-        int rank = switch (color) {
-            case Color.WHITE -> WHITE_BACK_RANK;
-            case Color.BLACK -> BLACK_BACK_RANK;
-        };
-        if (!castlingRights.has(color, side)) {
-            return false;
-        }
-        Piece king = board[KING_FILE][rank];
-        boolean notInCheck = !isInCheck(king.color());
-        boolean noPiecesBetween = side == CastlingSide.KINGSIDE;
-                ? board[5][rank] == null && board[6][rank] == null
-                : board[2][rank] == null && board[3][rank] == null && board[1][rank] == null;
-        boolean noSquareUnderAttackBetween = side == CastlingSide.KINGSIDE
-                ? !isSquareUnderAttack(Square.of(5, rank), king.color()) && !isSquareUnderAttack(Square.of(6, rank), king.color())
-                : !isSquareUnderAttack(Square.of(2, rank), king.color()) && !isSquareUnderAttack(Square.of(3, rank), king.color());
-        return noPiecesBetween && notInCheck && noSquareUnderAttackBetween;
+        return piece != null && piece.type() == PieceType.PAWN && from.file() != to.file() && Math.abs(from.rank() - to.rank()) == 1;
     }
 
     /**
@@ -355,55 +162,6 @@ public class Position {
 
         // Castling is a 2-square king move horizontally
         return Math.abs(to.x() - from.x()) == 2 && to.y() == from.y();
-    }
-
-    private void updateCastlingRights(Piece piece, Piece capturedPiece, Square from, Square to) {
-        if (piece.type() == PieceType.KING) {
-            castlingRights = castlingRights.without(piece.color());
-        }
-
-        if (piece.type() == PieceType.ROOK) {
-            updateCastlingRightsByRook(piece.color(), from);
-        }
-
-        if (capturedPiece != null && capturedPiece.type() == PieceType.ROOK) {
-            // en-passant can't happen in the corner, so it's safe to pass `to` to the function
-            updateCastlingRightsByRook(capturedPiece.color(), to);
-        }
-    }
-
-    private void updateCastlingRightsByRook(Color color, Square rook) {
-        CastlingSide side = rook.file() == KINGSIDE_ROOK_FILE ? CastlingSide.KINGSIDE : CastlingSide.QUEENSIDE;
-        castlingRights = castlingRights.without(color, side);
-
-//        if (color.isWhite() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
-//            castlingRights = castlingRights.without(color, CastlingSide.KINGSIDE);
-//        } else if (color.isWhite() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == WHITE_BACK_RANK) {
-//            castlingRights = castlingRights.withoutWhiteQueenside();
-//        } else if (color.isBlack() && rook.x() == KINGSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
-//            castlingRights = castlingRights.withoutBlackKingside();
-//        } else if (color.isBlack() && rook.x() == QUEENSIDE_ROOK_FILE && rook.y() == BLACK_BACK_RANK) {
-//            castlingRights = castlingRights.withoutBlackQueenside();
-//        }
-    }
-
-    /**
-     * Check if a square is under attack by the opponent
-     */
-    private boolean isSquareUnderAttack(Square square, Color color) {
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.color() != color) {
-                    Square enemySquare = Square.of(x, y);
-                    List<Square> controlledSquares = piece.getControlledSquares(enemySquare, board);
-                    if (controlledSquares.contains(square)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     /**
