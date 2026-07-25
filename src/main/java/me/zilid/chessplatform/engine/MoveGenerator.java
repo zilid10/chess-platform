@@ -8,10 +8,10 @@ public class MoveGenerator {
     private static final int[][] ROOK_DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     private static final int[][] ALL_DIRS = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     private static final int[][] KNIGHT_JUMPS = {{1, 2}, {2, 1}, {2, -1}, {1, -2}, {-1, -2}, {-2, -1}, {-2, 1}, {-1, 2}};
-    private static final int[][] KNIGHT = {{1, 2}, {2, 1}, {2, -1}, {1, -2}, {-1, -2}, {-2, -1}, {-2, 1}, {-1, 2}};
-    private static final int[][] KING = {{0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}};
-    private static final int[][] ORTHO = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
-    private static final int[][] DIAG = {{1, 1}, {1, -1}, {-1, -1}, {-1, 1}};
+
+    public static boolean isLegalMove(Position position, Move move) {
+        return legalMoves(position, move.from()).contains(move);
+    }
 
     public static List<Square> legalDestinations(Position position, Square square) {
         return legalMoves(position, square).stream()
@@ -23,7 +23,20 @@ public class MoveGenerator {
         List<Move> moves = new ArrayList<>();
         for (int i = 0; i < 64; i++) {
             Square square = new Square(i);
-            if (position.getPieceAt(square) != null) {
+            Piece piece = position.getPieceAt(square);
+            if (piece != null) {
+                moves.addAll(legalMoves(position, square));
+            }
+        }
+        return moves;
+    }
+
+    public static List<Move> legalMoves(Position position, Color color) {
+        List<Move> moves = new ArrayList<>();
+        for (int i = 0; i < 64; i++) {
+            Square square = new Square(i);
+            Piece piece = position.getPieceAt(square);
+            if (piece != null && piece.color() == color) {
                 moves.addAll(legalMoves(position, square));
             }
         }
@@ -35,21 +48,10 @@ public class MoveGenerator {
         List<Move> moves = new ArrayList<>();
         for (Move move : pseudoLegalMoves(position, square)) {
             UndoInfo undo = position.applyMove(move);
-            if (!position.isInCheck(color)) {
+            if (!position.getBoard().isInCheck(color)) {
                 moves.add(move);
             }
             position.undoMove(move, undo);
-        }
-        return moves;
-    }
-
-    public static List<Move> pseudoLegalMoves(Position position) {
-        List<Move> moves = new ArrayList<>();
-        for (int i = 0; i < 64; i++) {
-            Square square = new Square(i);
-            if (position.getPieceAt(square) != null) {
-                moves.addAll(pseudoLegalMoves(position, square));
-            }
         }
         return moves;
     }
@@ -70,71 +72,12 @@ public class MoveGenerator {
             case PieceType.KNIGHT -> jumpingMoves(board, square, KNIGHT_JUMPS, PieceType.KNIGHT, moves);
             case PieceType.KING -> {
                 jumpingMoves(board, square, ALL_DIRS, PieceType.KING, moves);
-                castlingMoves(position, square, moves);
+                castlingMoves(position, moves);
             }
             case PieceType.PAWN -> pawnMoves(position, square, moves);
         }
 
         return moves;
-    }
-
-    public static boolean isLegalMove(Position position, Move move) {
-        return legalMoves(position, move.from()).contains(move);
-    }
-
-    private static boolean isSquareAttackedBy(Position position, Square square, Color attacker) {
-        int file = square.file();
-        int rank = square.rank();
-        int back = attacker.isWhite() ? -1 : 1;
-        if (hasPiece(position, file + 1, rank + back, attacker, PieceType.PAWN)
-                || hasPiece(position, file - 1, rank + back, attacker, PieceType.PAWN)) {
-            return true;
-        }
-        for (int[] dir : KNIGHT) {
-            if (hasPiece(position, file + dir[0], rank + dir[1], attacker, PieceType.KNIGHT)) {
-                return true;
-            }
-        }
-        for (int[] dir : KING) {
-            if (hasPiece(position, file + dir[0], rank + dir[1], attacker, PieceType.KING)) {
-                return true;
-            }
-        }
-        for (int[] dir : ORTHO) {
-            Piece piece = firstPieceOnRay(position, square, dir);
-            if (piece != null && piece.color() == attacker && (piece.type() == PieceType.QUEEN || piece.type() == PieceType.ROOK)) {
-                return true;
-            }
-        }
-        for (int[] dir : DIAG) {
-            Piece piece = firstPieceOnRay(position, square, dir);
-            if (piece != null && piece.color() == attacker && (piece.type() == PieceType.QUEEN || piece.type() == PieceType.BISHOP)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Piece firstPieceOnRay(Position position, Square square, int[] dir) {
-        int file = square.file() + dir[0];
-        int rank = square.rank() + dir[1];
-        while (Square.isValid(file, rank)) {
-            Piece piece = position.getPieceAt(Square.of(file, rank));
-            if (piece != null) {
-                return piece;
-            }
-            file += dir[0];
-            rank += dir[1];
-        }
-        return null;
-    }
-
-    private static boolean hasPiece(Position position, int file, int rank, Color color, PieceType type) {
-        if (!Square.isValid(file, rank)) {
-            return false;
-        }
-        Piece piece = position.getPieceAt(Square.of(file, rank));
-        return piece != null && piece.color() == color && piece.type() == type;
     }
 
     private static void slidingMoves(Board board, Square from, int[][] dirs, PieceType type, List<Move> moves) {
@@ -213,16 +156,17 @@ public class MoveGenerator {
         }
     }
 
-    private static void castlingMoves(Position position, Square from, List<Move> moves) {
+    private static void castlingMoves(Position position, List<Move> moves) {
         Color color = position.getTurnColor();
         Color attackerColor = position.getTurnColor().opposite();
         String rank = color.isWhite() ? "1" : "8";
+        Board board = position.getBoard();
 
         Square fFile = Square.fromNotation("f" + rank);
         Square gFile = Square.fromNotation("g" + rank);
-        if (position.getCastlingRights().has(color, CastlingSide.KINGSIDE) && position.getPieceAt(fFile) == null
-                && position.getPieceAt(gFile) == null && isSquareAttackedBy(position, fFile, attackerColor)
-                && isSquareAttackedBy(position, gFile, attackerColor)) {
+        if (position.getCastlingRights().has(color, CastlingSide.KINGSIDE) && board.pieceAt(fFile) == null
+                && board.pieceAt(gFile) == null && board.isSquareAttackedBy(fFile, attackerColor)
+                && board.isSquareAttackedBy(gFile, attackerColor)) {
             moves.add(Move.castleKingside(color));
         }
 
@@ -230,9 +174,9 @@ public class MoveGenerator {
         Square cFile = Square.fromNotation("c" + rank);
         Square dFile = Square.fromNotation("d" + rank);
 
-        if (position.getCastlingRights().has(color, CastlingSide.QUEENSIDE) && position.getPieceAt(bFile) == null
-                && position.getPieceAt(cFile) == null && position.getPieceAt(dFile) == null
-                && !isSquareAttackedBy(position, cFile, attackerColor) && !isSquareAttackedBy(position, dFile, attackerColor)) {
+        if (position.getCastlingRights().has(color, CastlingSide.QUEENSIDE) && board.pieceAt(bFile) == null
+                && board.pieceAt(cFile) == null && board.pieceAt(dFile) == null
+                && !board.isSquareAttackedBy(cFile, attackerColor) && !board.isSquareAttackedBy(dFile, attackerColor)) {
             moves.add(Move.castleQueenside(color));
         }
     }

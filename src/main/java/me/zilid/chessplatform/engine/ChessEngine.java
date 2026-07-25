@@ -66,7 +66,7 @@ public class ChessEngine {
      * Check if the current player is in check
      */
     public boolean isInCheck() {
-        return position.isInCheck(position.getTurnColor());
+        return position.getBoard().isInCheck(position.getTurnColor());
     }
 
     /**
@@ -94,7 +94,7 @@ public class ChessEngine {
      * Check for insufficient material
      */
     public boolean isInsufficientMaterial() {
-        return position.isInsufficientMaterial();
+        return position.getBoard().isInsufficientMaterial();
     }
 
     /**

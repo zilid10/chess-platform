@@ -2,9 +2,6 @@ package me.zilid.chessplatform.engine;
 
 import me.zilid.chessplatform.engine.formatter.Fen;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class Position {
     private static final int KING_FILE = 4;
     private static final int KINGSIDE_ROOK_FILE = 7;
@@ -110,34 +107,28 @@ public class Position {
     }
 
     public void undoMove(Move move, UndoInfo undo) {
-        Color capturedColor = turnColor;
         Color moverColor = turnColor.opposite();
-        int toX = move.to().x();
-        int toY = move.to().y();
-        int fromX = move.from().x();
-        int fromY = move.from().y();
+        int rank = move.from().rank();
 
         // remove the piece from the destination square and restore the piece to the source square (works for promotionType)
-        board.put(move.to(), null);
-        board.put(move.from(), Piece.of(moverColor, move.pieceType()));
-
-        // restore the captured piece
-        if (move.isCapture()) {
-            board.put(undo.capturedSquare(), Piece.of(capturedColor, move.captureType()));
+        Piece movedPiece = board.put(move.to(), null);
+        if (move.isPromotion()) {
+            board.put(move.from(), Piece.of(moverColor, PieceType.PAWN));
+        } else {
+            board.put(move.from(), movedPiece);
         }
+        board.put(undo.capturedSquare(), undo.capturedPiece());
+
         // undo rook movement for castling
-        if (move.type() == MoveType.CASTLE_KINGSIDE) {
-            Square rookSquare = Square.of(KINGSIDE_ROOK_FILE, fromY);
-            Square kingSquare = Square.of(KING_FILE, fromY);
-            board.put(rookSquare, board.pieceAt(kingSquare));
-            board.put(Square.of(KING_FILE + 1, fromY), null);
-        } else if (move.type() == MoveType.CASTLE_QUEENSIDE) {
-            board.put(Square.of(QUEENSIDE_ROOK_FILE, fromY), board.pieceAt(Square.of(KING_FILE - 1, fromY)));
-            board.put(Square.of(KING_FILE - 1, fromY), null);
+        if (move.isCastle()) {
+            Square rookAfterCastle = move.isKingsideCastle() ? Square.of(KING_FILE + 1, rank) : Square.of(KING_FILE - 1, rank);
+            Square rookFrom = move.isKingsideCastle() ? Square.of(KINGSIDE_ROOK_FILE, rank) : Square.of(QUEENSIDE_ROOK_FILE, rank);
+            Piece rook = board.put(rookAfterCastle, null);
+            board.put(rookFrom, rook);
         }
 
         turnColor = moverColor;
-        castlingRights = new CastlingRights(undo.rights());
+        castlingRights = undo.castlingRights();
         enPassantTarget = undo.enPassantTarget();
         halfMoveClock = undo.halfMoveClock();
         fullMoveClock = undo.fullMoveClock();
@@ -161,93 +152,30 @@ public class Position {
         }
 
         // Castling is a 2-square king move horizontally
-        return Math.abs(to.x() - from.x()) == 2 && to.y() == from.y();
+        return Math.abs(to.file() - from.file()) == 2 && to.rank() == from.rank();
     }
 
     /**
      * check if the current position is checkmate
      */
     public boolean isCheckmate(Color color) {
-        // Not in check, so not checkmate
-        if (!isInCheck(color)) {
-            return false;
-        }
-
-        // Check if there are any legal moves
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.color() == color) {
-                    Square pieceSquare = Square.of(x, y);
-                    List<Square> legalMoves = MoveGenerator.legalDestinations(this, pieceSquare);
-                    if (!legalMoves.isEmpty()) {
-                        return false; // Found a legal move
-                    }
-                }
-            }
-        }
-
-        return true; // No legal moves and in check -> checkmate
+        // No legal moves and in check -> checkmate
+        return board.isInCheck(color) && MoveGenerator.legalMoves(this, color).isEmpty();
     }
 
     /**
      * Check if current position is a draw due to stalemate
      */
     public boolean isStalemate(Color color) {
-        if (isInCheck(color)) {
-            return false; // In check, so not stalemate
-        }
-
-        // Check if there are any legal moves
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.color() == color) {
-                    Square pieceSquare = Square.of(x, y);
-                    List<Square> legalMoves = MoveGenerator.legalDestinations(this, pieceSquare);
-                    if (!legalMoves.isEmpty()) {
-                        return false; // Found a legal move
-                    }
-                }
-            }
-        }
-
-        return true; // No legal moves and not in check -> stalemate
+        // No legal moves and not in check -> stalemate
+        return !board.isInCheck(color) && MoveGenerator.legalMoves(this, color).isEmpty();
     }
 
-    public boolean isInCheck(Color color) {
-        // Find the king
-        Square kingSquare = null;
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.type() == PieceType.KING && piece.color() == color) {
-                    kingSquare = Square.of(x, y);
-                    break;
-                }
-            }
-            if (kingSquare != null) break;
-        }
-
-        if (kingSquare == null) {
-            return false; // No king found
-        }
-
-        // Check if any enemy piece can attack the king
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null && piece.color() != color) {
-                    Square enemySquare = Square.of(x, y);
-                    List<Square> moves = piece.getControlledSquares(enemySquare, board);
-                    if (moves.contains(kingSquare)) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+    /**
+     * Check if the current position is in check for the current color
+     */
+    public boolean isInCheck() {
+        return board.isInCheck(turnColor);
     }
 
     /**
@@ -258,110 +186,12 @@ public class Position {
     }
 
     /**
-     * Check if the current position is a draw due to insufficient material
-     */
-    public boolean isInsufficientMaterial() {
-        List<Piece> otherPieces = new ArrayList<>();
-        List<Square> bishopSquares = new ArrayList<>();
-        int whiteCount = 0, blackCount = 0;
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = board.pieceAt(Square.of(x, y));
-                if (piece != null) {
-                    if (piece.color().isWhite()) {
-                        whiteCount++;
-                    } else {
-                        blackCount++;
-                    }
-                    if (piece.type() == PieceType.BISHOP) {
-                        bishopSquares.add(Square.of(x, y));
-                    }
-                    if (piece.type() != PieceType.KING) {
-                        otherPieces.add(piece);
-                    }
-                }
-            }
-        }
-
-        // King vs King
-        if (whiteCount == 1 && blackCount == 1) {
-            return true;
-        }
-
-        // King and Bishop vs King or King and Knight vs King
-        if (otherPieces.size() == 1 && (otherPieces.getFirst().type() == PieceType.KNIGHT || otherPieces.getFirst().type() == PieceType.BISHOP)) {
-            return true;
-        }
-
-        // King and Bishop vs King and Bishop (same color bishop)
-        if (blackCount == 2 && whiteCount == 2 && bishopSquares.size() == 2) {
-            Square b1 = bishopSquares.get(0);
-            Square b2 = bishopSquares.get(1);
-            return (b1.x() + b1.y()) % 2 == (b2.x() + b2.y()) % 2;
-        }
-
-        return false;
-    }
-
-    /**
      * Generate a hash of the current board position
      */
     @Override
     public int hashCode() {
+        // TODO: implement Zobrist as hash method
         return Fen.write(this).hashCode();
     }
 
-    /**
-     * calculate the disambiguation string (when multiple same pieces can move to the same square, requires disambiguation)
-     */
-    public String getDisambiguation(Square from, Square to) {
-        Piece movingPiece = board.pieceAt(from);
-        if (movingPiece == null || movingPiece.type() == PieceType.PAWN || movingPiece.type() == PieceType.KING) {
-            return "";
-        }
-
-        boolean needDisambiguation = false;
-        boolean sameFile = false;
-        boolean sameRank = false;
-
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                // exclude self
-                if (x == from.x() && y == from.y()) continue;
-
-                Piece other = board.pieceAt(Square.of(x, y));
-
-                if (other != null && other.color() == movingPiece.color() && other.type() == movingPiece.type()) {
-
-
-                    List<Square> moves = MoveGenerator.legalDestinations(this, Square.of(x, y));
-
-                    if (moves.contains(to)) {
-                        needDisambiguation = true;
-                        if (x == from.x()) {
-                            sameFile = true;
-                        }
-                        if (y == from.y()) {
-                            sameRank = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        // 1. If there are both file and rank ambiguity, use the full notation (e.g., d4, e5)
-        // 2. If there are file ambiguity, use the rank number to disambiguate (1-8)
-        // 3. If there are rank ambiguity, use the file to disambiguate (a-h)
-        if (!needDisambiguation) {
-            return "";
-        }
-
-        if (sameFile && sameRank) {
-            return from.toNotation();
-        }
-        if (sameFile) {
-            return String.valueOf(from.toNotation().charAt(1));
-        }
-        return String.valueOf(from.toNotation().charAt(0));
-    }
 }
