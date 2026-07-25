@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess.formatter;
+package me.zilid.chessplatform.chess.format.pgn;
 
 import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.Position;

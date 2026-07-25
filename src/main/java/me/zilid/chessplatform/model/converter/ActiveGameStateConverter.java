@@ -4,7 +4,7 @@ import me.zilid.chessplatform.chess.ChessEngine;
 import me.zilid.chessplatform.chess.Game;
 import me.zilid.chessplatform.chess.GameSnapShot;
 import me.zilid.chessplatform.chess.Position;
-import me.zilid.chessplatform.chess.formatter.Fen;
+import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.UserPrincipalService;

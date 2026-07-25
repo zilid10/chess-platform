@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.chess.formatter.Fen;
+import me.zilid.chessplatform.chess.format.Fen;
 
 import java.util.List;
 
