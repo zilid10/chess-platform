@@ -1,6 +1,9 @@
 package me.zilid.chessplatform.engine.formatter;
 
-import me.zilid.chessplatform.engine.*;
+import me.zilid.chessplatform.engine.Move;
+import me.zilid.chessplatform.engine.PieceType;
+import me.zilid.chessplatform.engine.Position;
+import me.zilid.chessplatform.engine.Square;
 
 import java.util.Optional;
 
@@ -13,7 +16,12 @@ public class Uci {
         return move.isPromotion() ? base + promotionChar(move.promotionType()) : base;
     }
 
-    public static Optional<Move> parse(Position position, String uci) {
+    public static String format(UciMove uciMove) {
+        String base = uciMove.from().toNotation() + uciMove.to().toNotation();
+        return uciMove.promotion() != null ? base + promotionChar(uciMove.promotion()) : base;
+    }
+
+    public static Optional<UciMove> parse(Position position, String uci) {
         if (uci.length() != 4 && uci.length() != 5) {
             return Optional.empty();
         }
@@ -26,7 +34,7 @@ public class Uci {
             if (uci.length() == 5) {
                 promotion = promotionType(uci.charAt(4));
             }
-            return MoveGenerator.findLegalMove(position, from, to, promotion);
+            return Optional.of(new UciMove(from, to, promotion));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
