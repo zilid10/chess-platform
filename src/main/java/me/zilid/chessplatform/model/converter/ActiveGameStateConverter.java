@@ -2,7 +2,7 @@ package me.zilid.chessplatform.model.converter;
 
 import me.zilid.chessplatform.chess.ChessEngine;
 import me.zilid.chessplatform.chess.Game;
-import me.zilid.chessplatform.chess.GameSnapShot;
+import me.zilid.chessplatform.chess.GameSnapshot;
 import me.zilid.chessplatform.chess.Position;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
@@ -23,7 +23,7 @@ public class ActiveGameStateConverter {
     }
 
     public ActiveGameState getGameSnapshot(Game game) {
-        GameSnapShot snapShot = game.getGameSnapshot();
+        GameSnapshot snapShot = game.getGameSnapshot();
         return new ActiveGameState(
                 snapShot.fen(),
                 snapShot.history(),

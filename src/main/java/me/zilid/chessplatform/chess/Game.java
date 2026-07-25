@@ -97,8 +97,8 @@ public class Game {
         return engine.getValidMoves(position);
     }
 
-    public synchronized GameSnapShot getGameSnapshot() {
-        return new GameSnapShot(
+    public synchronized GameSnapshot getGameSnapshot() {
+        return new GameSnapshot(
                 getFen(),
                 List.copyOf(history),
                 Map.copyOf(positionHistory),

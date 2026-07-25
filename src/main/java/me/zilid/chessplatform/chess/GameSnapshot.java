@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public record GameSnapShot(
+public record GameSnapshot(
         // board info
         String fen,
 
