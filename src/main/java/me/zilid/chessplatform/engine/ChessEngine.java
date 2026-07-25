@@ -15,43 +15,27 @@ public class ChessEngine {
         this.position = position;
     }
 
-    /**
-     * Make a move using chess notation (e.g., "e2" to "e4")
-     */
-    public boolean makeMove(String from, String to, PieceType promotionType) {
+    public boolean makeMove(Square from, Square to, PieceType promotionType) {
         try {
-            Square fromSquare = Square.fromNotation(from);
-            Square toSquare = Square.fromNotation(to);
-            return makeMove(fromSquare, toSquare, promotionType);
+            Move move = MoveGenerator.findLegalMove(position, from, to, promotionType)
+                    .orElseThrow(() -> new IllegalArgumentException("No such moves"));
+            position.applyMove(move);
+            return true;
         } catch (IllegalArgumentException e) {
             return false;
         }
     }
 
     /**
-     * Make a move from a given position
-     */
-    public boolean makeMove(Square from, Square to, PieceType promotionType) {
-        return position.makeMove(from, to, promotionType);
-    }
-
-    /**
      * Get all valid moves for a piece at the given position
      */
-    public List<Square> getValidMoves(String position) {
+    public List<Square> getValidMoves(String notation) {
         try {
-            Square pos = Square.fromNotation(position);
-            return getValidMoves(pos);
+            Square square = Square.fromNotation(notation);
+            return MoveGenerator.legalDestinations(position, square);
         } catch (IllegalArgumentException e) {
             return List.of();
         }
-    }
-
-    /**
-     * Get all valid moves for a piece at the given position
-     */
-    public List<Square> getValidMoves(Square square) {
-        return MoveGenerator.legalDestinations(position, square);
     }
 
     public UndoInfo applyMove(Move move) {
@@ -66,7 +50,7 @@ public class ChessEngine {
      * Check if the current player is in check
      */
     public boolean isInCheck() {
-        return position.getBoard().isInCheck(position.getTurnColor());
+        return position.isInCheck();
     }
 
     /**

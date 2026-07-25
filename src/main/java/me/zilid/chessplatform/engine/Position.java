@@ -135,27 +135,6 @@ public class Position {
     }
 
     /**
-     * Check if a move is an en passant capture
-     */
-    public boolean isEnPassantMove(Square from, Square to) {
-        Piece piece = board.pieceAt(from);
-        return piece != null && piece.type() == PieceType.PAWN && from.file() != to.file() && Math.abs(from.rank() - to.rank()) == 1;
-    }
-
-    /**
-     * Check if a move is a castling move
-     */
-    public boolean isCastlingMove(Square from, Square to) {
-        Piece piece = board.pieceAt(from);
-        if (piece == null || piece.type() != PieceType.KING) {
-            return false;
-        }
-
-        // Castling is a 2-square king move horizontally
-        return Math.abs(to.file() - from.file()) == 2 && to.rank() == from.rank();
-    }
-
-    /**
      * check if the current position is checkmate
      */
     public boolean isCheckmate(Color color) {
@@ -193,5 +172,4 @@ public class Position {
         // TODO: implement Zobrist as hash method
         return Fen.write(this).hashCode();
     }
-
 }

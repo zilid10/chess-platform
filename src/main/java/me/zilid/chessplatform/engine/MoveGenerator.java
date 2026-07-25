@@ -2,6 +2,7 @@ package me.zilid.chessplatform.engine;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class MoveGenerator {
     private static final int[][] BISHOP_DIRS = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
@@ -13,22 +14,16 @@ public class MoveGenerator {
         return legalMoves(position, move.from()).contains(move);
     }
 
+    public static Optional<Move> findLegalMove(Position position, Square from, Square to, PieceType promotionType) {
+        return legalMoves(position, from).stream()
+                .filter(move -> move.from().equals(from) && move.to().equals(to) && move.promotionType() == promotionType)
+                .findAny();
+    }
+
     public static List<Square> legalDestinations(Position position, Square square) {
         return legalMoves(position, square).stream()
                 .map(Move::to)
                 .toList();
-    }
-
-    public static List<Move> legalMoves(Position position) {
-        List<Move> moves = new ArrayList<>();
-        for (int i = 0; i < 64; i++) {
-            Square square = new Square(i);
-            Piece piece = position.getPieceAt(square);
-            if (piece != null) {
-                moves.addAll(legalMoves(position, square));
-            }
-        }
-        return moves;
     }
 
     public static List<Move> legalMoves(Position position, Color color) {

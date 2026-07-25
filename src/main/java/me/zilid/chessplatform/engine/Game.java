@@ -59,55 +59,24 @@ public class Game {
         this.drawOfferedBy = drawOfferedBy;
     }
 
-    public synchronized boolean makeMove(String from, String to) {
-        return makeMove(from, to, PieceType.QUEEN);
-    }
-
     /**
      * Make a move using chess notation
      */
-    public synchronized boolean makeMove(String from, String to, PieceType promotionType) {
+    public synchronized boolean makeMove(String fromNotation, String toNotation, PieceType promotionType) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
 
         try {
-            Square fromPos = Square.fromNotation(from);
-            Square toPos = Square.fromNotation(to);
-            MoveType moveType = MoveType.NORMAL;
+            Square from = Square.fromNotation(fromNotation);
+            Square to = Square.fromNotation(toNotation);
 
-            // Get piece info before move
-            Piece movingPiece = engine.getPosition().getPieceAt(fromPos);
-            if (movingPiece == null) {
-                return false;
-            }
-
-            Piece capturedPiece = engine.getPosition().getPieceAt(toPos);
-            PieceType capturedType = capturedPiece != null ? capturedPiece.type() : null;
-
-            // Check for special moves before making the move
-            boolean isEnPassant = isEnPassantMove(fromPos, toPos);
-            boolean isCastling = isCastlingMove(fromPos, toPos);
-            boolean isKingsideCastle = isCastling && toPos.x() > fromPos.x();
-            boolean isPromotion = movingPiece.type() == PieceType.PAWN && (
-                    (getTurnColor().isWhite() && toPos.y() == 7) || (getTurnColor().isBlack() && toPos.y() == 0));
-            if (isCastling) {
-                moveType = isKingsideCastle ? MoveType.CASTLE_KINGSIDE : MoveType.CASTLE_QUEENSIDE;
-            } else if (isPromotion) {
-                moveType = MoveType.PROMOTION;
-            } else if (isEnPassant) {
-                moveType = MoveType.EN_PASSANT;
-                capturedType = PieceType.PAWN;
-            }
-
-            // Attempt the move
-            boolean success = engine.makeMove(from, to, promotionType);
-            if (!success) {
-                return false;
-            }
+            // Make moves
+            Move move = MoveGenerator.findLegalMove(engine.getPosition(), from, to, promotionType)
+                    .orElseThrow(() -> new IllegalArgumentException("no such moves"));
+            engine.getPosition().applyMove(move);
 
             // Record the move with special move flags
-            Move move = new Move(fromPos, toPos, moveType, movingPiece.type(), capturedType, promotionType);
             history.add(move);
             int boardHash = engine.getPosition().hashCode();
             positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
@@ -181,20 +150,6 @@ public class Game {
 
         status = GameStatus.DRAW_BY_AGREEMENT;
         endTime = Instant.now();
-    }
-
-    /**
-     * Check if a move is an en passant capture
-     */
-    private synchronized boolean isEnPassantMove(Square from, Square to) {
-        return engine.getPosition().isEnPassantMove(from, to);
-    }
-
-    /**
-     * Check if a move is a castling move
-     */
-    private synchronized boolean isCastlingMove(Square from, Square to) {
-        return engine.getPosition().isCastlingMove(from, to);
     }
 
     /**
