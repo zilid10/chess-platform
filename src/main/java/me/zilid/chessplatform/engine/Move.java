@@ -24,7 +24,7 @@ public record Move(
         if (from.equals(to)) {
             throw new IllegalArgumentException("from and to can't be the same");
         }
-        if (promotionType != null && !PROMOTION_CHOICES.contains(moved)) {
+        if (promotionType != null && !PROMOTION_CHOICES.contains(promotionType)) {
             throw new IllegalArgumentException("promotion type can't be " + promotionType);
         }
     }
@@ -55,7 +55,7 @@ public record Move(
         int rank = color.isWhite() ? 0 : 7;
         return new Move(Square.of(4, rank), Square.of(2, rank), PieceType.KING, MoveType.CASTLE_QUEENSIDE, null);
     }
-    
+
     public boolean isPromotion() {
         return promotionType != null;
     }

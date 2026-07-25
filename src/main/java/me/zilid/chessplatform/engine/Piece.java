@@ -35,6 +35,14 @@ public enum Piece {
         return LOOKUP[color.ordinal()][type.ordinal()];
     }
 
+    public static boolean isEnemyPiece(Piece piece, Piece target) {
+        return piece.color != target.color;
+    }
+
+    public static boolean isFriendlyPiece(Piece piece, Piece target) {
+        return piece.color == target.color;
+    }
+
     public PieceType type() {
         return type;
     }

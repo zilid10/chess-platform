@@ -39,6 +39,10 @@ public record CastlingRights(int rights) {
         return (rights & mask(color, side)) != 0;
     }
 
+    public boolean has(Color color) {
+        return has(color, CastlingSide.KINGSIDE) || has(color, CastlingSide.QUEENSIDE);
+    }
+
     public CastlingRights with(Color color, CastlingSide side) {
         return new CastlingRights(rights | mask(color, side));
     }

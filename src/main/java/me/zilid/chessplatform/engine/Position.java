@@ -95,7 +95,7 @@ public class Position {
 
         // remove the piece from the destination square and restore the piece to the source square (works for promotionType)
         board.put(move.to(), null);
-        board.put(move.from(), Piece.of(moverColor, move.pieceType()))
+        board.put(move.from(), Piece.of(moverColor, move.pieceType()));
 
         // restore the captured piece
         if (move.isCapture()) {
