@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.engine.formatter.Fen;
+import me.zilid.chessplatform.chess.formatter.Fen;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

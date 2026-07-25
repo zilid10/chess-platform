@@ -1,7 +1,7 @@
-package me.zilid.chessplatform.engine.formatter;
+package me.zilid.chessplatform.chess.formatter;
 
-import me.zilid.chessplatform.engine.Move;
-import me.zilid.chessplatform.engine.Position;
+import me.zilid.chessplatform.chess.Move;
+import me.zilid.chessplatform.chess.Position;
 
 import java.util.List;
 

@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.model.dto;
 
-import me.zilid.chessplatform.engine.Color;
+import me.zilid.chessplatform.chess.Color;
 
 import java.util.UUID;
 

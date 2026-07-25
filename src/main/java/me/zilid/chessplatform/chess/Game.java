@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.engine.formatter.PgnFormatter;
+import me.zilid.chessplatform.chess.formatter.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.Instant;

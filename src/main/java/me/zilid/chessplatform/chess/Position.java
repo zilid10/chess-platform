@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.engine.formatter.Fen;
+import java.util.Objects;
 
 public class Position {
     private static final int KING_FILE = 4;
@@ -13,7 +13,7 @@ public class Position {
     private int halfMoveClock;
     private int fullMoveClock;
 
-    public Position(Board board, Color turnColor, CastlingRights castlingRights, Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+    private Position(Board board, Color turnColor, CastlingRights castlingRights, Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
         this.board = board;
         this.turnColor = turnColor;
         this.castlingRights = castlingRights;
@@ -24,6 +24,14 @@ public class Position {
 
     public static Position startingPosition() {
         return new Position(Board.initial(), Color.WHITE, CastlingRights.ALL, null, 0, 1);
+    }
+
+    public static Position of(Board board, Color turnColor, CastlingRights castlingRights, Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+        return new Position(board.copy(), turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
+    }
+
+    public Position copy() {
+        return new Position(board.copy(), turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
     }
 
     public Board getBoard() {
@@ -162,12 +170,23 @@ public class Position {
         return halfMoveClock >= 100; // 100 half-moves = 50 full moves
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Position position)) {
+            return false;
+        }
+        return turnColor == position.turnColor
+                && Objects.equals(castlingRights, position.castlingRights)
+                && Objects.equals(enPassantTarget, position.enPassantTarget)
+                && Objects.equals(board, position.board);
+    }
+
     /**
      * Generate a hash of the current board position
      */
     @Override
     public int hashCode() {
         // TODO: implement Zobrist as hash method
-        return Fen.format(this).hashCode();
+        return Objects.hash(turnColor, castlingRights, enPassantTarget, board);
     }
 }

@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.controller;
 
-import me.zilid.chessplatform.engine.Color;
+import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -54,7 +54,7 @@ public class GameController {
             @PathVariable UUID gameId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         logger.info("User {} joining game {}", currentUser.getUsername(), gameId);
-        return  matchService.joinGame(gameId, currentUser);
+        return matchService.joinGame(gameId, currentUser);
     }
 
     @GetMapping("/games/{gameId}/state")

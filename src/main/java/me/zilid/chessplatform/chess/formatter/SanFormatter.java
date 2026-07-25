@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.engine.formatter;
+package me.zilid.chessplatform.chess.formatter;
 
-import me.zilid.chessplatform.engine.*;
+import me.zilid.chessplatform.chess.*;
 
 import java.util.List;
 

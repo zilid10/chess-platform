@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
 public enum MoveType {
     NORMAL,

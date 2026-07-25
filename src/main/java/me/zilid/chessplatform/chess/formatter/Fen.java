@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.engine.formatter;
+package me.zilid.chessplatform.chess.formatter;
 
-import me.zilid.chessplatform.engine.*;
+import me.zilid.chessplatform.chess.*;
 
 import java.util.regex.Pattern;
 
@@ -55,7 +55,7 @@ public class Fen {
         try {
             int halfMoveClock = Integer.parseInt(parsedFen[4]);
             int fullMoveClock = Integer.parseInt(parsedFen[5]);
-            return new Position(board, turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
+            return Position.of(board, turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid fen: " + fen, e);
         }

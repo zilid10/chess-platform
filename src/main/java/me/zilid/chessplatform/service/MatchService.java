@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.service;
 
-import me.zilid.chessplatform.engine.Color;
-import me.zilid.chessplatform.engine.Game;
+import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
@@ -128,7 +128,7 @@ public class MatchService {
         if (game.isGameOver()) {
             throw new IllegalStateException("Game is over");
         }
-        Color color =  game.getPlayerColor(currentUser);
+        Color color = game.getPlayerColor(currentUser);
         if (color == null) {
             throw new IllegalStateException("You can't offer a draw");
         }
@@ -145,7 +145,7 @@ public class MatchService {
             throw new GameIsOverException("Game is already over");
         }
 
-        Color color =  game.getPlayerColor(currentUser);
+        Color color = game.getPlayerColor(currentUser);
         game.acceptDraw(color);
 
         return buildGameStateResponse(game);

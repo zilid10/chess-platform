@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
 import java.util.*;
 
@@ -11,9 +11,10 @@ public class Board {
     private final Piece[] pieces;
     private final Map<Color, Square> kingLocations;
 
+    // TODO: add validation for Board
     public Board(Piece[] pieces) {
         if (pieces.length != BOARD_SIZE) {
-            throw new IllegalArgumentException("The size of the board must be equal to 64");
+            throw new IllegalArgumentException("The size of the board must be equal to " + BOARD_SIZE);
         }
         kingLocations = new EnumMap<>(Color.class);
         this.pieces = Arrays.copyOf(pieces, pieces.length);
@@ -94,7 +95,7 @@ public class Board {
         return false;
     }
 
-    public boolean hasPiece(int file, int rank, Color color, PieceType type) {
+    private boolean hasPiece(int file, int rank, Color color, PieceType type) {
         if (!Square.isValid(file, rank)) {
             return false;
         }
@@ -133,14 +134,41 @@ public class Board {
         return oldPiece;
     }
 
+    public Piece move(Square from, Square to) {
+        Piece piece = put(from, null);
+        return put(to, piece);
+    }
+
+    public boolean isEmpty(Square square) {
+        return pieces[square.index()] == null;
+    }
+
+    public Square kingSquare(Color color) {
+        return kingLocations.getOrDefault(color, null);
+    }
+
+    public int count(Color color) {
+        int cnt = 0;
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            if (pieces[i] != null && pieces[i].color() == color) {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Board board)) return false;
+        if (!(o instanceof Board board)) {
+            return false;
+        }
+        // TODO: if zobrist value is not equal, it can safely return false (like a bloom filter)
         return Arrays.equals(pieces, board.pieces);
     }
 
     @Override
     public int hashCode() {
+        // TODO: change this to hash zobrist value
         return Arrays.hashCode(pieces);
     }
 
@@ -151,21 +179,19 @@ public class Board {
         List<Piece> otherPieces = new ArrayList<>();
         List<Square> bishopSquares = new ArrayList<>();
         int whiteCount = 0, blackCount = 0;
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Piece piece = pieceAt(Square.of(x, y));
-                if (piece != null) {
-                    if (piece.color().isWhite()) {
-                        whiteCount++;
-                    } else {
-                        blackCount++;
-                    }
-                    if (piece.type() == PieceType.BISHOP) {
-                        bishopSquares.add(Square.of(x, y));
-                    }
-                    if (piece.type() != PieceType.KING) {
-                        otherPieces.add(piece);
-                    }
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            Piece piece = pieceAt(new Square(i));
+            if (piece != null) {
+                if (piece.color().isWhite()) {
+                    whiteCount++;
+                } else {
+                    blackCount++;
+                }
+                if (piece.type() == PieceType.BISHOP) {
+                    bishopSquares.add(new Square(i));
+                }
+                if (piece.type() == PieceType.KING) {
+                    otherPieces.add(piece);
                 }
             }
         }

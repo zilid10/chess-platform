@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
 import java.time.Instant;
 import java.util.List;

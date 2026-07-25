@@ -1,8 +1,8 @@
-package me.zilid.chessplatform.engine.pieces;
+package me.zilid.chessplatform.chess.pieces;
 
-import me.zilid.chessplatform.engine.ChessEngine;
-import me.zilid.chessplatform.engine.Square;
-import me.zilid.chessplatform.engine.formatter.Fen;
+import me.zilid.chessplatform.chess.ChessEngine;
+import me.zilid.chessplatform.chess.Square;
+import me.zilid.chessplatform.chess.formatter.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 

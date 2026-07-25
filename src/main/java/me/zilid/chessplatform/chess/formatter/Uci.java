@@ -1,8 +1,8 @@
-package me.zilid.chessplatform.engine.formatter;
+package me.zilid.chessplatform.chess.formatter;
 
-import me.zilid.chessplatform.engine.Move;
-import me.zilid.chessplatform.engine.PieceType;
-import me.zilid.chessplatform.engine.Square;
+import me.zilid.chessplatform.chess.Move;
+import me.zilid.chessplatform.chess.PieceType;
+import me.zilid.chessplatform.chess.Square;
 
 import java.util.Optional;
 
