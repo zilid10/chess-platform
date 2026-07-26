@@ -190,7 +190,7 @@ public class Board {
                 if (piece.type() == PieceType.BISHOP) {
                     bishopSquares.add(new Square(i));
                 }
-                if (piece.type() == PieceType.KING) {
+                if (piece.type() == PieceType.KNIGHT || piece.type() == PieceType.BISHOP) {
                     otherPieces.add(piece);
                 }
             }
