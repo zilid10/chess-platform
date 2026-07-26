@@ -1,7 +1,6 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.engine.formatter.PgnWriter;
-import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
 import java.time.Instant;
@@ -24,12 +23,12 @@ public class Game {
     private volatile GameStatus status;
     private volatile UserPrincipal whitePlayer;
     private volatile UserPrincipal blackPlayer;
-    private volatile Piece.Color drawOfferedBy;
+    private volatile Color drawOfferedBy;
 
     public Game() {
         this(null, null);
     }
-    
+
     public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
         engine = new ChessEngine();
         history = new ArrayList<>();
@@ -48,68 +47,38 @@ public class Game {
                 GameStatus status,
                 UserPrincipal whitePlayer,
                 UserPrincipal blackPlayer,
-                Piece.Color drawOfferedBy) {
+                Color drawOfferedBy) {
         this.engine = engine;
         this.history = history;
         this.positionHistory = positionHistory;
         this.startTime = startTime;
-        this.endTime = endTime ;
+        this.endTime = endTime;
         this.status = status;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
         this.drawOfferedBy = drawOfferedBy;
     }
 
-    public synchronized boolean makeMove(String from, String to) {
-        return makeMove(from, to, Piece.PieceType.QUEEN);
-    }
     /**
      * Make a move using chess notation
      */
-    public synchronized boolean makeMove(String from, String to, Piece.PieceType promotionType) {
+    public synchronized boolean makeMove(String fromNotation, String toNotation, PieceType promotionType) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
 
         try {
-            Square fromPos = Square.fromNotation(from);
-            Square toPos = Square.fromNotation(to);
-            Move.MoveType moveType = Move.MoveType.NORMAL;
+            Square from = Square.fromNotation(fromNotation);
+            Square to = Square.fromNotation(toNotation);
 
-            // Get piece info before move
-            Piece movingPiece = engine.getPosition().getPiece(fromPos);
-            if (movingPiece == null) {
-                return false;
-            }
-
-            Piece capturedPiece = engine.getPosition().getPiece(toPos);
-            Piece.PieceType capturedType = capturedPiece != null ? capturedPiece.getType() : null;
-
-            // Check for special moves before making the move
-            boolean isEnPassant = isEnPassantMove(fromPos, toPos);
-            boolean isCastling = isCastlingMove(fromPos, toPos);
-            boolean isKingsideCastle = isCastling && toPos.x() > fromPos.x();
-            boolean isPromotion = movingPiece.getType() == Piece.PieceType.PAWN && (
-                    (getTurnColor().isWhite() && toPos.y() == 7) || (getTurnColor().isBlack() && toPos.y() == 0));
-            if (isCastling) {
-                moveType = isKingsideCastle ? Move.MoveType.CASTLE_KINGSIDE : Move.MoveType.CASTLE_QUEENSIDE;
-            } else if (isPromotion) {
-                moveType = Move.MoveType.PROMOTION;
-            } else if (isEnPassant) {
-                moveType = Move.MoveType.EN_PASSANT;
-                capturedType = Piece.PieceType.PAWN;
-            }
-
-            // Attempt the move
-            boolean success = engine.makeMove(from, to, promotionType);
-            if (!success) {
-                return false;
-            }
+            // Make moves
+            Move move = MoveGenerator.findLegalMove(engine.getPosition(), from, to, promotionType)
+                    .orElseThrow(() -> new IllegalArgumentException("no such moves"));
+            engine.getPosition().applyMove(move);
 
             // Record the move with special move flags
-            Move move = new Move(fromPos, toPos, moveType, movingPiece.getType(), capturedType, promotionType);
             history.add(move);
-            int boardHash = engine.getPosition().getPositionHash();
+            int boardHash = engine.getPosition().hashCode();
             positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
 
             // Update game status
@@ -128,8 +97,8 @@ public class Game {
         return engine.getValidMoves(position);
     }
 
-    public synchronized GameSnapShot getGameSnapshot() {
-        return new GameSnapShot(
+    public synchronized GameSnapshot getGameSnapshot() {
+        return new GameSnapshot(
                 getFen(),
                 List.copyOf(history),
                 Map.copyOf(positionHistory),
@@ -160,7 +129,7 @@ public class Game {
     /**
      * Resign the game for the current player
      */
-    public synchronized void resign(Piece.Color color) {
+    public synchronized void resign(Color color) {
         if (status.isGameOver()) {
             return;
         }
@@ -184,25 +153,11 @@ public class Game {
     }
 
     /**
-     * Check if a move is an en passant capture
-     */
-    private synchronized boolean isEnPassantMove(Square from, Square to) {
-        return engine.getPosition().isEnPassantMove(from, to);
-    }
-
-    /**
-     * Check if a move is a castling move
-     */
-    private synchronized boolean isCastlingMove(Square from, Square to) {
-        return engine.getPosition().isCastlingMove(from, to);
-    }
-
-    /**
      * Update the game status based on current board state
      */
     private synchronized void updateGameStatus() {
         if (engine.isCheckmate()) {
-            status = engine.isWhiteTurn() ?
+            status = engine.getTurnColor().isWhite() ?
                     GameStatus.CHECKMATE_BLACK_WINS :
                     GameStatus.CHECKMATE_WHITE_WINS;
             endTime = Instant.now();
@@ -222,11 +177,11 @@ public class Game {
     }
 
     private synchronized boolean isThreefoldRepetition() {
-        return positionHistory.getOrDefault(engine.getPosition().getPositionHash(), 0) >= 3;
+        return positionHistory.getOrDefault(engine.getPosition().hashCode(), 0) >= 3;
     }
 
 
-    public synchronized Piece.Color getTurnColor() {
+    public synchronized Color getTurnColor() {
         return engine.getTurnColor();
     }
 
@@ -242,7 +197,7 @@ public class Game {
         if (!isGameOver()) {
             return "";
         }
-        PgnWriter pgnWriter = new PgnWriter();
+        PgnFormatter pgnFormatter = new PgnFormatter();
         StringBuilder sb = new StringBuilder();
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
@@ -252,7 +207,7 @@ public class Game {
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
-        sb.append(pgnWriter.format(Position.startingPosition(), history)).append("\n");
+        sb.append(pgnFormatter.format(Position.startingPosition(), history)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
     }
@@ -291,21 +246,19 @@ public class Game {
         this.blackPlayer = blackPlayer;
     }
 
-    public synchronized Piece.Color getDrawOfferedBy() {
+    public synchronized Color getDrawOfferedBy() {
         return drawOfferedBy;
     }
 
-    public synchronized boolean offerDraw(Piece.Color by) {
+    public synchronized void offerDraw(Color by) {
         drawOfferedBy = by;
-        return true;
     }
 
-    public synchronized boolean acceptDraw(Piece.Color by) {
-        if (drawOfferedBy == null) return false;
-        if (drawOfferedBy != by.opposite()) return false;
+    public synchronized void acceptDraw(Color by) {
+        if (drawOfferedBy == null) return;
+        if (drawOfferedBy != by.opposite()) return;
         agreeDraw();
         drawOfferedBy = null;
-        return true;
     }
 
     public GameStatus getStatus() {
@@ -320,12 +273,12 @@ public class Game {
     /**
      * Get the color in this game of the given user, spectator will get a null
      */
-    public Piece.Color getPlayerColor(UserPrincipal currentUser) {
+    public Color getPlayerColor(UserPrincipal currentUser) {
         if (currentUser.equals(whitePlayer)) {
-            return Piece.Color.WHITE;
+            return Color.WHITE;
         }
         if (currentUser.equals(blackPlayer)) {
-            return Piece.Color.BLACK;
+            return Color.BLACK;
         }
         return null;
     }

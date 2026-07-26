@@ -1,8 +1,8 @@
 package me.zilid.chessplatform.model.dto;
 
-import me.zilid.chessplatform.engine.GameStatus;
-import me.zilid.chessplatform.engine.Move;
-import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.GameStatus;
+import me.zilid.chessplatform.chess.Move;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +23,6 @@ public record ActiveGameState(
         GameStatus status,
         UUID whitePlayerId,
         UUID blackPlayerId,
-        Piece.Color drawOfferedBy
+        Color drawOfferedBy
 ) {
 }

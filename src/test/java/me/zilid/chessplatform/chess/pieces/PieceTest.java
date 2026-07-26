@@ -1,8 +1,8 @@
-package me.zilid.chessplatform.engine.pieces;
+package me.zilid.chessplatform.chess.pieces;
 
-import me.zilid.chessplatform.engine.Position;
-import me.zilid.chessplatform.engine.ChessEngine;
-import me.zilid.chessplatform.engine.Square;
+import me.zilid.chessplatform.chess.ChessEngine;
+import me.zilid.chessplatform.chess.Square;
+import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PieceTest {
 
     private static List<String> legalMovesFrom(String fen, String square) {
-        return new ChessEngine(Position.fromFen(fen)).getValidMoves(square).stream()
+        return new ChessEngine(Fen.parse(fen)).getValidMoves(square).stream()
                 .map(Square::toNotation)
                 .toList();
     }

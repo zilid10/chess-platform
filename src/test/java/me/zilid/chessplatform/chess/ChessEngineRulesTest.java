@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -12,20 +12,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Rule and edge-case tests: check, checkmate/stalemate, castling, en passant,
- * promotion, draw conditions, and apply/undo. These are the targeted tests that
+ * promotionType, draw conditions, and apply/undo. These are the targeted tests that
  * tell you WHICH rule broke when the perft counts in {@link PerftTest} diverge.
  */
 class ChessEngineRulesTest {
 
     private static ChessEngine engineFrom(String fen) {
-        return new ChessEngine(Position.fromFen(fen));
+        return new ChessEngine(Fen.parse(fen));
+    }
+
+    private static boolean makeMove(ChessEngine engine, String from, String to, PieceType promotionType) {
+        return engine.makeMove(Square.fromNotation(from), Square.fromNotation(to), promotionType);
     }
 
     private static List<String> legalMovesFrom(ChessEngine engine, String square) {
         return engine.getValidMoves(square).stream().map(Square::toNotation).toList();
     }
 
-    /** The castling field is the third space-separated part of a FEN, e.g. "KQkq". */
+    /**
+     * The castling field is the third space-separated part of a FEN, e.g. "KQkq".
+     */
     private static String castlingRightsOf(ChessEngine engine) {
         return engine.getFen().split(" ")[2];
     }
@@ -36,10 +42,10 @@ class ChessEngineRulesTest {
         @Test
         void whiteMovesFirstAndTurnsAlternate() {
             ChessEngine engine = new ChessEngine();
-            assertThat(engine.makeMove("e7", "e5", null)).isFalse();
-            assertThat(engine.makeMove("e2", "e4", null)).isTrue();
-            assertThat(engine.makeMove("d2", "d4", null)).isFalse();
-            assertThat(engine.makeMove("e7", "e5", null)).isTrue();
+            assertThat(makeMove(engine, "e7", "e5", null)).isFalse();
+            assertThat(makeMove(engine, "e2", "e4", null)).isTrue();
+            assertThat(makeMove(engine, "d2", "d4", null)).isFalse();
+            assertThat(makeMove(engine, "e7", "e5", null)).isTrue();
         }
     }
 
@@ -50,8 +56,8 @@ class ChessEngineRulesTest {
         void kingCannotMoveIntoAttackedSquare() {
             // Black rook on f8 covers the f-file
             ChessEngine engine = engineFrom("5r1k/8/8/8/8/8/8/4K3 w - - 0 1");
-            assertThat(engine.makeMove("e1", "f1", null)).isFalse();
-            assertThat(engine.makeMove("e1", "d1", null)).isTrue();
+            assertThat(makeMove(engine, "e1", "f1", null)).isFalse();
+            assertThat(makeMove(engine, "e1", "d1", null)).isTrue();
         }
 
         @Test
@@ -65,8 +71,8 @@ class ChessEngineRulesTest {
         void movesThatIgnoreCheckAreIllegal() {
             ChessEngine engine = engineFrom("4r2k/8/8/8/8/8/8/R3K3 w - - 0 1");
             assertThat(engine.isInCheck()).isTrue();
-            assertThat(engine.makeMove("a1", "a2", null)).isFalse();
-            assertThat(engine.makeMove("e1", "d1", null)).isTrue();
+            assertThat(makeMove(engine, "a1", "a2", null)).isFalse();
+            assertThat(makeMove(engine, "e1", "d1", null)).isTrue();
         }
     }
 
@@ -76,10 +82,10 @@ class ChessEngineRulesTest {
         @Test
         void foolsMateIsCheckmate() {
             ChessEngine engine = new ChessEngine();
-            engine.makeMove("f2", "f3", null);
-            engine.makeMove("e7", "e5", null);
-            engine.makeMove("g2", "g4", null);
-            engine.makeMove("d8", "h4", null);
+            makeMove(engine, "f2", "f3", null);
+            makeMove(engine, "e7", "e5", null);
+            makeMove(engine, "g2", "g4", null);
+            makeMove(engine, "d8", "h4", null);
             assertThat(engine.isCheckmate()).isTrue();
             assertThat(engine.isStalemate()).isFalse();
         }
@@ -121,22 +127,22 @@ class ChessEngineRulesTest {
         @Test
         void kingsideCastlingMovesKingAndRook() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
-            assertThat(engine.makeMove("e1", "g1", null)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("g1")).getType())
-                    .isEqualTo(Piece.PieceType.KING);
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("f1")).getType())
-                    .isEqualTo(Piece.PieceType.ROOK);
+            assertThat(makeMove(engine, "e1", "g1", null)).isTrue();
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("g1")).type())
+                    .isEqualTo(PieceType.KING);
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("f1")).type())
+                    .isEqualTo(PieceType.ROOK);
             assertThat(castlingRightsOf(engine)).isEqualTo("kq");
         }
 
         @Test
         void queensideCastlingMovesKingAndRook() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
-            assertThat(engine.makeMove("e1", "c1", null)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("c1")).getType())
-                    .isEqualTo(Piece.PieceType.KING);
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("d1")).getType())
-                    .isEqualTo(Piece.PieceType.ROOK);
+            assertThat(makeMove(engine, "e1", "c1", null)).isTrue();
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("c1")).type())
+                    .isEqualTo(PieceType.KING);
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("d1")).type())
+                    .isEqualTo(PieceType.ROOK);
         }
 
         @Test
@@ -161,14 +167,14 @@ class ChessEngineRulesTest {
         @Test
         void kingMoveForfeitsBothCastlingRights() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
-            engine.makeMove("e1", "e2", null);
+            makeMove(engine, "e1", "e2", null);
             assertThat(castlingRightsOf(engine)).isEqualTo("kq");
         }
 
         @Test
         void rookMoveForfeitsThatSidesRight() {
             ChessEngine engine = engineFrom(BOTH_SIDES_OPEN);
-            engine.makeMove("a1", "a2", null);
+            makeMove(engine, "a1", "a2", null);
             assertThat(castlingRightsOf(engine)).isEqualTo("Kkq");
         }
 
@@ -187,19 +193,19 @@ class ChessEngineRulesTest {
             // Black just played d7-d5 past white's e5 pawn
             ChessEngine engine = engineFrom("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
             assertThat(legalMovesFrom(engine, "e5")).contains("d6");
-            assertThat(engine.makeMove("e5", "d6", null)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("d5"))).isNull();
+            assertThat(makeMove(engine, "e5", "d6", null)).isTrue();
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("d5"))).isNull();
         }
 
         @Test
         void enPassantExpiresAfterOneMove() {
             ChessEngine engine = new ChessEngine();
-            engine.makeMove("e2", "e4", null);
-            engine.makeMove("a7", "a6", null);
-            engine.makeMove("e4", "e5", null);
-            engine.makeMove("d7", "d5", null); // en passant on d6 is now available...
-            engine.makeMove("h2", "h3", null); // ...but white declines
-            engine.makeMove("a6", "a5", null);
+            makeMove(engine, "e2", "e4", null);
+            makeMove(engine, "a7", "a6", null);
+            makeMove(engine, "e4", "e5", null);
+            makeMove(engine, "d7", "d5", null); // en passant on d6 is now available...
+            makeMove(engine, "h2", "h3", null); // ...but white declines
+            makeMove(engine, "a6", "a5", null);
             assertThat(legalMovesFrom(engine, "e5")).doesNotContain("d6");
         }
 
@@ -215,22 +221,22 @@ class ChessEngineRulesTest {
     class Promotion {
 
         @ParameterizedTest
-        @EnumSource(value = Piece.PieceType.class, names = {"QUEEN", "ROOK", "BISHOP", "KNIGHT"})
-        void pawnPromotesToChosenPiece(Piece.PieceType promotion) {
+        @EnumSource(value = PieceType.class, names = {"QUEEN", "ROOK", "BISHOP", "KNIGHT"})
+        void pawnPromotesToChosenPiece(PieceType promotion) {
             ChessEngine engine = engineFrom("7k/P7/8/8/8/8/8/K7 w - - 0 1");
-            assertThat(engine.makeMove("a7", "a8", promotion)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("a8")).getType())
+            assertThat(makeMove(engine, "a7", "a8", promotion)).isTrue();
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("a8")).type())
                     .isEqualTo(promotion);
         }
 
         @Test
         void pawnCanPromoteByCapturing() {
-            // Black rook on b8 can be taken with promotion
+            // Black rook on b8 can be taken with promotionType
             ChessEngine engine = engineFrom("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(engine, "a7")).containsExactlyInAnyOrder("a8", "b8");
-            assertThat(engine.makeMove("a7", "b8", Piece.PieceType.QUEEN)).isTrue();
-            assertThat(engine.getPosition().getPiece(Square.fromNotation("b8")).getType())
-                    .isEqualTo(Piece.PieceType.QUEEN);
+            assertThat(makeMove(engine, "a7", "b8", PieceType.QUEEN)).isTrue();
+            assertThat(engine.getPosition().getPieceAt(Square.fromNotation("b8")).type())
+                    .isEqualTo(PieceType.QUEEN);
         }
     }
 
@@ -267,8 +273,7 @@ class ChessEngineRulesTest {
         void undoRestoresTheExactPosition() {
             ChessEngine engine = new ChessEngine();
             String before = engine.getFen();
-            Move move = new Move(Square.fromNotation("e2"), Square.fromNotation("e4"),
-                    Move.MoveType.NORMAL, Piece.PieceType.PAWN, null, null);
+            Move move = Move.doublePush(Square.fromNotation("e2"), Square.fromNotation("e4"));
 
             UndoInfo undo = engine.applyMove(move);
             assertThat(engine.getFen()).isNotEqualTo(before);
@@ -281,8 +286,7 @@ class ChessEngineRulesTest {
         void undoRestoresACapturedPiece() {
             String fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
             ChessEngine engine = engineFrom(fen);
-            Move capture = new Move(Square.fromNotation("e5"), Square.fromNotation("g6"),
-                    Move.MoveType.NORMAL, Piece.PieceType.KNIGHT, Piece.PieceType.PAWN, null);
+            Move capture = Move.normal(Square.fromNotation("e5"), Square.fromNotation("g6"), PieceType.KNIGHT);
 
             UndoInfo undo = engine.applyMove(capture);
             engine.undoMove(capture, undo);

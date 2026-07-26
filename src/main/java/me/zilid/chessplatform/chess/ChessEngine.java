@@ -1,12 +1,12 @@
-package me.zilid.chessplatform.engine;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.engine.pieces.Piece;
+import me.zilid.chessplatform.chess.format.Fen;
 
 import java.util.List;
 
 public class ChessEngine {
     private final Position position;
-    
+
     public ChessEngine() {
         position = Position.startingPosition();
     }
@@ -15,43 +15,27 @@ public class ChessEngine {
         this.position = position;
     }
 
-    /**
-     * Make a move using chess notation (e.g., "e2" to "e4")
-     */
-    public boolean makeMove(String from, String to, Piece.PieceType promotionType) {
+    public boolean makeMove(Square from, Square to, PieceType promotionType) {
         try {
-            Square fromSquare = Square.fromNotation(from);
-            Square toSquare = Square.fromNotation(to);
-            return makeMove(fromSquare, toSquare, promotionType);
+            Move move = MoveGenerator.findLegalMove(position, from, to, promotionType)
+                    .orElseThrow(() -> new IllegalArgumentException("No such moves"));
+            position.applyMove(move);
+            return true;
         } catch (IllegalArgumentException e) {
             return false;
         }
     }
 
     /**
-     * Make a move from a given position
-     */
-    public boolean makeMove(Square from, Square to, Piece.PieceType promotionType) {
-        return position.makeMove(from, to, promotionType);
-    }
-
-    /**
      * Get all valid moves for a piece at the given position
      */
-    public List<Square> getValidMoves(String position) {
+    public List<Square> getValidMoves(String notation) {
         try {
-            Square pos = Square.fromNotation(position);
-            return getValidMoves(pos);
+            Square square = Square.fromNotation(notation);
+            return MoveGenerator.legalDestinations(position, square);
         } catch (IllegalArgumentException e) {
             return List.of();
         }
-    }
-    
-    /**
-     * Get all valid moves for a piece at the given position
-     */
-    public List<Square> getValidMoves(Square square) {
-        return position.getValidMovesForPiece(square);
     }
 
     public UndoInfo applyMove(Move move) {
@@ -66,7 +50,7 @@ public class ChessEngine {
      * Check if the current player is in check
      */
     public boolean isInCheck() {
-        return position.isInCheck(position.getTurnColor());
+        return position.isInCheck();
     }
 
     /**
@@ -82,39 +66,32 @@ public class ChessEngine {
     public boolean isStalemate() {
         return position.isStalemate(position.getTurnColor());
     }
-    
+
     /**
      * Check for fifty-move rule
      */
     public boolean isFiftyMoveRule() {
         return position.isFiftyMoveRule();
     }
-    
+
     /**
      * Check for insufficient material
      */
     public boolean isInsufficientMaterial() {
-        return position.isInsufficientMaterial();
+        return position.getBoard().isInsufficientMaterial();
     }
 
     /**
-     * Get the current board state
+     * Get the current position
      */
     public Position getPosition() {
         return position;
-    }
-    
-    /**
-     * Get whose turn it is
-     */
-    public boolean isWhiteTurn() {
-        return position.isWhiteTurn();
     }
 
     /**
      * Get the current turn color
      */
-    public Piece.Color getTurnColor() {
+    public Color getTurnColor() {
         return position.getTurnColor();
     }
 
@@ -122,6 +99,6 @@ public class ChessEngine {
      * Get fen representation of current board
      */
     public String getFen() {
-        return position.getFen();
+        return Fen.format(position);
     }
 }

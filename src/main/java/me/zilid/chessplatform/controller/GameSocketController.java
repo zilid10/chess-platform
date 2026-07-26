@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.controller;
 
-import me.zilid.chessplatform.engine.Game;
+import me.zilid.chessplatform.chess.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ChatMessage;
@@ -19,11 +19,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -57,9 +55,9 @@ public class GameSocketController {
 
                 // Send disconnect notification
                 ChatMessage disconnectMessage = new ChatMessage(
-                    "System",
-                    username + " disconnected",
-                    ChatMessage.MessageType.LEAVE
+                        "System",
+                        username + " disconnected",
+                        ChatMessage.MessageType.LEAVE
                 );
                 messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", disconnectMessage);
             }
@@ -129,7 +127,7 @@ public class GameSocketController {
         String moveFrom = moveRequest.moveFrom();
         String moveTo = moveRequest.moveTo();
 
-        boolean moveSuccess = game.makeMove(moveFrom, moveTo);
+        boolean moveSuccess = game.makeMove(moveFrom, moveTo, null);
 
         if (!moveSuccess) {
             logger.warn("Invalid move attempted in game {}: {} to {}", gameId, moveFrom, moveTo);
@@ -210,9 +208,9 @@ public class GameSocketController {
 
         // Create timestamped message and broadcast to all players
         ChatMessage timestampedMessage = new ChatMessage(
-            chatMessage.sender(),
-            chatMessage.message(),
-            ChatMessage.MessageType.CHAT
+                chatMessage.sender(),
+                chatMessage.message(),
+                ChatMessage.MessageType.CHAT
         );
 
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", timestampedMessage);
@@ -220,9 +218,9 @@ public class GameSocketController {
 
     private void sendSystemMessage(UUID gameId, String message) {
         ChatMessage systemMessage = new ChatMessage(
-            "System",
-            message,
-            ChatMessage.MessageType.SYSTEM
+                "System",
+                message,
+                ChatMessage.MessageType.SYSTEM
         );
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
     }

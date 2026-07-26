@@ -1,13 +1,11 @@
-package me.zilid.chessplatform.engine;
-
-import me.zilid.chessplatform.engine.pieces.Piece;
+package me.zilid.chessplatform.chess;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public record GameSnapShot(
+public record GameSnapshot(
         // board info
         String fen,
 
@@ -21,6 +19,6 @@ public record GameSnapShot(
         GameStatus status,
         UUID whitePlayerId,
         UUID blackPlayerId,
-        Piece.Color drawOfferedBy
+        Color drawOfferedBy
 ) {
 }
