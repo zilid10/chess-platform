@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.chess;
 
+import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 
@@ -11,11 +12,12 @@ import java.util.*;
  */
 public class Game {
     // chess engine (board information)
-    private final ChessEngine engine;
+    private final Position position;
 
     // move history management
-    private final List<Move> history;
-    private final Map<Integer, Integer> positionHistory;
+    private final List<Move> moves;
+    private final List<UndoInfo> undoes;
+    private final Map<Integer, Integer> repetitions;
 
     // game metadata
     private final Instant startTime;
@@ -30,27 +32,30 @@ public class Game {
     }
 
     public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
-        engine = new ChessEngine();
-        history = new ArrayList<>();
-        positionHistory = new HashMap<>();
+        position = Position.startingPosition();
+        moves = new ArrayList<>();
+        undoes = new ArrayList<>();
+        repetitions = new HashMap<>();
         status = GameStatus.ONGOING;
         startTime = Instant.now();
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
 
-    public Game(ChessEngine engine,
-                List<Move> history,
-                Map<Integer, Integer> positionHistory,
+    public Game(Position position,
+                List<Move> moves,
+                List<UndoInfo> undoes,
+                Map<Integer, Integer> repetitions,
                 Instant startTime,
                 Instant endTime,
                 GameStatus status,
                 UserPrincipal whitePlayer,
                 UserPrincipal blackPlayer,
                 Color drawOfferedBy) {
-        this.engine = engine;
-        this.history = history;
-        this.positionHistory = positionHistory;
+        this.position = position;
+        this.moves = moves;
+        this.undoes = undoes;
+        this.repetitions = repetitions;
         this.startTime = startTime;
         this.endTime = endTime;
         this.status = status;
@@ -72,14 +77,14 @@ public class Game {
             Square to = Square.fromNotation(toNotation);
 
             // Make moves
-            Move move = MoveGenerator.findLegalMove(engine.getPosition(), from, to, promotionType)
+            Move move = MoveGenerator.findLegalMove(position, from, to, promotionType)
                     .orElseThrow(() -> new IllegalArgumentException("no such moves"));
-            engine.getPosition().applyMove(move);
+            position.applyMove(move);
 
             // Record the move with special move flags
-            history.add(move);
-            int boardHash = engine.getPosition().hashCode();
-            positionHistory.put(boardHash, positionHistory.getOrDefault(boardHash, 0) + 1);
+            moves.add(move);
+            int positionHash = position.hashCode();
+            repetitions.merge(positionHash, 1, Integer::sum);
 
             // Update game status
             updateGameStatus();
@@ -93,15 +98,16 @@ public class Game {
     /**
      * Get valid moves for a piece at the given position
      */
-    public synchronized List<Square> getValidMoves(String position) {
-        return engine.getValidMoves(position);
+    public synchronized List<Square> getValidMoves(String fromNotation) {
+        Square from = Square.fromNotation(fromNotation);
+        return MoveGenerator.legalDestinations(position, from);
     }
 
     public synchronized GameSnapshot getGameSnapshot() {
         return new GameSnapshot(
                 getFen(),
-                List.copyOf(history),
-                Map.copyOf(positionHistory),
+                List.copyOf(moves),
+                Map.copyOf(repetitions),
                 startTime,
                 endTime,
                 status,
@@ -115,15 +121,15 @@ public class Game {
      * Get the current board state of the game
      */
     public synchronized String getFen() {
-        return engine.getFen();
+        return Fen.format(position);
     }
 
     public synchronized String getLastMoveFrom() {
-        return history.isEmpty() ? null : history.getLast().from().toNotation();
+        return moves.isEmpty() ? null : moves.getLast().from().toNotation();
     }
 
     public synchronized String getLastMoveTo() {
-        return history.isEmpty() ? null : history.getLast().to().toNotation();
+        return moves.isEmpty() ? null : moves.getLast().to().toNotation();
     }
 
     /**
@@ -156,41 +162,41 @@ public class Game {
      * Update the game status based on current board state
      */
     private synchronized void updateGameStatus() {
-        if (engine.isCheckmate()) {
-            status = engine.getTurnColor().isWhite() ?
+        if (position.isCheckmate(position.getTurnColor())) {
+            status = position.getTurnColor().isWhite() ?
                     GameStatus.CHECKMATE_BLACK_WINS :
                     GameStatus.CHECKMATE_WHITE_WINS;
             endTime = Instant.now();
-        } else if (engine.isStalemate()) {
+        } else if (position.isStalemate(position.getTurnColor())) {
             status = GameStatus.STALEMATE;
             endTime = Instant.now();
         } else if (isThreefoldRepetition()) {
             status = GameStatus.DRAW_BY_REPETITION;
             endTime = Instant.now();
-        } else if (engine.isFiftyMoveRule()) {
+        } else if (position.isFiftyMoveRule()) {
             status = GameStatus.DRAW_BY_FIFTY_MOVE_RULE;
             endTime = Instant.now();
-        } else if (engine.isInsufficientMaterial()) {
+        } else if (position.getBoard().isInsufficientMaterial()) {
             status = GameStatus.DRAW_BY_INSUFFICIENT_MATERIAL;
             endTime = Instant.now();
         }
     }
 
     private synchronized boolean isThreefoldRepetition() {
-        return positionHistory.getOrDefault(engine.getPosition().hashCode(), 0) >= 3;
+        return repetitions.getOrDefault(position.hashCode(), 0) >= 3;
     }
 
 
     public synchronized Color getTurnColor() {
-        return engine.getTurnColor();
+        return position.getTurnColor();
     }
 
     public synchronized int getRound() {
-        return (history.size() / 2) + 1;
+        return (moves.size() / 2) + 1;
     }
 
-    public synchronized List<Move> getHistory() {
-        return Collections.unmodifiableList(history);
+    public synchronized List<Move> getMoves() {
+        return Collections.unmodifiableList(moves);
     }
 
     public synchronized String getNotation() {
@@ -207,7 +213,7 @@ public class Game {
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
-        sb.append(pgnFormatter.format(Position.startingPosition(), history)).append("\n");
+        sb.append(pgnFormatter.format(Position.startingPosition(), moves)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
     }
@@ -216,7 +222,7 @@ public class Game {
      * Check if now is the turn of the given user
      */
     public synchronized boolean isUserTurn(UserPrincipal currentUser) {
-        return switch (engine.getTurnColor()) {
+        return switch (position.getTurnColor()) {
             case WHITE -> currentUser.equals(whitePlayer);
             case BLACK -> currentUser.equals(blackPlayer);
         };

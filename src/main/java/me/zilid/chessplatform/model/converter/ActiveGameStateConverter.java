@@ -1,6 +1,5 @@
 package me.zilid.chessplatform.model.converter;
 
-import me.zilid.chessplatform.chess.ChessEngine;
 import me.zilid.chessplatform.chess.Game;
 import me.zilid.chessplatform.chess.GameSnapshot;
 import me.zilid.chessplatform.chess.Position;
@@ -41,10 +40,11 @@ public class ActiveGameStateConverter {
         UserPrincipal whiteUser = userPrincipalService.loadUserById(state.whitePlayerId());
         UserPrincipal blackUser = userPrincipalService.loadUserById(state.blackPlayerId());
         Position position = Fen.parse(state.fen());
-        ChessEngine engine = new ChessEngine(position);
+        // TODO: fix this (undo history)
         return new Game(
-                engine,
+                position,
                 new ArrayList<>(state.history()),
+                new ArrayList<>(),
                 new HashMap<>(state.positionHistory()),
                 state.startTime(),
                 state.endTime(),
