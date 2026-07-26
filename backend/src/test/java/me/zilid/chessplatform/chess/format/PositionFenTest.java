@@ -1,6 +1,9 @@
-package me.zilid.chessplatform.chess;
+package me.zilid.chessplatform.chess.format;
 
-import me.zilid.chessplatform.chess.format.Fen;
+import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.PieceType;
+import me.zilid.chessplatform.chess.Position;
+import me.zilid.chessplatform.chess.Square;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
