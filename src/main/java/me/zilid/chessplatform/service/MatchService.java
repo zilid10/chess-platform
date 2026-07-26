@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.Game;
+import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;

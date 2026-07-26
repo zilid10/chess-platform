@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess;
+package me.zilid.chessplatform.chess.game;
 
 /**
  * Represents the current status of a chess game
