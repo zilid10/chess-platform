@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.model.dto;
 
-import me.zilid.chessplatform.chess.GameStatus;
+import me.zilid.chessplatform.chess.game.GameStatus;
 
 import java.util.UUID;
 

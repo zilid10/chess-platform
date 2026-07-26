@@ -1,4 +1,7 @@
-package me.zilid.chessplatform.chess;
+package me.zilid.chessplatform.chess.game;
+
+import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.Move;
 
 import java.time.Instant;
 import java.util.List;

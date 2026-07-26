@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.controller;
 
-import me.zilid.chessplatform.chess.Game;
+import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ChatMessage;

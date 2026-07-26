@@ -1,8 +1,8 @@
 package me.zilid.chessplatform.model.dto;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.GameStatus;
 import me.zilid.chessplatform.chess.Move;
+import me.zilid.chessplatform.chess.game.GameStatus;
 
 import java.time.Instant;
 import java.util.List;
