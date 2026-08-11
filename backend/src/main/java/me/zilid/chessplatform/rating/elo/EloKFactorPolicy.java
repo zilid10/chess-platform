@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.rating.elo;
 
-import me.zilid.chessplatform.rating.PlayerRating;
+import me.zilid.chessplatform.rating.PlayerRatingDto;
 
 public class EloKFactorPolicy implements KFactorPolicy {
     private static final int NEW_PLAYER_K = 40;
@@ -9,7 +9,7 @@ public class EloKFactorPolicy implements KFactorPolicy {
 
 
     @Override
-    public int kFor(PlayerRating playerRating) {
+    public int kFor(PlayerRatingDto playerRating) {
         if (playerRating.gamesPlayed() < 20) {
             return NEW_PLAYER_K;
         }

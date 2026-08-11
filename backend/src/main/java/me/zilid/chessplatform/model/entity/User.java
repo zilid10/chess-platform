@@ -44,7 +44,7 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "friend_id")
     )
     private Set<User> friends = new HashSet<>();
-
+    
     public User() {
     }
 
@@ -57,10 +57,12 @@ public class User {
 
     public void addFriend(User friend) {
         this.friends.add(friend);
+        friend.friends.add(this);
     }
 
     public void removeFriend(User friend) {
         this.friends.remove(friend);
+        friend.friends.remove(this);
     }
 
     @Override

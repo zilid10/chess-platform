@@ -28,3 +28,5 @@ logging:
   level:
     root: info
     me.zilid.chessplatform: debug
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
