@@ -2,16 +2,10 @@ package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
 import me.zilid.chessplatform.chess.game.TimeControl;
-import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.data.domain.Persistable;
-
-import java.time.Instant;
-import java.util.Objects;
-import java.util.UUID;
 
 @Entity
 @Table(
-        name = "player_rating",
+        name = "player_ratings",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_player_rating_user_time_control",
@@ -19,22 +13,15 @@ import java.util.UUID;
                 )
         }
 )
-public class Rating implements Persistable<UUID> {
+public class PlayerRating extends AuditedBaseEntity {
     private static final int DEFAULT_RATING = 1200;
 
-    @Id
-    @Column(name = "id")
-    private UUID id = UUID.randomUUID();
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", updatable = false, nullable = false)
     private User user;
 
-    @Column(name = "user_id", insertable = false, updatable = false)
-    private UUID userId;
-
     @Enumerated(EnumType.STRING)
-    @Column(name = "time_control", nullable = false)
+    @Column(name = "time_control", updatable = false, nullable = false)
     private TimeControl timeControl;
 
     @Column(name = "rating", nullable = false)
@@ -46,45 +33,15 @@ public class Rating implements Persistable<UUID> {
     @Column(name = "peak_rating", nullable = false)
     private int peakRating;
 
-    @Version
-    @Column(name = "version", nullable = false)
-    private Long version;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
-    protected Rating() {
+    protected PlayerRating() {
     }
 
-    public Rating(User user, TimeControl timeControl) {
+    public PlayerRating(User user, TimeControl timeControl) {
         this.user = user;
         this.timeControl = timeControl;
         this.rating = DEFAULT_RATING;
         this.gamesPlayed = 0;
         this.peakRating = DEFAULT_RATING;
-    }
-
-    @Override
-    public boolean isNew() {
-        return version == null;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof Rating r)) {
-            return false;
-        }
-        return Objects.equals(getId(), r.getId());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
-    }
-
-    public UUID getId() {
-        return id;
     }
 
     public User getUser() {
@@ -105,10 +62,6 @@ public class Rating implements Persistable<UUID> {
 
     public int getPeakRating() {
         return peakRating;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 
     public void applyChanges(int newRating) {

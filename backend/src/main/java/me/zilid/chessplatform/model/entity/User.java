@@ -1,22 +1,13 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.Instant;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class User {
-    @Id
-    @Column(name = "id", columnDefinition = "uuid")
-    private UUID id = UUID.randomUUID();
-
+public class User extends AuditedBaseEntity {
     @Column(name = "email", unique = true, nullable = false)
     private String email;
 
@@ -29,14 +20,6 @@ public class User {
     @Column(name = "about")
     private String about;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_friendship",
@@ -44,7 +27,7 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "friend_id")
     )
     private Set<User> friends = new HashSet<>();
-    
+
     public User() {
     }
 
@@ -53,31 +36,6 @@ public class User {
         this.username = username;
         this.passwordHash = passwordHash;
         this.about = about;
-    }
-
-    public void addFriend(User friend) {
-        this.friends.add(friend);
-        friend.friends.add(this);
-    }
-
-    public void removeFriend(User friend) {
-        this.friends.remove(friend);
-        friend.friends.remove(this);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof User user)) return false;
-        return Objects.equals(id, user.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
-    }
-
-    public UUID getId() {
-        return id;
     }
 
     public String getEmail() {
@@ -111,17 +69,19 @@ public class User {
     public void setAbout(String about) {
         this.about = about;
     }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
+    
     public Set<User> getFriends() {
         return friends;
+    }
+
+    public void addFriend(User other) {
+        this.friends.add(other);
+        other.friends.add(this);
+    }
+
+    public void removeFriend(User other) {
+        this.friends.remove(other);
+        other.friends.remove(this);
     }
 
 }

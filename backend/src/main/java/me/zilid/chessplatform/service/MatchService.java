@@ -211,10 +211,8 @@ public class MatchService {
         MatchRecord matchRecord = new MatchRecord();
         UUID whitePlayerId = game.getWhitePlayer().getId();
         UUID blackPlayerId = game.getBlackPlayer().getId();
-        User whitePlayer = userRepo.findById(whitePlayerId)
-                .orElseThrow(() -> new IllegalArgumentException("White player with id " + whitePlayerId + " does not exist"));
-        User blackPlayer = userRepo.findById(blackPlayerId)
-                .orElseThrow(() -> new IllegalArgumentException("Black player with id " + blackPlayerId + " does not exist"));
+        User whitePlayer = userRepo.getReferenceById(whitePlayerId);
+        User blackPlayer = userRepo.getReferenceById(blackPlayerId);
         matchRecord.setWhitePlayer(whitePlayer);
         matchRecord.setBlackPlayer(blackPlayer);
         matchRecord.setPgn(game.getNotation());
