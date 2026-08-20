@@ -1,8 +1,11 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
+import me.zilid.chessplatform.chess.game.TimeControl;
 
+import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 @Entity
@@ -28,6 +31,10 @@ public class User extends AuditedBaseEntity {
     )
     private Set<User> friends = new HashSet<>();
 
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @MapKey(name = "timeControl")
+    private Map<TimeControl, PlayerRating> playerRatings = new EnumMap<>(TimeControl.class);
+
     public User() {
     }
 
@@ -36,6 +43,10 @@ public class User extends AuditedBaseEntity {
         this.username = username;
         this.passwordHash = passwordHash;
         this.about = about;
+        for (TimeControl timeControl : TimeControl.values()) {
+            PlayerRating playerRating = new PlayerRating(this, timeControl);
+            playerRatings.put(timeControl, playerRating);
+        }
     }
 
     public String getEmail() {
@@ -69,7 +80,7 @@ public class User extends AuditedBaseEntity {
     public void setAbout(String about) {
         this.about = about;
     }
-    
+
     public Set<User> getFriends() {
         return friends;
     }
@@ -84,4 +95,10 @@ public class User extends AuditedBaseEntity {
         other.friends.remove(this);
     }
 
+    public PlayerRating getPlayerRating(TimeControl timeControl) {
+        if (!playerRatings.containsKey(timeControl)) {
+            throw new IllegalStateException("error registering user");
+        }
+        return playerRatings.get(timeControl);
+    }
 }
