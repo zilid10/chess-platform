@@ -1,7 +1,8 @@
 package me.zilid.chessplatform.model.entity;
 
 
-import io.github.robsonkades.uuidv7.UUIDv7;
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
@@ -12,9 +13,11 @@ import java.util.UUID;
 
 @MappedSuperclass
 public abstract class BaseEntity {
+    static private final TimeBasedEpochGenerator uuidGenerator = Generators.timeBasedEpochGenerator();
+    
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id = UUIDv7.randomUUID();
+    private UUID id = uuidGenerator.generate();
 
     @Version
     @Column(name = "version", nullable = false)
