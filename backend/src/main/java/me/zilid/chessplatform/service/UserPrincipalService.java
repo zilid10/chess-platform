@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.service;
 
-import jakarta.transaction.Transactional;
+import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.repository.UserRepo;
@@ -8,46 +8,33 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.UUID;
 
 @Service
 public class UserPrincipalService implements UserDetailsService {
     private final UserRepo userRepo;
+    private final UserConverter userConverter;
 
-    public UserPrincipalService(UserRepo userRepo) {
+    public UserPrincipalService(UserRepo userRepo, UserConverter userConverter) {
         this.userRepo = userRepo;
+        this.userConverter = userConverter;
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not exist: " + username));
-
-        return new UserPrincipal(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getPasswordHash(),
-                true,
-                Collections.emptyList()
-        );
+        return userConverter.toPrincipal(user);
     }
 
+    @Transactional(readOnly = true)
     public UserPrincipal loadUserById(UUID id) throws UsernameNotFoundException {
         User user = userRepo.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not exist: " + id));
-
-        return new UserPrincipal(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getPasswordHash(),
-                true,
-                Collections.emptyList()
-        );
+        return userConverter.toPrincipal(user);
     }
 }
 
