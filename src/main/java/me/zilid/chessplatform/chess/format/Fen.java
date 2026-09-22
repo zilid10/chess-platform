@@ -157,7 +157,7 @@ public class Fen {
     }
 
     public static CastlingRights castlingRightsFromSymbol(String symbol) {
-        if (symbol == null || !castlingRightsPattern.matcher(symbol).matches()) {
+        if (!castlingRightsPattern.matcher(symbol).matches()) {
             throw new IllegalArgumentException("castling rights symbol is not valid: '" + symbol + "'");
         }
 

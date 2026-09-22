@@ -1,7 +1,6 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -62,34 +61,6 @@ public class MatchRecord {
         return Objects.hashCode(id);
     }
 
-    public void setStartTime(Instant startTime) {
-        this.startTime = startTime;
-    }
-
-    public void setEndTime(Instant endTime) {
-        this.endTime = endTime;
-    }
-
-    public void setWhitePlayer(User whitePlayer) {
-        this.whitePlayer = whitePlayer;
-    }
-
-    public void setBlackPlayer(User blackPlayer) {
-        this.blackPlayer = blackPlayer;
-    }
-
-    public void setMatchResult(String matchResult) {
-        this.matchResult = matchResult;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
-
-    public void setPgn(String pgn) {
-        this.pgn = pgn;
-    }
-
     public UUID getId() {
         return id;
     }
@@ -98,27 +69,55 @@ public class MatchRecord {
         return whitePlayer;
     }
 
+    public void setWhitePlayer(User whitePlayer) {
+        this.whitePlayer = whitePlayer;
+    }
+
     public User getBlackPlayer() {
         return blackPlayer;
+    }
+
+    public void setBlackPlayer(User blackPlayer) {
+        this.blackPlayer = blackPlayer;
     }
 
     public String getMatchResult() {
         return matchResult;
     }
 
+    public void setMatchResult(String matchResult) {
+        this.matchResult = matchResult;
+    }
+
     public String getReason() {
         return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
     }
 
     public String getPgn() {
         return pgn;
     }
 
+    public void setPgn(String pgn) {
+        this.pgn = pgn;
+    }
+
     public Instant getStartTime() {
         return startTime;
     }
 
+    public void setStartTime(Instant startTime) {
+        this.startTime = startTime;
+    }
+
     public Instant getEndTime() {
         return endTime;
+    }
+
+    public void setEndTime(Instant endTime) {
+        this.endTime = endTime;
     }
 }

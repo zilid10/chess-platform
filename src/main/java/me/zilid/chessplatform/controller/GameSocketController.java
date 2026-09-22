@@ -18,11 +18,12 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Controller
@@ -71,12 +72,12 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/join")
     public void joinGame(@DestinationVariable UUID gameId,
-                         Authentication authentication,
+                         @AuthenticationPrincipal UserPrincipal currentUser,
                          SimpMessageHeaderAccessor headerAccessor) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-        headerAccessor.getSessionAttributes().put("gameId", gameId);
-        headerAccessor.getSessionAttributes().put("userId", currentUser.getId());
-        headerAccessor.getSessionAttributes().put("username", currentUser.getUsername());
+        var attributes = Objects.requireNonNull(headerAccessor.getSessionAttributes());
+        attributes.put("gameId", gameId);
+        attributes.put("userId", currentUser.getId());
+        attributes.put("username", currentUser.getUsername());
 
         Game game = matchService.getGameOrThrow(gameId);
         boolean isPlayer = game.isValidPlayer(currentUser);
@@ -107,8 +108,7 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/move")
     public void movePiece(@DestinationVariable UUID gameId,
                           @Payload MoveRequest moveRequest,
-                          Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+                          @AuthenticationPrincipal UserPrincipal currentUser) {
         Game game = matchService.getGameOrThrow(gameId);
         matchService.requirePlayer(game, currentUser);
 
@@ -149,8 +149,7 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
-                       Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+                       @AuthenticationPrincipal UserPrincipal currentUser) {
         GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
@@ -158,6 +157,7 @@ public class GameSocketController {
 
         // Send system message
         String winner = response.gameStatus().isWhiteWin() ? "White" : "Black";
+        logger.info("Resign executed in game {}: {} wins", gameId, winner);
         onGameEnd(matchService.getGameOrThrow(gameId), gameId);
     }
 
@@ -169,9 +169,7 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/draw/accept")
     public void acceptDraw(
             @DestinationVariable UUID gameId,
-            Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-
+            @AuthenticationPrincipal UserPrincipal currentUser) {
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
         // update the game state
@@ -185,8 +183,7 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/draw/offer")
     public void offerDraw(
             @DestinationVariable UUID gameId,
-            Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+            @AuthenticationPrincipal UserPrincipal currentUser) {
         matchService.offerDraw(currentUser, gameId);
         logger.info("Draw agreed in game {}", gameId);
 
@@ -202,7 +199,7 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/chat")
     public void sendChatMessage(@DestinationVariable UUID gameId,
                                 @Payload ChatMessage chatMessage) {
-        Game game = matchService.getGameOrThrow(gameId);
+        matchService.getGameOrThrow(gameId);
 
         logger.info("Chat message in game {} from {}: {}", gameId, chatMessage.sender(), chatMessage.message());
 

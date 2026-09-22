@@ -4,7 +4,6 @@ import jakarta.transaction.Transactional;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.repository.UserRepo;
-import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -23,7 +22,7 @@ public class UserPrincipalService implements UserDetailsService {
 
     @Override
     @Transactional
-    public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not exist: " + username));
 

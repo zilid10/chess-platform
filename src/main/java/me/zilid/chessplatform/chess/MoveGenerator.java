@@ -1,7 +1,10 @@
 package me.zilid.chessplatform.chess;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class MoveGenerator {
@@ -14,7 +17,7 @@ public class MoveGenerator {
         return legalMoves(position, move.from()).contains(move);
     }
 
-    public static Optional<Move> findLegalMove(Position position, Square from, Square to, PieceType promotionType) {
+    public static Optional<Move> findLegalMove(Position position, Square from, Square to, @Nullable PieceType promotionType) {
         return legalMoves(position, from).stream()
                 .filter(move -> move.from().equals(from) && move.to().equals(to) && move.promotionType() == promotionType)
                 .findAny();
@@ -77,7 +80,7 @@ public class MoveGenerator {
     }
 
     private static void slidingMoves(Board board, Square from, int[][] dirs, PieceType type, List<Move> moves) {
-        Piece piece = board.pieceAt(from);
+        Piece piece = Objects.requireNonNull(board.pieceAt(from));
         for (int[] dir : dirs) {
             int file = from.file() + dir[0];
             int rank = from.rank() + dir[1];
@@ -98,7 +101,7 @@ public class MoveGenerator {
     }
 
     private static void jumpingMoves(Board board, Square from, int[][] dirs, PieceType type, List<Move> moves) {
-        Piece piece = board.pieceAt(from);
+        Piece piece = Objects.requireNonNull(board.pieceAt(from));
         for (int[] dir : dirs) {
             int file = from.file() + dir[0];
             int rank = from.rank() + dir[1];
@@ -115,7 +118,7 @@ public class MoveGenerator {
 
     private static void pawnMoves(Position position, Square from, List<Move> moves) {
         Color color = position.getTurnColor();
-        Piece piece = position.getPieceAt(from);
+        Piece piece = Objects.requireNonNull(position.getPieceAt(from));
         int startingRank = color.isWhite() ? 1 : 6;
         int promotionRank = color.isWhite() ? 7 : 0;
         int forward = color.isWhite() ? 1 : -1;
@@ -150,8 +153,8 @@ public class MoveGenerator {
 
         // pawn capture (can promote)
         for (int dir : List.of(-1, 1)) {
-            if (!Square.isValid(file + dir, oneUp) || position.getPieceAt(Square.of(file + dir, oneUp)) == null
-                    || Piece.isFriendlyPiece(piece, position.getPieceAt(Square.of(file + dir, oneUp)))) {
+            Piece oneUpPiece = position.getPieceAt(Square.of(file + dir, oneUp));
+            if (!Square.isValid(file + dir, oneUp) || oneUpPiece == null || Piece.isFriendlyPiece(piece, oneUpPiece)) {
                 continue;
             }
             Square captureSquare = Square.of(file + dir, oneUp);

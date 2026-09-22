@@ -70,18 +70,19 @@ public class FriendService {
     @Transactional
     public FriendRequestResponse acceptFriendRequest(UUID friendRequestId, UUID recipientId) {
         FriendRequest friendRequest = friendRequestRepo
-                .findByIdAndRecipient_IdAndStatus(friendRequestId, recipientId,FriendRequest.RequestStatus.PENDING)
+                .findByIdAndRecipient_IdAndStatus(friendRequestId, recipientId, FriendRequest.RequestStatus.PENDING)
                 .orElseThrow(() -> new IllegalArgumentException("no pending friend requests found"));
 
         friendRequest.setStatus(FriendRequest.RequestStatus.ACCEPTED);
         UUID senderId = friendRequest.getSender().getId();
-        friendRequestRepo.addFriend(senderId, recipientId);
-        logger.info("Friend request accepted: {} and {} are now friends", friendRequest.getSender().getUsername(), friendRequest.getRecipient().getUsername());
+        int res = friendRequestRepo.addFriend(senderId, recipientId);
+        logger.info("Friend request accepted: {} and {} are now friends, affected lines: {}",
+                friendRequest.getSender().getUsername(), friendRequest.getRecipient().getUsername(), res);
         return friendRequestConverter.toResponse(friendRequest);
     }
 
     @Transactional
-    public void declineFriendRequest(UUID friendRequestId,  UUID recipientId) {
+    public void declineFriendRequest(UUID friendRequestId, UUID recipientId) {
         FriendRequest friendRequest = friendRequestRepo
                 .findByIdAndRecipient_IdAndStatus(friendRequestId, recipientId, FriendRequest.RequestStatus.PENDING)
                 .orElseThrow(() -> new IllegalArgumentException("no pending friend requests found"));

@@ -14,6 +14,7 @@ import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -225,8 +226,8 @@ public class MatchService {
     /**
      * Get a game session (useful for testing or administrative purposes)
      */
-    public Game getGameSession(UUID gameId) {
-        return gameSessions.getOrDefault(gameId, null);
+    public @Nullable Game getGameSession(UUID gameId) {
+        return gameSessions.get(gameId);
     }
 
     public Game getGameOrThrow(UUID gameId) {

@@ -1,10 +1,12 @@
 package me.zilid.chessplatform.chess;
 
+import org.jspecify.annotations.Nullable;
+
 public record UndoInfo(
         Square capturedSquare,
-        Piece capturedPiece,
+        @Nullable Piece capturedPiece,
         CastlingRights castlingRights,
-        Square enPassantTarget,
+        @Nullable Square enPassantTarget,
         int halfMoveClock,
         int fullMoveClock
 ) {

@@ -1,5 +1,7 @@
 package me.zilid.chessplatform.chess;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -10,7 +12,7 @@ public record Move(
         Square to,
         PieceType moved,
         MoveType type,
-        PieceType promotionType // nullable
+        @Nullable PieceType promotionType
 ) {
     public static final Set<PieceType> PROMOTION_CHOICES = Collections.unmodifiableSet(
             EnumSet.of(PieceType.QUEEN, PieceType.ROOK, PieceType.KNIGHT, PieceType.BISHOP));
