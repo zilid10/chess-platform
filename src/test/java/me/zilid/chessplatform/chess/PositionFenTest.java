@@ -32,6 +32,12 @@ class PositionFenTest {
     }
 
     @Test
+    void positionWithoutCastlingRightsRoundTrips() {
+        String fen = "7k/8/8/8/8/8/8/K7 b - - 12 34";
+        assertThat(Fen.format(Fen.parse(fen))).isEqualTo(fen);
+    }
+
+    @Test
     void placesPiecesOnCorrectSquares() {
         Position position = Fen.parse(START);
         assertThat(position.getPieceAt(Square.fromNotation("e1")).type()).isEqualTo(PieceType.KING);

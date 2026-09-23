@@ -38,6 +38,7 @@ public class Game {
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
         repetitions = new HashMap<>();
+        repetitions.put(position.hashCode(), 1);
         status = GameStatus.ONGOING;
         startTime = Instant.now();
         this.whitePlayer = whitePlayer;

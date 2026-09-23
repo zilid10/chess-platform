@@ -153,8 +153,11 @@ public class MoveGenerator {
 
         // pawn capture (can promote)
         for (int dir : List.of(-1, 1)) {
+            if (!Square.isValid(file + dir, oneUp)) {
+                continue;
+            }
             Piece oneUpPiece = position.getPieceAt(Square.of(file + dir, oneUp));
-            if (!Square.isValid(file + dir, oneUp) || oneUpPiece == null || Piece.isFriendlyPiece(piece, oneUpPiece)) {
+            if (oneUpPiece == null || Piece.isFriendlyPiece(piece, oneUpPiece)) {
                 continue;
             }
             Square captureSquare = Square.of(file + dir, oneUp);

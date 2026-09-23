@@ -56,8 +56,6 @@ public class MatchService {
                 Sort.by(Sort.Direction.DESC, "endTime")
         );
 
-        Page<MatchRecord> records =
-                matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
         Page<MatchRecord> games = matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
         logger.debug("Found {} matches for user {}", games.getTotalElements(), userId);
         return games.map(matchRecordConverter::toResponse);
@@ -93,23 +91,25 @@ public class MatchService {
         Game game = getGameOrThrow(gameId);
 
         String role;
-        if (currentUser.equals(game.getWhitePlayer())) {
-            role = "WHITE"; // reconnect
-            logger.debug("User {} reconnecting as WHITE to game {}", currentUser.getUsername(), gameId);
-        } else if (currentUser.equals(game.getBlackPlayer())) {
-            role = "BLACK"; // reconnect
-            logger.debug("User {} reconnecting as BLACK to game {}", currentUser.getUsername(), gameId);
-        } else if (game.getWhitePlayer() == null) {
-            game.setWhitePlayer(currentUser);
-            role = "WHITE";
-            logger.info("User {} joined game {} as WHITE", currentUser.getUsername(), gameId);
-        } else if (game.getBlackPlayer() == null) {
-            game.setBlackPlayer(currentUser);
-            role = "BLACK";
-            logger.info("User {} joined game {} as BLACK", currentUser.getUsername(), gameId);
-        } else {
-            role = "SPECTATOR"; // spectator
-            logger.info("User {} joined game {} as SPECTATOR", currentUser.getUsername(), gameId);
+        synchronized (game) {
+            if (currentUser.equals(game.getWhitePlayer())) {
+                role = "WHITE"; // reconnect
+                logger.debug("User {} reconnecting as WHITE to game {}", currentUser.getUsername(), gameId);
+            } else if (currentUser.equals(game.getBlackPlayer())) {
+                role = "BLACK"; // reconnect
+                logger.debug("User {} reconnecting as BLACK to game {}", currentUser.getUsername(), gameId);
+            } else if (game.getWhitePlayer() == null) {
+                game.setWhitePlayer(currentUser);
+                role = "WHITE";
+                logger.info("User {} joined game {} as WHITE", currentUser.getUsername(), gameId);
+            } else if (game.getBlackPlayer() == null) {
+                game.setBlackPlayer(currentUser);
+                role = "BLACK";
+                logger.info("User {} joined game {} as BLACK", currentUser.getUsername(), gameId);
+            } else {
+                role = "SPECTATOR"; // spectator
+                logger.info("User {} joined game {} as SPECTATOR", currentUser.getUsername(), gameId);
+            }
         }
 
         return new GameJoinResponse(

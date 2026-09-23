@@ -153,7 +153,7 @@ public class Fen {
         if (castlingRights.has(Color.BLACK, CastlingSide.QUEENSIDE)) {
             sb.append("q");
         }
-        return sb.toString();
+        return sb.isEmpty() ? "-" : sb.toString();
     }
 
     public static CastlingRights castlingRightsFromSymbol(String symbol) {
@@ -177,4 +177,3 @@ public class Fen {
         return castlingRights;
     }
 }
-

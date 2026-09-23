@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.controller;
 
+import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -9,6 +10,7 @@ import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -18,10 +20,11 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.security.Principal;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -72,8 +75,9 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/join")
     public void joinGame(@DestinationVariable UUID gameId,
-                         @AuthenticationPrincipal UserPrincipal currentUser,
+                         Principal principal,
                          SimpMessageHeaderAccessor headerAccessor) {
+        UserPrincipal currentUser = currentUser(principal);
         var attributes = Objects.requireNonNull(headerAccessor.getSessionAttributes());
         attributes.put("gameId", gameId);
         attributes.put("userId", currentUser.getId());
@@ -108,7 +112,8 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/move")
     public void movePiece(@DestinationVariable UUID gameId,
                           @Payload MoveRequest moveRequest,
-                          @AuthenticationPrincipal UserPrincipal currentUser) {
+                          Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         Game game = matchService.getGameOrThrow(gameId);
         matchService.requirePlayer(game, currentUser);
 
@@ -127,7 +132,7 @@ public class GameSocketController {
         String moveFrom = moveRequest.moveFrom();
         String moveTo = moveRequest.moveTo();
 
-        boolean moveSuccess = game.makeMove(moveFrom, moveTo, null);
+        boolean moveSuccess = game.makeMove(moveFrom, moveTo, parsePromotion(moveRequest.promotion()));
 
         if (!moveSuccess) {
             logger.warn("Invalid move attempted in game {}: {} to {}", gameId, moveFrom, moveTo);
@@ -142,6 +147,19 @@ public class GameSocketController {
         onGameEnd(game, gameId);
     }
 
+    private static @Nullable PieceType parsePromotion(@Nullable String promotion) {
+        if (promotion == null) {
+            return null;
+        }
+        return switch (promotion) {
+            case "q" -> PieceType.QUEEN;
+            case "r" -> PieceType.ROOK;
+            case "b" -> PieceType.BISHOP;
+            case "n" -> PieceType.KNIGHT;
+            default -> throw new IllegalArgumentException("Invalid promotion: " + promotion);
+        };
+    }
+
     /**
      * Handle player resignation
      * Maps to: /app/game/{gameId}/resign
@@ -149,7 +167,8 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
-                       @AuthenticationPrincipal UserPrincipal currentUser) {
+                       Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
@@ -169,7 +188,8 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/draw/accept")
     public void acceptDraw(
             @DestinationVariable UUID gameId,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
         // update the game state
@@ -183,7 +203,8 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/draw/offer")
     public void offerDraw(
             @DestinationVariable UUID gameId,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         matchService.offerDraw(currentUser, gameId);
         logger.info("Draw agreed in game {}", gameId);
 
@@ -220,6 +241,14 @@ public class GameSocketController {
                 ChatMessage.MessageType.SYSTEM
         );
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
+    }
+
+    private static UserPrincipal currentUser(@Nullable Principal principal) {
+        if (principal instanceof Authentication authentication
+                && authentication.getPrincipal() instanceof UserPrincipal user) {
+            return user;
+        }
+        throw new IllegalStateException("Authentication required");
     }
 
     private void onGameEnd(Game game, UUID gameId) {

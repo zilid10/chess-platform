@@ -37,9 +37,14 @@ export class WebSocketService {
       });
 
       this.client?.subscribe(`/user/queue/errors`, (message: IMessage) => {
-        const chatMessage: ChatMessage = JSON.parse(message.body);
-        onChatMessage(chatMessage);
-      })
+        const { error }: { error: string } = JSON.parse(message.body);
+        onChatMessage({
+          sender: 'System',
+          message: error,
+          timestamp: new Date().toISOString(),
+          type: 'SYSTEM',
+        });
+      });
 
       // Send join message
       this.client?.publish({
