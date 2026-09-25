@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: chess-platform
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  main:
+    banner-mode: "off"
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000,http://frontend:3000}
