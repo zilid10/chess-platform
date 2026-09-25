@@ -3,18 +3,20 @@
 ## Overview
 
 Chess Platform is a web-based chess application that allows users to:
+
 - Play chess in real-time against other players
 - Create accounts and manage profiles
 - Send and manage friend requests
 - View game history with full PGN notation
 - Spectate ongoing games
-- Chat during matches 
+- Chat during matches
 
 ---
 
 ## Project Architecture
 
 ### Backend
+
 - Java 21: with Virtual Threads
 - Spring Boot 4.1.0: Core framework
 - Spring Security: Session-based authentication
@@ -25,6 +27,7 @@ Chess Platform is a web-based chess application that allows users to:
 - Maven: Build and dependency management
 
 ### Frontend
+
 - React + TypeScript
 - Vite: Build tool
 - TailwindCSS: Styling
@@ -32,6 +35,7 @@ Chess Platform is a web-based chess application that allows users to:
 ### Backend Architecture
 
 This project used layered architecture:
+
 - `chess/` - Board state, move rules, game lifecycle, and notation
 - `controller/` - API endpoints and WebSocket handlers
 - `service/` - Business logic layer
@@ -52,6 +56,7 @@ This project used layered architecture:
 ### 1. Custom Chess Engine Implementation
 
 Core Engine Components:
+
 - `Game.java` - Thread safe game management
 - `ChessEngine.java` - Chess engine implementation
 - `Board.java` - Board state management and move validation
@@ -59,24 +64,26 @@ Core Engine Components:
 - `Position.java` - Chess notation and coordinate translation
 
 Chess Piece Implementation:
+
 - Valid move calculation
 - Attack pattern detection
 
 Advanced Chess Rules Implemented:
+
 1. Castling (kingside and queenside)
-   - Validates king and rook haven't moved
-   - Checks squares between are empty
-   - Ensures king doesn't cross attacked squares 
+    - Validates king and rook haven't moved
+    - Checks squares between are empty
+    - Ensures king doesn't cross attacked squares
 2. En Passant capture
-   - Tracks double pawn moves
-   - Validates en passant moves
+    - Tracks double pawn moves
+    - Validates en passant moves
 3. Pawn Promotion (auto-promotes to Queen)
 4. Check, Checkmate Detection
 5. Draw Conditions:
-   - Threefold Repetition
-   - Fifty-Move Rule
-   - Insufficient Material
-   - Stalemate detection
+    - Threefold Repetition
+    - Fifty-Move Rule
+    - Insufficient Material
+    - Stalemate detection
 6. FEN (Forsyth-Edwards Notation) generation for position state
 7. PGN (Portable Game Notation) export for game history
 8. File/Rank/Square Disambiguation for move notation
@@ -86,39 +93,43 @@ Advanced Chess Rules Implemented:
 The platform uses Spring WebSocket with STOMP protocol for real-time gameplay:
 
 WebSocket Features:
-- Game Session Management (`MatchService.java`)
-  - Thread safe management
-  - Active games are stored in a `ConcurrentHashMap` (`MatchService.java`) for high-performance access
-  - Player connection/disconnection handling
-  - Spectator support
-  - Automatic cleanup after game completion (1-minute delay)
-  - Games are persisted to database when completed
-- Publishing:
-  - `/app/game/{gameId}/join` - Player joins game
-  - `/app/game/{gameId}/move` - Chess move execution
-  - `/app/game/{gameId}/resign` - Player resignation
-  - `/app/game/{gameId}/draw/offer` - Draw offer
-  - `/app/game/{gameId}/draw/accept` - Draw acceptance
-- Broadcasting:
-  - `/topic/game/{gameId}` - Game state updates to all participants
-  - `/topic/game/{gameId}/chat` - Chat messages
-- Error Handling:
-  - `/queue/errors` - User-specific error messages;
-  - `@MessageExceptionHandler` - Handle WebSocket exceptions
-  - Custom exceptions (`GameNotFoundException`, `GameIsOverException`)
 
-### 4. Security & Authentication
+- Game Session Management (`MatchService.java`)
+    - Thread safe management
+    - Active games are stored in a `ConcurrentHashMap` (`MatchService.java`) for high-performance access
+    - Player connection/disconnection handling
+    - Spectator support
+    - Automatic cleanup after game completion (1-minute delay)
+    - Games are persisted to database when completed
+- Publishing:
+    - `/app/game/{gameId}/join` - Player joins game
+    - `/app/game/{gameId}/move` - Chess move execution
+    - `/app/game/{gameId}/resign` - Player resignation
+    - `/app/game/{gameId}/draw/offer` - Draw offer
+    - `/app/game/{gameId}/draw/accept` - Draw acceptance
+- Broadcasting:
+    - `/topic/game/{gameId}` - Game state updates to all participants
+    - `/topic/game/{gameId}/chat` - Chat messages
+- Error Handling:
+    - `/queue/errors` - User-specific error messages;
+    - `@MessageExceptionHandler` - Handle WebSocket exceptions
+    - Custom exceptions (`GameNotFoundException`, `GameIsOverException`)
+
+### 3. Security & Authentication
 
 Spring Security configuration with:
+
 - Session-based authentication (JSESSIONID cookie)
 - Password encryption with BCrypt (`DelegatingPasswordEncoder`)
 - Custom `UserDetailsService` and `UserDetails` implementation
 - CORS configuration for frontend
-- Set `APP_ALLOWED_ORIGINS` to a comma-separated list of frontend origins when deploying outside the local defaults; it applies to both HTTP and WebSocket requests.
+- Set `APP_ALLOWED_ORIGINS` to a comma-separated list of frontend origins when deploying outside the local defaults; it
+  applies to both HTTP and WebSocket requests.
 
-### 5. Database Schema with Flyway Migrations
+### 4. Database Schema with Flyway Migrations
 
 Flyway manages database versioning with migration scripts:
+
 - `V1__create_user_entity.sql` - User accounts
 - `V2__create_match_record.sql` - Match history with PGN
 - `V3__create_friendship_relationship.sql` - Friends
@@ -128,9 +139,10 @@ Flyway manages database versioning with migration scripts:
 
 ## How to Run
 
-###  Quick Start (Recommended)
+### Quick Start (Recommended)
 
 Prerequisites
+
 - Docker and Docker Compose installed
 - Ports available: 3000 (frontend), 8080 (backend), 5432 (database)
 
@@ -144,18 +156,23 @@ Manual setup can be very error-prone, docker compose setup is recommended.
 
 1. Ensure PostgreSQL is running locally on port 5432
 2. configure `flyway.conf` and migrate database
+
 ```shell
 vim flyway.conf # some settings need to be changed (e.g., flyway.url, flyway.user, flyway.password)
 flyway migrate
 ```
+
 3. Start up backend
+
 ```shell
 ./mvnw clean install
 ./mvnw spring-boot:run -Dspring.datasource.url=jdbc:postgresql://localhost:5432/your_db \
                        -Dspring.datasource.username=your_db_user \
                        -Dspring.datasource.password=your_db_password
 ```
+
 4. configure `vite.config.ts` and run frontend
+
 ```bash
 vim vite.config.ts # some settings need to be changed (Change proxy target from 'http://backend:8080' to 'http://localhost:8080')
 cd frontend
@@ -169,7 +186,9 @@ npm run dev
 - Backend API: http://localhost:8080/api
     - Health Check: http://localhost:8080/actuator/health
 
-Testing: To test the chess game, use two different browsers (or incognito/private windows) to log in with these test accounts (or create new accounts):
+Testing: To test the chess game, use two different browsers (or incognito/private windows) to log in with these test
+accounts (or create new accounts):
+
 - Username: `anyu`, Password: `anyu`
 - Username: `zili`, Password: `zili`
 
@@ -178,6 +197,7 @@ Testing: To test the chess game, use two different browsers (or incognito/privat
 ## Future Enhancements
 
 Potential areas for expansion:
+
 - ELO rating system and matching system
 - Timed control with clocks
 - Game analysis engine
