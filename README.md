@@ -15,8 +15,8 @@ Chess Platform is a web-based chess application that allows users to:
 ## Project Architecture
 
 ### Backend
-- Java 25: with Virtual Threads
-- Spring Boot 4.0.0: Core framework
+- Java 21: with Virtual Threads
+- Spring Boot 4.1.0: Core framework
 - Spring Security: Session-based authentication
 - Spring WebSocket: Real-time bidirectional communication (STOMP over WebSocket)
 - Spring Data JPA: Data persistence layer
@@ -32,8 +32,7 @@ Chess Platform is a web-based chess application that allows users to:
 ### Backend Architecture
 
 This project used layered architecture:
-- `engine/` - Chess game management and chess engine logic (decoupled from Spring)
-    - `pieces/` - Individual piece implementations
+- `chess/` - Board state, move rules, game lifecycle, and notation
 - `controller/` - API endpoints and WebSocket handlers
 - `service/` - Business logic layer
 - `repository/` - Data access layer
@@ -87,7 +86,7 @@ Advanced Chess Rules Implemented:
 The platform uses Spring WebSocket with STOMP protocol for real-time gameplay:
 
 WebSocket Features:
-- Game Session Management (`GameSocketController.java`)
+- Game Session Management (`MatchService.java`)
   - Thread safe management
   - Active games are stored in a `ConcurrentHashMap` (`MatchService.java`) for high-performance access
   - Player connection/disconnection handling
@@ -115,6 +114,7 @@ Spring Security configuration with:
 - Password encryption with BCrypt (`DelegatingPasswordEncoder`)
 - Custom `UserDetailsService` and `UserDetails` implementation
 - CORS configuration for frontend
+- Set `APP_ALLOWED_ORIGINS` to a comma-separated list of frontend origins when deploying outside the local defaults; it applies to both HTTP and WebSocket requests.
 
 ### 5. Database Schema with Flyway Migrations
 

@@ -28,6 +28,7 @@ const Game = () => {
 
   useEffect(() => {
     if (!gameId || !user) return;
+    let cancelled = false;
 
     const initializeGame = async () => {
       try {
@@ -36,6 +37,7 @@ const Game = () => {
 
         // Step 1: Join the game via REST API
         const joinResponse = await gameService.joinGame(gameId);
+        if (cancelled) return;
         
         // Check if user is a player or spectator
         const isActualPlayer = joinResponse.role === 'WHITE' || joinResponse.role === 'BLACK';
@@ -85,6 +87,7 @@ const Game = () => {
 
         setLoading(false);
       } catch (err) {
+        if (cancelled) return;
         console.error('Error initializing game:', err);
         setError(apiErrorMessage(err, 'Failed to join game'));
         setLoading(false);
@@ -94,6 +97,7 @@ const Game = () => {
     initializeGame();
 
     return () => {
+      cancelled = true;
       websocketService.disconnect();
     };
   }, [gameId, user]);

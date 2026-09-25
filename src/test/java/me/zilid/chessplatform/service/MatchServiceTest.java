@@ -25,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -138,6 +139,83 @@ class MatchServiceTest {
     }
 
     @Test
+    void movesAreValidatedByTheServiceAndReturnTheUpdatedState() {
+        UUID gameId = gameWithBothPlayers();
+
+        assertThatThrownBy(() -> service.makeMove(spectator, gameId, "e2", "e4", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("You are not a player in this game");
+        assertThatThrownBy(() -> service.makeMove(bob, gameId, "e7", "e5", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("It is not your turn");
+        assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid move: e2 to e5");
+
+        GameStateResponse afterWhiteMove = service.makeMove(alice, gameId, "e2", "e4", null);
+        assertThat(afterWhiteMove.lastMoveFrom()).isEqualTo("e2");
+        assertThat(afterWhiteMove.lastMoveTo()).isEqualTo("e4");
+        assertThat(afterWhiteMove.turnColor()).isEqualTo("BLACK");
+        assertThat(afterWhiteMove.fen()).isEqualTo(service.getGameState(gameId).fen());
+
+        assertThatThrownBy(() -> service.makeMove(alice, gameId, "d2", "d4", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("It is not your turn");
+        assertThat(service.makeMove(bob, gameId, "e7", "e5", null).turnColor()).isEqualTo("WHITE");
+    }
+
+    @Test
+    void completedGameRejectsMoves() {
+        UUID gameId = gameWithBothPlayers();
+        service.resign(alice, gameId);
+
+        assertThatThrownBy(() -> service.makeMove(bob, gameId, "e7", "e5", null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Game is already over");
+    }
+
+    @Test
+    void simultaneousMovesCannotBothPassTheTurnCheck() throws Exception {
+        UUID gameId = UUID.randomUUID();
+        CountDownLatch bothTurnChecksReached = new CountDownLatch(2);
+        Game game = new Game(alice, bob) {
+            @Override
+            public boolean isUserTurn(UserPrincipal user) {
+                boolean isTurn = super.isUserTurn(user);
+                bothTurnChecksReached.countDown();
+                try {
+                    // If checks run independently, both calls observe the same turn.
+                    bothTurnChecksReached.await(500, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError("Move interrupted", e);
+                }
+                return isTurn;
+            }
+        };
+        MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo) {
+            @Override
+            public Game getGameOrThrow(UUID requestedGameId) {
+                assertThat(requestedGameId).isEqualTo(gameId);
+                return game;
+            }
+        };
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Callable<Object> firstMove = () -> moveOrFailure(raceService, gameId, "e2", "e4");
+            Callable<Object> secondMove = () -> moveOrFailure(raceService, gameId, "d2", "d4");
+            Future<Object> first = executor.submit(firstMove);
+            Future<Object> second = executor.submit(secondMove);
+            List<Object> results = List.of(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS));
+
+            assertThat(results.stream().filter(GameStateResponse.class::isInstance).count()).isEqualTo(1);
+            assertThat(results.stream().filter(IllegalStateException.class::isInstance)
+                    .map(result -> ((IllegalStateException) result).getMessage()))
+                    .containsExactly("It is not your turn");
+        }
+    }
+
+    @Test
     void spectatorCannotOfferDrawAcceptDrawOrResign() {
         UUID gameId = gameWithBothPlayers();
 
@@ -237,6 +315,14 @@ class MatchServiceTest {
         UUID gameId = service.createGame(alice, Color.WHITE).gameId();
         service.joinGame(gameId, bob);
         return gameId;
+    }
+
+    private Object moveOrFailure(MatchService raceService, UUID gameId, String from, String to) {
+        try {
+            return raceService.makeMove(alice, gameId, from, to, null);
+        } catch (RuntimeException e) {
+            return e;
+        }
     }
 
     private static UserPrincipal principal(String username) {

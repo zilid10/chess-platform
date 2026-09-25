@@ -3,6 +3,7 @@ import { WebSocketService } from './websocketService';
 import type { ChatMessage, GameState } from '../types';
 
 interface TestClient {
+  brokerURL: string;
   active: boolean;
   connected: boolean;
   onConnect: () => void;
@@ -16,6 +17,7 @@ const stomp = vi.hoisted(() => ({ clients: [] as unknown[] }));
 
 vi.mock('@stomp/stompjs', () => ({
   Client: class {
+    brokerURL: string;
     active = false;
     connected = false;
     onConnect = () => {};
@@ -28,7 +30,8 @@ vi.mock('@stomp/stompjs', () => ({
       this.subscriptions.set(destination, callback);
     });
 
-    constructor() {
+    constructor({ brokerURL }: { brokerURL: string }) {
+      this.brokerURL = brokerURL;
       stomp.clients.push(this);
     }
   },
@@ -41,13 +44,26 @@ function latestClient(): TestClient {
 describe('WebSocketService', () => {
   beforeEach(() => {
     stomp.clients.length = 0;
+    vi.stubGlobal('window', { location: { protocol: 'http:', host: 'localhost:3000' } });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('connects through the current page origin with the matching WebSocket protocol', () => {
+    const service = new WebSocketService();
+    service.connect('game-1', 'alice', vi.fn(), vi.fn());
+    expect(latestClient().brokerURL).toBe('ws://localhost:3000/ws');
+
+    service.disconnect();
+    vi.stubGlobal('window', { location: { protocol: 'https:', host: 'chess.example' } });
+    service.connect('game-1', 'alice', vi.fn(), vi.fn());
+    expect(latestClient().brokerURL).toBe('wss://chess.example/ws');
   });
 
   it('subscribes to game, chat, and error messages before joining', () => {
@@ -105,6 +121,33 @@ describe('WebSocketService', () => {
     service.connect('game-1', 'alice', vi.fn(), vi.fn());
 
     expect(stomp.clients).toHaveLength(1);
+  });
+
+  it('ignores callbacks from a disconnected client after a new game connects', () => {
+    const service = new WebSocketService();
+    const oldGameUpdate = vi.fn();
+    service.connect('game-1', 'alice', oldGameUpdate, vi.fn());
+    const oldClient = latestClient();
+    oldClient.onConnect();
+
+    service.disconnect();
+    service.connect('game-2', 'alice', vi.fn(), vi.fn());
+    const newClient = latestClient();
+    oldClient.onConnect();
+    oldClient.subscriptions.get('/topic/game/game-1')?.({
+      body: JSON.stringify({ gameStatus: 'ONGOING', fen: 'example', turnColor: 'WHITE' }),
+    });
+
+    expect(oldGameUpdate).not.toHaveBeenCalled();
+    expect(newClient.subscriptions.size).toBe(0);
+    expect(newClient.publish).not.toHaveBeenCalled();
+
+    newClient.onConnect();
+    expect([...newClient.subscriptions.keys()]).toContain('/topic/game/game-2');
+    expect(newClient.publish).toHaveBeenCalledWith({
+      destination: '/app/game/game-2/join',
+      body: '{}',
+    });
   });
 
   it('publishes move, chat, resign, and draw commands to their destinations', () => {

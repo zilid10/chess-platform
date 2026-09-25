@@ -1,7 +1,5 @@
-package me.zilid.chessplatform.chess.pieces;
+package me.zilid.chessplatform.chess;
 
-import me.zilid.chessplatform.chess.MoveGenerator;
-import me.zilid.chessplatform.chess.Square;
 import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

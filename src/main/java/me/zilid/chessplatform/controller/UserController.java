@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import jakarta.validation.ValidationException;
 import me.zilid.chessplatform.model.dto.LoginRequest;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
@@ -24,7 +23,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -83,10 +81,7 @@ public class UserController {
 
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse createUser(@Valid @RequestBody UserCreateRequest request, BindingResult result) {
-        if (result.hasErrors()) {
-            throw new ValidationException(result.getAllErrors().toString());
-        }
+    public UserResponse createUser(@Valid @RequestBody UserCreateRequest request) {
         logger.info("Creating new user: {}", request.username());
         return userService.createUser(request);
     }
@@ -94,11 +89,7 @@ public class UserController {
     @PutMapping("/users")
     @ResponseStatus(HttpStatus.OK)
     public UserResponse updateUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                   @Valid @RequestBody UserUpdateRequest request,
-                                   BindingResult result) {
-        if (result.hasErrors()) {
-            throw new ValidationException(result.getAllErrors().toString());
-        }
+                                   @Valid @RequestBody UserUpdateRequest request) {
         logger.info("Updating user: {}", userPrincipal.getUsername());
         return userService.updateUser(userPrincipal.getId(), request);
     }

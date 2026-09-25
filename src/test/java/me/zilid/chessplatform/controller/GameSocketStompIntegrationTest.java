@@ -1,7 +1,10 @@
 package me.zilid.chessplatform.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.config.WebsocketConfig;
+import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
@@ -52,6 +55,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,7 +66,7 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = GameSocketStompIntegrationTest.TestApplication.class,
-        properties = "management.server.port=-1"
+        properties = {"management.server.port=-1", "app.allowed-origins=https://chess.example"}
 )
 class GameSocketStompIntegrationTest {
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
@@ -117,15 +123,28 @@ class GameSocketStompIntegrationTest {
                 game.getStatus(), game.getFen(), game.getLastMoveFrom(), game.getLastMoveTo(),
                 game.getTurnColor().name()));
         doAnswer(invocation -> {
-            UserPrincipal user = invocation.getArgument(1);
+            UserPrincipal user = invocation.getArgument(0);
             if (!game.isValidPlayer(user)) {
                 throw new IllegalStateException("You are not a player in this game");
             }
-            return null;
-        }).when(matchService).requirePlayer(any(Game.class), any(UserPrincipal.class));
+            if (!game.isUserTurn(user)) {
+                throw new IllegalStateException("It is not your turn");
+            }
+            String from = invocation.getArgument(2);
+            String to = invocation.getArgument(3);
+            PieceType promotion = invocation.getArgument(4);
+            if (!game.makeMove(from, to, promotion)) {
+                throw new IllegalArgumentException("Invalid move: " + from + " to " + to);
+            }
+            return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
+                    game.getLastMoveTo(), game.getTurnColor().name());
+        }).when(matchService).makeMove(any(UserPrincipal.class), eq(GAME_ID), anyString(), anyString(),
+                nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
-        client.setMessageConverter(new MappingJackson2MessageConverter());
+        MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
+        converter.setObjectMapper(new ObjectMapper().findAndRegisterModules());
+        client.setMessageConverter(converter);
     }
 
     @AfterEach
@@ -153,7 +172,7 @@ class GameSocketStompIntegrationTest {
         assertThat(moved.lastMoveTo()).isEqualTo("e4");
         assertThat(moved.turnColor()).isEqualTo("BLACK");
         assertThat(moved.fen()).isEqualTo(game.getFen());
-        verify(matchService).requirePlayer(game, WHITE);
+        verify(matchService).makeMove(WHITE, GAME_ID, "e2", "e4", null);
     }
 
     @Test
@@ -176,12 +195,26 @@ class GameSocketStompIntegrationTest {
         assertThat(error.error()).contains("not a player");
         assertThat(updates.poll(200, TimeUnit.MILLISECONDS)).isNull();
         assertThat(game.getLastMoveFrom()).isNull();
-        verify(matchService).requirePlayer(game, SPECTATOR);
+        verify(matchService).makeMove(SPECTATOR, GAME_ID, "e2", "e4", null);
+    }
+
+    @Test
+    void chatSenderComesFromTheAuthenticatedSession() throws Exception {
+        StompSession session = connect("white");
+        BlockingQueue<ChatMessage> chat = subscribe(session, "/topic/game/" + GAME_ID + "/chat",
+                ChatMessage.class);
+
+        session.send("/app/game/" + GAME_ID + "/chat", new ChatMessage("forged", "hello"));
+
+        ChatMessage received = take(chat);
+        assertThat(received.sender()).isEqualTo("white");
+        assertThat(received.message()).isEqualTo("hello");
+        assertThat(received.type()).isEqualTo(ChatMessage.MessageType.CHAT);
     }
 
     private StompSession connect(String username) throws Exception {
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
-        headers.setOrigin("http://localhost:3000");
+        headers.setOrigin("https://chess.example");
         String credentials = Base64.getEncoder().encodeToString(
                 (username + ":password").getBytes(StandardCharsets.UTF_8));
         headers.set(HttpHeaders.AUTHORIZATION, "Basic " + credentials);

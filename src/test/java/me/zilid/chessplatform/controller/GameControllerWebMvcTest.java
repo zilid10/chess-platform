@@ -3,6 +3,7 @@ package me.zilid.chessplatform.controller;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.config.SecurityConfig;
+import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.exception.GlobalExceptionHandler;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
@@ -138,5 +139,27 @@ class GameControllerWebMvcTest {
                         .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Invalid game"));
+    }
+
+    @Test
+    void missingGameReturnsNotFound() throws Exception {
+        when(matchService.getGameState(GAME_ID))
+                .thenThrow(new GameNotFoundException("Game not found: " + GAME_ID));
+
+        mvc.perform(get("/api/games/{gameId}/state", GAME_ID)
+                        .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Game not found: " + GAME_ID));
+    }
+
+    @Test
+    void unexpectedFailureDoesNotExposeInternalDetails() throws Exception {
+        when(matchService.getGameState(GAME_ID))
+                .thenThrow(new RuntimeException("private connection detail"));
+
+        mvc.perform(get("/api/games/{gameId}/state", GAME_ID)
+                        .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("An unexpected error occurred"));
     }
 }

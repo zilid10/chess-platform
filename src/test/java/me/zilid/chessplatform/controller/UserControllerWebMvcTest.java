@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -93,12 +95,12 @@ class UserControllerWebMvcTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidRegistrations")
-    void invalidRegistrationIsRejectedBeforeCallingTheService(String scenario, String body) throws Exception {
+    void invalidRegistrationIsRejectedBeforeCallingTheService(String scenario, String body, String field) throws Exception {
         mvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists());
+                .andExpect(jsonPath("$.error").value(containsString(field + ": ")));
 
         verifyNoInteractions(userService);
     }
@@ -107,14 +109,40 @@ class UserControllerWebMvcTest {
         return Stream.of(
                 Arguments.of("short username", """
                         {"username":"ab","email":"player@example.com","rawPassword":"password123"}
-                        """),
+                        """, "username"),
                 Arguments.of("malformed email", """
                         {"username":"player","email":"invalid","rawPassword":"password123"}
-                        """),
+                        """, "email"),
                 Arguments.of("short password", """
                         {"username":"player","email":"player@example.com","rawPassword":"x"}
-                        """)
+                        """, "rawPassword")
         );
+    }
+
+    @Test
+    void databaseConflictDoesNotExposePersistenceDetails() throws Exception {
+        when(userService.createUser(any(UserCreateRequest.class)))
+                .thenThrow(new DataIntegrityViolationException("users_email_key violated: private database detail"));
+
+        mvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"player","email":"player@example.com",
+                                 "rawPassword":"password123"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Request conflicts with existing data"));
+    }
+
+    @Test
+    void malformedRequestBodyUsesBadRequestResponse() throws Exception {
+        mvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid request body"));
+
+        verifyNoInteractions(userService);
     }
 
     @Test
@@ -166,6 +194,18 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.id").value(USER_ID.toString()));
 
         verify(userService).updateUser(USER_ID, new UserUpdateRequest(null, null, null, "New bio"));
+    }
+
+    @Test
+    void invalidProfileUpdateIsRejectedBeforeCallingTheService() throws Exception {
+        mvc.perform(put("/api/users")
+                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"ab\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(containsString("username: ")));
+
+        verifyNoInteractions(userService);
     }
 
     @Test
