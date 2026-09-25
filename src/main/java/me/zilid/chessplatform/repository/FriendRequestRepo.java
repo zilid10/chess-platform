@@ -21,7 +21,7 @@ public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
     Page<FriendRequest> findByRecipient_IdAndStatus(UUID recipientId, FriendRequest.RequestStatus status, Pageable pageable);
 
     Optional<FriendRequest> findBySender_IdAndRecipient_IdAndStatus(UUID senderId, UUID recipientId, FriendRequest.RequestStatus status);
-    
+
     @Query("SELECT f FROM User u JOIN u.friends f WHERE u.id = :userId")
     Page<User> findFriendsByUserId(@Param("userId") UUID userId, Pageable pageable);
 
@@ -31,14 +31,7 @@ public interface FriendRequestRepo extends CrudRepository<FriendRequest, UUID> {
             VALUES (:senderId, :recipientId), (:recipientId, :senderId)
             ON CONFLICT DO NOTHING
             """, nativeQuery = true)
-    int addFriend(@Param("senderId") UUID senderId,@Param("recipientId") UUID recipientId);
-
-    @Modifying
-    @Query(value = """
-            INSERT INTO friend_request(sender_id, recipient_id, status)
-            VALUES (:senderId, :recipientId, :status)
-            """, nativeQuery = true)
-    void addFriendRequest(UUID senderId, UUID recipientId, FriendRequest.RequestStatus status);
+    int addFriend(@Param("senderId") UUID senderId, @Param("recipientId") UUID recipientId);
 
     @Query(value = """
             SELECT EXISTS (

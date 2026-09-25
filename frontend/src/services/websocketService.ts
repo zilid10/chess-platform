@@ -5,14 +5,14 @@ export class WebSocketService {
   private client: Client | null = null;
   
   connect(gameId: string, _username: string, onGameUpdate: (state: GameState) => void, onChatMessage: (message: ChatMessage) => void) {
-
     if (this.client && this.client.active) {
       console.warn('WebSocket already active, skip connect');
       return;
     }
 
-    this.client = new Client({
-      brokerURL: 'ws://localhost:8080/ws',
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const client = new Client({
+      brokerURL: `${protocol}//${window.location.host}/ws`,
       debug: (str) => {
         console.log('STOMP: ' + str);
       },
@@ -20,46 +20,55 @@ export class WebSocketService {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000
     });
+    this.client = client;
 
-    this.client.onConnect = () => {
+    client.onConnect = () => {
+      if (this.client !== client) return;
       console.log('WebSocket connected');
       
       // Subscribe to game updates
-      this.client?.subscribe(`/topic/game/${gameId}`, (message: IMessage) => {
+      client.subscribe(`/topic/game/${gameId}`, (message: IMessage) => {
+        if (this.client !== client) return;
         const gameState: GameState = JSON.parse(message.body);
         onGameUpdate(gameState);
       });
 
       // Subscribe to chat messages
-      this.client?.subscribe(`/topic/game/${gameId}/chat`, (message: IMessage) => {
+      client.subscribe(`/topic/game/${gameId}/chat`, (message: IMessage) => {
+        if (this.client !== client) return;
         const chatMessage: ChatMessage = JSON.parse(message.body);
         onChatMessage(chatMessage);
       });
 
-      this.client?.subscribe(`/user/queue/errors`, (message: IMessage) => {
-        const chatMessage: ChatMessage = JSON.parse(message.body);
-        onChatMessage(chatMessage);
-      })
+      client.subscribe(`/user/queue/errors`, (message: IMessage) => {
+        if (this.client !== client) return;
+        const { error }: { error: string } = JSON.parse(message.body);
+        onChatMessage({
+          sender: 'System',
+          message: error,
+          timestamp: new Date().toISOString(),
+          type: 'SYSTEM',
+        });
+      });
 
       // Send join message
-      this.client?.publish({
+      client.publish({
         destination: `/app/game/${gameId}/join`,
         body: '{}'
       });
     };
 
-    this.client.onStompError = (frame) => {
+    client.onStompError = (frame) => {
       console.error('STOMP error:', frame);
     };
 
-    this.client.activate();
+    client.activate();
   }
 
   disconnect() {
-    if (this.client) {
-      this.client.deactivate();
-      this.client = null;
-    }
+    const client = this.client;
+    this.client = null;
+    if (client) void client.deactivate();
   }
 
   sendMove(gameId: string, moveFrom: string, moveTo: string, promotion?: string) {

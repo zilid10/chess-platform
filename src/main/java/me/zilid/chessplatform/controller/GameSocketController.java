@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.controller;
 
+import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -9,6 +10,7 @@ import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -22,7 +24,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.security.Principal;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Controller
@@ -71,12 +75,13 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/join")
     public void joinGame(@DestinationVariable UUID gameId,
-                         Authentication authentication,
+                         Principal principal,
                          SimpMessageHeaderAccessor headerAccessor) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-        headerAccessor.getSessionAttributes().put("gameId", gameId);
-        headerAccessor.getSessionAttributes().put("userId", currentUser.getId());
-        headerAccessor.getSessionAttributes().put("username", currentUser.getUsername());
+        UserPrincipal currentUser = currentUser(principal);
+        var attributes = Objects.requireNonNull(headerAccessor.getSessionAttributes());
+        attributes.put("gameId", gameId);
+        attributes.put("userId", currentUser.getId());
+        attributes.put("username", currentUser.getUsername());
 
         Game game = matchService.getGameOrThrow(gameId);
         boolean isPlayer = game.isValidPlayer(currentUser);
@@ -107,39 +112,26 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/move")
     public void movePiece(@DestinationVariable UUID gameId,
                           @Payload MoveRequest moveRequest,
-                          Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-        Game game = matchService.getGameOrThrow(gameId);
-        matchService.requirePlayer(game, currentUser);
-
-        if (game.isGameOver()) {
-            logger.warn("Attempted move on completed game {}", gameId);
-            throw new IllegalStateException("Game is already over");
-        }
-
-        if (!game.isUserTurn(currentUser)) {
-            logger.warn("Attempted move on opponent's turn {}", gameId);
-            throw new IllegalStateException("It is not your turn");
-        }
-
-
-        // Validate and execute move
-        String moveFrom = moveRequest.moveFrom();
-        String moveTo = moveRequest.moveTo();
-
-        boolean moveSuccess = game.makeMove(moveFrom, moveTo, null);
-
-        if (!moveSuccess) {
-            logger.warn("Invalid move attempted in game {}: {} to {}", gameId, moveFrom, moveTo);
-            throw new IllegalArgumentException("Invalid move: " + moveFrom + " to " + moveTo);
-        }
-
-        logger.info("Move executed in game {}: {} to {}", gameId, moveFrom, moveTo);
-
-        // Build and send response with updated game state
-        GameStateResponse response = matchService.buildGameStateResponse(game);
+                          Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
+        GameStateResponse response = matchService.makeMove(
+                currentUser, gameId, moveRequest.moveFrom(), moveRequest.moveTo(),
+                parsePromotion(moveRequest.promotion()));
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
-        onGameEnd(game, gameId);
+        onGameEnd(gameId, response);
+    }
+
+    private static @Nullable PieceType parsePromotion(@Nullable String promotion) {
+        if (promotion == null) {
+            return null;
+        }
+        return switch (promotion) {
+            case "q" -> PieceType.QUEEN;
+            case "r" -> PieceType.ROOK;
+            case "b" -> PieceType.BISHOP;
+            case "n" -> PieceType.KNIGHT;
+            default -> throw new IllegalArgumentException("Invalid promotion: " + promotion);
+        };
     }
 
     /**
@@ -149,8 +141,8 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
-                       Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+                       Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
@@ -158,7 +150,8 @@ public class GameSocketController {
 
         // Send system message
         String winner = response.gameStatus().isWhiteWin() ? "White" : "Black";
-        onGameEnd(matchService.getGameOrThrow(gameId), gameId);
+        logger.info("Resign executed in game {}: {} wins", gameId, winner);
+        onGameEnd(gameId, response);
     }
 
     /**
@@ -169,26 +162,25 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/draw/accept")
     public void acceptDraw(
             @DestinationVariable UUID gameId,
-            Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-
+            Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
         // update the game state
         messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
-        logger.info("Draw offered in game {}", gameId);
+        logger.info("Draw acceptance handled in game {}", gameId);
 
         // Send system message
-        onGameEnd(matchService.getGameOrThrow(gameId), gameId);
+        onGameEnd(gameId, response);
     }
 
     @MessageMapping("/game/{gameId}/draw/offer")
     public void offerDraw(
             @DestinationVariable UUID gameId,
-            Authentication authentication) {
-        UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+            Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
         matchService.offerDraw(currentUser, gameId);
-        logger.info("Draw agreed in game {}", gameId);
+        logger.info("Draw offered in game {}", gameId);
 
         // Send system message
         sendSystemMessage(gameId, "Draw offered");
@@ -201,14 +193,15 @@ public class GameSocketController {
      */
     @MessageMapping("/game/{gameId}/chat")
     public void sendChatMessage(@DestinationVariable UUID gameId,
-                                @Payload ChatMessage chatMessage) {
-        Game game = matchService.getGameOrThrow(gameId);
+                                @Payload ChatMessage chatMessage,
+                                Principal principal) {
+        UserPrincipal currentUser = currentUser(principal);
+        matchService.getGameOrThrow(gameId);
 
-        logger.info("Chat message in game {} from {}: {}", gameId, chatMessage.sender(), chatMessage.message());
+        logger.info("Chat message in game {} from {}", gameId, currentUser.getUsername());
 
-        // Create timestamped message and broadcast to all players
         ChatMessage timestampedMessage = new ChatMessage(
-                chatMessage.sender(),
+                currentUser.getUsername(),
                 chatMessage.message(),
                 ChatMessage.MessageType.CHAT
         );
@@ -225,11 +218,19 @@ public class GameSocketController {
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
     }
 
-    private void onGameEnd(Game game, UUID gameId) {
-        if (game.isGameOver()) {
-            sendSystemMessage(gameId, "Game Over: " + game.getStatus().getDescription());
+    private static UserPrincipal currentUser(@Nullable Principal principal) {
+        if (principal instanceof Authentication authentication
+                && authentication.getPrincipal() instanceof UserPrincipal user) {
+            return user;
+        }
+        throw new IllegalStateException("Authentication required");
+    }
+
+    private void onGameEnd(UUID gameId, GameStateResponse response) {
+        if (response.gameStatus().isGameOver()) {
+            sendSystemMessage(gameId, "Game Over: " + response.gameStatus().getDescription());
             try {
-                matchService.archiveMatch(gameId, game);
+                matchService.archiveMatch(gameId, matchService.getGameOrThrow(gameId));
                 matchService.scheduleGameCleanup(gameId);
             } catch (Exception e) {
                 logger.error("Failed to archive game {}", gameId, e);
@@ -239,77 +240,42 @@ public class GameSocketController {
 
     @MessageExceptionHandler
     public void handleException(Exception e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.error("WebSocket error: ", e);
-
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) return;
-
-        String username = (String) sessionAttributes.get("username");
-
-        if (username != null) {
-            ErrorResponse error = new ErrorResponse("An unexpected error occurred: " + e.getMessage());
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
-        }
+        logger.error("Unexpected WebSocket error", e);
+        sendError(headerAccessor, "An unexpected error occurred");
     }
 
     @MessageExceptionHandler(GameNotFoundException.class)
     public void handleException(GameNotFoundException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.error("WebSocket error: ", e);
-
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) return;
-
-        String username = (String) sessionAttributes.get("username");
-
-        if (username != null) {
-            ErrorResponse error = new ErrorResponse("Game not found: " + e.getMessage());
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
-        }
+        logger.warn("WebSocket request failed: {}", e.getMessage());
+        sendError(headerAccessor, e.getMessage());
     }
 
     @MessageExceptionHandler(GameIsOverException.class)
     public void handleException(GameIsOverException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.error("WebSocket error: ", e);
-
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) return;
-
-        String username = (String) sessionAttributes.get("username");
-
-        if (username != null) {
-            ErrorResponse error = new ErrorResponse("Game is already over: " + e.getMessage());
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
-        }
+        logger.warn("Game is over: {}", e.getMessage());
+        sendError(headerAccessor, e.getMessage());
     }
 
     @MessageExceptionHandler(IllegalArgumentException.class)
     public void handleInvalidInput(IllegalArgumentException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.error("WebSocket error: ", e);
-
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) return;
-
-        String username = (String) sessionAttributes.get("username");
-
-        if (username != null) {
-            ErrorResponse error = new ErrorResponse("Invalid input: " + e.getMessage());
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
-        }
+        logger.warn("Invalid WebSocket input: {}", e.getMessage());
+        sendError(headerAccessor, "Invalid input: " + e.getMessage());
     }
 
     @MessageExceptionHandler(IllegalStateException.class)
     public void handleInvalidState(IllegalStateException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.error("WebSocket error: ", e);
-
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) return;
-
-        String username = (String) sessionAttributes.get("username");
-
-        if (username != null) {
-            ErrorResponse error = new ErrorResponse("Cannot perform action: " + e.getMessage());
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", error);
-        }
+        logger.warn("Invalid WebSocket state: {}", e.getMessage());
+        sendError(headerAccessor, "Cannot perform action: " + e.getMessage());
     }
 
+    private void sendError(SimpMessageHeaderAccessor headerAccessor, String message) {
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes == null) {
+            return;
+        }
+        String username = (String) sessionAttributes.get("username");
+        if (username != null) {
+            messagingTemplate.convertAndSendToUser(username, "/queue/errors", new ErrorResponse(message));
+        }
+    }
 }

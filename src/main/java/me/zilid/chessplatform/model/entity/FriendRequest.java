@@ -15,11 +15,11 @@ public class FriendRequest {
     @Column(name = "id", columnDefinition = "uuid")
     private UUID id = UUID.randomUUID();
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id")
     private User sender;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipient_id")
     private User recipient;
 

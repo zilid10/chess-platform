@@ -1,5 +1,7 @@
 package me.zilid.chessplatform.chess;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Objects;
 
 public class Position {
@@ -9,11 +11,11 @@ public class Position {
     private final Board board;
     private Color turnColor;
     private CastlingRights castlingRights;
-    private Square enPassantTarget;
+    private @Nullable Square enPassantTarget;
     private int halfMoveClock;
     private int fullMoveClock;
 
-    private Position(Board board, Color turnColor, CastlingRights castlingRights, Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+    private Position(Board board, Color turnColor, CastlingRights castlingRights, @Nullable Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
         this.board = board;
         this.turnColor = turnColor;
         this.castlingRights = castlingRights;
@@ -26,7 +28,7 @@ public class Position {
         return new Position(Board.initial(), Color.WHITE, CastlingRights.ALL, null, 0, 1);
     }
 
-    public static Position of(Board board, Color turnColor, CastlingRights castlingRights, Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+    public static Position of(Board board, Color turnColor, CastlingRights castlingRights, @Nullable Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
         return new Position(board.copy(), turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
     }
 
@@ -38,7 +40,7 @@ public class Position {
         return board;
     }
 
-    public Piece getPieceAt(Square square) {
+    public @Nullable Piece getPieceAt(Square square) {
         return board.pieceAt(square);
     }
 
@@ -46,7 +48,7 @@ public class Position {
         return turnColor;
     }
 
-    public Square getEnPassantTarget() {
+    public @Nullable Square getEnPassantTarget() {
         return enPassantTarget;
     }
 
@@ -70,7 +72,7 @@ public class Position {
         int undoFullMoveClock = fullMoveClock;
         Square capturedSquare = move.to();
         Piece capturedPiece = null;
-        boolean isPawnMove = board.pieceAt(move.from()).type() == PieceType.PAWN;
+        boolean isPawnMove = Objects.requireNonNull(board.pieceAt(move.from())).type() == PieceType.PAWN;
 
         // update the board
         if (move.isEnPassant()) {
@@ -90,7 +92,8 @@ public class Position {
         } else {
             Piece piece = board.put(move.from(), null);
             if (move.isPromotion()) {
-                capturedPiece = board.put(move.to(), Piece.of(turnColor, move.promotionType()));
+                PieceType promotionType = move.promotionType() == null ? PieceType.QUEEN : move.promotionType();
+                capturedPiece = board.put(move.to(), Piece.of(turnColor, promotionType));
             } else {
                 capturedPiece = board.put(move.to(), piece);
             }

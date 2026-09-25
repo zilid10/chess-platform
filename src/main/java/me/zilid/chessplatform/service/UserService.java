@@ -11,22 +11,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
 public class UserService {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
-    private final PasswordEncoder passwordEncoder;
     private final UserRepo userRepo;
     private final UserConverter userConverter;
 
-    public UserService(PasswordEncoder passwordEncoder, UserRepo userRepo, UserConverter userConverter) {
-        this.passwordEncoder = passwordEncoder;
+    public UserService(UserRepo userRepo, UserConverter userConverter) {
         this.userRepo = userRepo;
         this.userConverter = userConverter;
     }
