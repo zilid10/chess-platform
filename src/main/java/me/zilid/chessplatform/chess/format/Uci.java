@@ -12,7 +12,7 @@ public class Uci {
 
     public static String format(Move move) {
         String base = move.from().toNotation() + move.to().toNotation();
-        return move.isPromotion() ? base + promotionChar(move.promotionType()) : base;
+        return move.promotionType() != null ? base + promotionChar(move.promotionType()) : base;
     }
 
     public static String format(UciMove uciMove) {

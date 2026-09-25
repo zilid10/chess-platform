@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import jakarta.validation.ValidationException;
 import me.zilid.chessplatform.model.dto.LoginRequest;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
@@ -23,49 +22,52 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.validation.BindingResult;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
 public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
-    
+
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
+    private final SecurityContextRepository securityContextRepository;
 
-    public UserController(UserService userService, AuthenticationManager authenticationManager) {
+    public UserController(UserService userService, AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository) {
         this.userService = userService;
         this.authenticationManager = authenticationManager;
+        this.securityContextRepository = securityContextRepository;
     }
 
     @PostMapping("/login")
-    @ResponseStatus(HttpStatus.OK)
-    public UserResponse login(@Valid @RequestBody LoginRequest request, 
-                             BindingResult result,
-                             HttpServletRequest httpRequest) {
-        if (result.hasErrors()) {
-            throw new ValidationException(result.getAllErrors().toString());
-        }
+    public UserResponse login(@Valid @RequestBody LoginRequest request,
+                              HttpServletRequest httpRequest,
+                              HttpServletResponse httpResponse) {
 
         logger.info("Login attempt for user: {}", request.username());
-        
+
         // Authenticate the user
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password())
+                UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password())
         );
 
         // Set the authentication in the security context
-        SecurityContext securityContext = SecurityContextHolder.getContext();
-        securityContext.setAuthentication(authentication);
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
 
         // Store security context in HTTP session
-        HttpSession session = httpRequest.getSession(true);
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
+        securityContextRepository.saveContext(
+                context,
+                httpRequest,
+                httpResponse
+        );
 
         // Get authenticated user details and return full user information
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        if (!(authentication.getPrincipal() instanceof UserPrincipal userPrincipal)) {
+            throw new IllegalStateException("Unexpected principal type");
+        }
         logger.info("User {} logged in successfully", request.username());
         return userService.getUserById(userPrincipal.getId());
     }
@@ -79,10 +81,7 @@ public class UserController {
 
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse createUser(@Valid @RequestBody UserCreateRequest request, BindingResult result) {
-        if (result.hasErrors()) {
-            throw new ValidationException(result.getAllErrors().toString());
-        }
+    public UserResponse createUser(@Valid @RequestBody UserCreateRequest request) {
         logger.info("Creating new user: {}", request.username());
         return userService.createUser(request);
     }
@@ -90,11 +89,7 @@ public class UserController {
     @PutMapping("/users")
     @ResponseStatus(HttpStatus.OK)
     public UserResponse updateUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                   @Valid @RequestBody UserUpdateRequest request,
-                                   BindingResult result) {
-        if (result.hasErrors()) {
-            throw new ValidationException(result.getAllErrors().toString());
-        }
+                                   @Valid @RequestBody UserUpdateRequest request) {
         logger.info("Updating user: {}", userPrincipal.getUsername());
         return userService.updateUser(userPrincipal.getId(), request);
     }
@@ -102,20 +97,20 @@ public class UserController {
     @DeleteMapping("/users")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                          HttpServletRequest httpRequest,
-                          HttpServletResponse httpResponse) {
+                           HttpServletRequest httpRequest,
+                           HttpServletResponse httpResponse) {
         logger.info("Deleting user: {}", userPrincipal.getUsername());
         userService.deleteUser(userPrincipal.getId());
-        
+
         // Clear the session after deleting the user
         HttpSession session = httpRequest.getSession(false);
         if (session != null) {
             session.invalidate();
         }
-        
+
         // Clear the security context
         SecurityContextHolder.clearContext();
-        
+
         // Delete the JSESSIONID cookie
         Cookie cookie = new Cookie("JSESSIONID", null);
         cookie.setPath("/");

@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -14,6 +15,7 @@ import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -55,8 +57,6 @@ public class MatchService {
                 Sort.by(Sort.Direction.DESC, "endTime")
         );
 
-        Page<MatchRecord> records =
-                matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
         Page<MatchRecord> games = matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
         logger.debug("Found {} matches for user {}", games.getTotalElements(), userId);
         return games.map(matchRecordConverter::toResponse);
@@ -91,84 +91,94 @@ public class MatchService {
         logger.info("User {} attempting to join game {}", currentUser.getUsername(), gameId);
         Game game = getGameOrThrow(gameId);
 
-        String role;
-        if (currentUser.equals(game.getWhitePlayer())) {
-            role = "WHITE"; // reconnect
-            logger.debug("User {} reconnecting as WHITE to game {}", currentUser.getUsername(), gameId);
-        } else if (currentUser.equals(game.getBlackPlayer())) {
-            role = "BLACK"; // reconnect
-            logger.debug("User {} reconnecting as BLACK to game {}", currentUser.getUsername(), gameId);
-        } else if (game.getWhitePlayer() == null) {
-            game.setWhitePlayer(currentUser);
-            role = "WHITE";
-            logger.info("User {} joined game {} as WHITE", currentUser.getUsername(), gameId);
-        } else if (game.getBlackPlayer() == null) {
-            game.setBlackPlayer(currentUser);
-            role = "BLACK";
-            logger.info("User {} joined game {} as BLACK", currentUser.getUsername(), gameId);
-        } else {
-            role = "SPECTATOR"; // spectator
-            logger.info("User {} joined game {} as SPECTATOR", currentUser.getUsername(), gameId);
-        }
+        synchronized (game) {
+            String role;
+            if (currentUser.equals(game.getWhitePlayer())) {
+                role = "WHITE"; // reconnect
+                logger.debug("User {} reconnecting as WHITE to game {}", currentUser.getUsername(), gameId);
+            } else if (currentUser.equals(game.getBlackPlayer())) {
+                role = "BLACK"; // reconnect
+                logger.debug("User {} reconnecting as BLACK to game {}", currentUser.getUsername(), gameId);
+            } else if (game.getWhitePlayer() == null) {
+                game.setWhitePlayer(currentUser);
+                role = "WHITE";
+                logger.info("User {} joined game {} as WHITE", currentUser.getUsername(), gameId);
+            } else if (game.getBlackPlayer() == null) {
+                game.setBlackPlayer(currentUser);
+                role = "BLACK";
+                logger.info("User {} joined game {} as BLACK", currentUser.getUsername(), gameId);
+            } else {
+                role = "SPECTATOR"; // spectator
+                logger.info("User {} joined game {} as SPECTATOR", currentUser.getUsername(), gameId);
+            }
 
-        return new GameJoinResponse(
-                gameId,
-                role,
-                game.getFen(),
-                game.getStatus(),
-                game.getTurnColor().name()
-        );
+            return new GameJoinResponse(
+                    gameId,
+                    role,
+                    game.getFen(),
+                    game.getStatus(),
+                    game.getTurnColor().name()
+            );
+        }
+    }
+
+    public GameStateResponse makeMove(UserPrincipal currentUser, UUID gameId,
+                                      String moveFrom, String moveTo, @Nullable PieceType promotion) {
+        Game game = getGameOrThrow(gameId);
+        synchronized (game) {
+            requirePlayer(game, currentUser);
+            if (game.isGameOver()) {
+                throw new IllegalStateException("Game is already over");
+            }
+            if (!game.isUserTurn(currentUser)) {
+                throw new IllegalStateException("It is not your turn");
+            }
+            if (!game.makeMove(moveFrom, moveTo, promotion)) {
+                throw new IllegalArgumentException("Invalid move: " + moveFrom + " to " + moveTo);
+            }
+            logger.info("Move executed in game {}: {} to {}", gameId, moveFrom, moveTo);
+            return buildGameStateResponse(game);
+        }
     }
 
     public void offerDraw(UserPrincipal currentUser, UUID gameId) {
         logger.info("User {} offering draw in game {}", currentUser.getUsername(), gameId);
         Game game = getGameOrThrow(gameId);
-        requirePlayer(game, currentUser);
-
-        if (game.isGameOver()) {
-            throw new IllegalStateException("Game is over");
+        synchronized (game) {
+            Color color = playerColor(game, currentUser);
+            if (game.isGameOver()) {
+                throw new IllegalStateException("Game is over");
+            }
+            game.offerDraw(color);
+            logger.info("Draw offered by {} in game {}", color, gameId);
         }
-        Color color = game.getPlayerColor(currentUser);
-        if (color == null) {
-            throw new IllegalStateException("You can't offer a draw");
-        }
-        game.offerDraw(color);
-        logger.info("Draw offered by {} in game {}", color, gameId);
     }
 
     public GameStateResponse acceptDraw(UserPrincipal currentUser, UUID gameId) {
         Game game = getGameOrThrow(gameId);
-        requirePlayer(game, currentUser);
-
-        if (game.isGameOver()) {
-            logger.warn("Attempted draw offer on completed game {}", gameId);
-            throw new GameIsOverException("Game is already over");
+        synchronized (game) {
+            Color color = playerColor(game, currentUser);
+            if (game.isGameOver()) {
+                logger.warn("Attempted draw acceptance on completed game {}", gameId);
+                throw new GameIsOverException("Game is already over");
+            }
+            game.acceptDraw(color);
+            return buildGameStateResponse(game);
         }
-
-        Color color = game.getPlayerColor(currentUser);
-        game.acceptDraw(color);
-
-        return buildGameStateResponse(game);
     }
 
     public GameStateResponse resign(UserPrincipal currentUser, UUID gameId) {
         Game game = getGameOrThrow(gameId);
-        requirePlayer(game, currentUser);
-
-        if (game.isGameOver()) {
-            logger.warn("Attempted resignation on completed game {}", gameId);
-            throw new GameIsOverException("Game is already over");
+        synchronized (game) {
+            Color color = playerColor(game, currentUser);
+            if (game.isGameOver()) {
+                logger.warn("Attempted resignation on completed game {}", gameId);
+                throw new GameIsOverException("Game is already over");
+            }
+            game.resign(color);
+            logger.info("Player {} resigned in game {}", color, gameId);
+            return buildGameStateResponse(game);
         }
-
-        // Parse player color and resign
-        Color color = game.getPlayerColor(currentUser);
-        if (color == null) {
-            throw new IllegalStateException("you can't resign");
-        }
-        game.resign(color);
-
-        logger.info("Player {} resigned in game {}", color, gameId);
-        return buildGameStateResponse(game);
     }
 
     public GameStateResponse getGameState(UUID gameId) {
@@ -181,13 +191,15 @@ public class MatchService {
      * Build a GameStateResponse from the current game state
      */
     public GameStateResponse buildGameStateResponse(Game game) {
-        return new GameStateResponse(
-                game.getStatus(),
-                game.getFen(),
-                game.getLastMoveFrom(),
-                game.getLastMoveTo(),
-                game.getTurnColor().name()
-        );
+        synchronized (game) {
+            return new GameStateResponse(
+                    game.getStatus(),
+                    game.getFen(),
+                    game.getLastMoveFrom(),
+                    game.getLastMoveTo(),
+                    game.getTurnColor().name()
+            );
+        }
     }
 
     @Transactional
@@ -225,8 +237,8 @@ public class MatchService {
     /**
      * Get a game session (useful for testing or administrative purposes)
      */
-    public Game getGameSession(UUID gameId) {
-        return gameSessions.getOrDefault(gameId, null);
+    public @Nullable Game getGameSession(UUID gameId) {
+        return gameSessions.get(gameId);
     }
 
     public Game getGameOrThrow(UUID gameId) {
@@ -249,5 +261,14 @@ public class MatchService {
         if (!game.isValidPlayer(user)) {
             throw new IllegalStateException("You are not a player in this game");
         }
+    }
+
+    private Color playerColor(Game game, UserPrincipal user) {
+        requirePlayer(game, user);
+        Color color = game.getPlayerColor(user);
+        if (color == null) {
+            throw new IllegalStateException("You are not a player in this game");
+        }
+        return color;
     }
 }

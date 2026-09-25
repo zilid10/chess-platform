@@ -4,6 +4,7 @@ import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.*;
@@ -22,11 +23,11 @@ public class Game {
 
     // game metadata
     private final Instant startTime;
-    private volatile Instant endTime;
+    private volatile @Nullable Instant endTime;
     private volatile GameStatus status;
-    private volatile UserPrincipal whitePlayer;
-    private volatile UserPrincipal blackPlayer;
-    private volatile Color drawOfferedBy;
+    private volatile @Nullable UserPrincipal whitePlayer;
+    private volatile @Nullable UserPrincipal blackPlayer;
+    private volatile @Nullable Color drawOfferedBy;
 
     public Game() {
         this(null, null);
@@ -37,6 +38,7 @@ public class Game {
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
         repetitions = new HashMap<>();
+        repetitions.put(position.hashCode(), 1);
         status = GameStatus.ONGOING;
         startTime = Instant.now();
         this.whitePlayer = whitePlayer;
@@ -68,7 +70,7 @@ public class Game {
     /**
      * Make a move using chess notation
      */
-    public synchronized boolean makeMove(String fromNotation, String toNotation, PieceType promotionType) {
+    public synchronized boolean makeMove(String fromNotation, String toNotation, @Nullable PieceType promotionType) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
@@ -233,11 +235,11 @@ public class Game {
         return startTime;
     }
 
-    public Instant getEndTime() {
+    public @Nullable Instant getEndTime() {
         return endTime;
     }
 
-    public UserPrincipal getWhitePlayer() {
+    public @Nullable UserPrincipal getWhitePlayer() {
         return whitePlayer;
     }
 
@@ -245,7 +247,7 @@ public class Game {
         this.whitePlayer = whitePlayer;
     }
 
-    public UserPrincipal getBlackPlayer() {
+    public @Nullable UserPrincipal getBlackPlayer() {
         return blackPlayer;
     }
 
@@ -253,7 +255,7 @@ public class Game {
         this.blackPlayer = blackPlayer;
     }
 
-    public synchronized Color getDrawOfferedBy() {
+    public synchronized @Nullable Color getDrawOfferedBy() {
         return drawOfferedBy;
     }
 
@@ -280,7 +282,7 @@ public class Game {
     /**
      * Get the color in this game of the given user, spectator will get a null
      */
-    public Color getPlayerColor(UserPrincipal currentUser) {
+    public @Nullable Color getPlayerColor(UserPrincipal currentUser) {
         if (currentUser.equals(whitePlayer)) {
             return Color.WHITE;
         }

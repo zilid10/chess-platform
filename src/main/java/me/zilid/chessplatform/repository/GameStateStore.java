@@ -1,7 +1,9 @@
 package me.zilid.chessplatform.repository;
 
 import me.zilid.chessplatform.model.dto.ActiveGameState;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.stereotype.Repository;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -22,13 +24,13 @@ public class GameStateStore {
     public void storeGame(String gameId, ActiveGameState game) {
         try {
             String json = objectMapper.writeValueAsString(game);
-            redisTemplate.opsForValue().set(key(gameId), json, 1, TimeUnit.HOURS);
+            redisTemplate.opsForValue().set(key(gameId), json, Expiration.from(1, TimeUnit.HOURS));
         } catch (JacksonException e) {
             throw new IllegalArgumentException("failed to serialize game state for gameId=" + gameId, e);
         }
     }
 
-    public ActiveGameState loadGame(String gameId) {
+    public @Nullable ActiveGameState loadGame(String gameId) {
         String json = redisTemplate.opsForValue().get(key(gameId));
         if (json == null) {
             return null;

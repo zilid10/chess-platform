@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.model.entity;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,7 +15,16 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
     private final String email;
     private final boolean enabled;
     private final Collection<? extends GrantedAuthority> authorities;
-    private String passwordHash;
+    private @Nullable String passwordHash;
+
+    public UserPrincipal(UUID id, String username, String email, String passwordHash, boolean enabled, Collection<? extends GrantedAuthority> authorities) {
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.enabled = enabled;
+        this.authorities = authorities;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -25,15 +35,6 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
     @Override
     public int hashCode() {
         return Objects.hashCode(id);
-    }
-
-    public UserPrincipal(UUID id, String username, String email, String passwordHash, boolean enabled, Collection<? extends GrantedAuthority> authorities) {
-        this.id = id;
-        this.username = username;
-        this.email = email;
-        this.passwordHash = passwordHash;
-        this.enabled = enabled;
-        this.authorities = authorities;
     }
 
     public UUID getId() {
@@ -60,7 +61,7 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
     }
 
     @Override
-    public String getPassword() {
+    public @Nullable String getPassword() {
         return passwordHash;
     }
 

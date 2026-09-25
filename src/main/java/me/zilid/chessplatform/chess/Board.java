@@ -1,5 +1,7 @@
 package me.zilid.chessplatform.chess;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.*;
 
 public class Board {
@@ -8,19 +10,20 @@ public class Board {
     private static final int[][] KING = {{0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}};
     private static final int[][] ORTHO = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
     private static final int[][] DIAG = {{1, 1}, {1, -1}, {-1, -1}, {-1, 1}};
-    private final Piece[] pieces;
+    private final @Nullable Piece[] pieces;
     private final Map<Color, Square> kingLocations;
 
     // TODO: add validation for Board
-    public Board(Piece[] pieces) {
+    public Board(@Nullable Piece[] pieces) {
         if (pieces.length != BOARD_SIZE) {
             throw new IllegalArgumentException("The size of the board must be equal to " + BOARD_SIZE);
         }
         kingLocations = new EnumMap<>(Color.class);
         this.pieces = Arrays.copyOf(pieces, pieces.length);
         for (int i = 0; i < BOARD_SIZE; i++) {
-            if (this.pieces[i] != null && this.pieces[i].type() == PieceType.KING) {
-                kingLocations.put(this.pieces[i].color(), new Square(i));
+            Piece piece = this.pieces[i];
+            if (piece != null && piece.type() == PieceType.KING) {
+                kingLocations.put(piece.color(), new Square(i));
             }
         }
     }
@@ -103,7 +106,7 @@ public class Board {
         return piece != null && piece.color() == color && piece.type() == type;
     }
 
-    public Piece firstPieceOnRay(Square square, int[] dir) {
+    public @Nullable Piece firstPieceOnRay(Square square, int[] dir) {
         int file = square.file() + dir[0];
         int rank = square.rank() + dir[1];
         while (Square.isValid(file, rank)) {
@@ -121,11 +124,11 @@ public class Board {
         return new Board(pieces);
     }
 
-    public Piece pieceAt(Square square) {
+    public @Nullable Piece pieceAt(Square square) {
         return pieces[square.index()];
     }
 
-    public Piece put(Square square, Piece piece) {
+    public @Nullable Piece put(Square square, @Nullable Piece piece) {
         Piece oldPiece = pieces[square.index()];
         pieces[square.index()] = piece;
         if (piece != null && piece.type() == PieceType.KING) {
@@ -134,7 +137,7 @@ public class Board {
         return oldPiece;
     }
 
-    public Piece move(Square from, Square to) {
+    public @Nullable Piece move(Square from, Square to) {
         Piece piece = put(from, null);
         return put(to, piece);
     }
@@ -144,13 +147,14 @@ public class Board {
     }
 
     public Square kingSquare(Color color) {
-        return kingLocations.getOrDefault(color, null);
+        return kingLocations.get(color);
     }
 
     public int count(Color color) {
         int cnt = 0;
         for (int i = 0; i < BOARD_SIZE; i++) {
-            if (pieces[i] != null && pieces[i].color() == color) {
+            Piece piece = pieces[i];
+            if (piece != null && piece.color() == color) {
                 cnt++;
             }
         }

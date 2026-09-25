@@ -221,6 +221,21 @@ class ChessRulesTest {
     }
 
     @Nested
+    class EdgeFilePawns {
+
+        @Test
+        void cornerPawnsHaveNoOffBoardCaptures() {
+            Position white = Position.startingPosition();
+            assertThat(legalMovesFrom(white, "a2")).containsExactlyInAnyOrder("a3", "a4");
+            assertThat(legalMovesFrom(white, "h2")).containsExactlyInAnyOrder("h3", "h4");
+
+            Position black = Fen.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1");
+            assertThat(legalMovesFrom(black, "a7")).containsExactlyInAnyOrder("a6", "a5");
+            assertThat(legalMovesFrom(black, "h7")).containsExactlyInAnyOrder("h6", "h5");
+        }
+    }
+
+    @Nested
     class Promotion {
 
         @ParameterizedTest
