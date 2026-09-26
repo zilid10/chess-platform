@@ -1,11 +1,13 @@
 package me.zilid.chessplatform.service;
 
+import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -24,7 +26,7 @@ class UserPrincipalServiceTest {
     @BeforeEach
     void setUp() {
         userRepo = mock(UserRepo.class);
-        service = new UserPrincipalService(userRepo);
+        service = new UserPrincipalService(userRepo, new UserConverter(mock(PasswordEncoder.class)));
     }
 
     @Test

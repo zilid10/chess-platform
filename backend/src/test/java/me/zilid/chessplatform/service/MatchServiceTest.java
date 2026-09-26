@@ -23,7 +23,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -279,8 +278,8 @@ class MatchServiceTest {
         User bobEntity = new User("bob@example.com", "bob", "hash", "");
         Game game = new Game(principal(aliceEntity), principal(bobEntity));
         game.resign(Color.WHITE);
-        when(userRepo.findById(aliceEntity.getId())).thenReturn(Optional.of(aliceEntity));
-        when(userRepo.findById(bobEntity.getId())).thenReturn(Optional.of(bobEntity));
+        when(userRepo.getReferenceById(aliceEntity.getId())).thenReturn(aliceEntity);
+        when(userRepo.getReferenceById(bobEntity.getId())).thenReturn(bobEntity);
 
         service.archiveMatch(UUID.randomUUID(), game);
 

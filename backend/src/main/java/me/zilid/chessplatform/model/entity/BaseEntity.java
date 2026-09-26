@@ -14,7 +14,7 @@ import java.util.UUID;
 @MappedSuperclass
 public abstract class BaseEntity {
     static private final TimeBasedEpochGenerator uuidGenerator = Generators.timeBasedEpochGenerator();
-    
+
     @Id
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id = uuidGenerator.generate();
