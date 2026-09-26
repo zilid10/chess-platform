@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.service;
 
+import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
@@ -83,7 +84,7 @@ class UserServiceTest {
         UUID missingId = UUID.randomUUID();
 
         assertThatThrownBy(() -> service.updateUser(missingId, new UserUpdateRequest("newName", null, null, null)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(UserNotFoundException.class)
                 .hasMessage("User not found!");
         verify(userRepo, never()).save(any());
         verifyNoInteractions(passwordEncoder);

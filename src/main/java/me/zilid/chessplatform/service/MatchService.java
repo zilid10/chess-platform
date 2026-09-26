@@ -65,7 +65,7 @@ public class MatchService {
     @Transactional(readOnly = true)
     public String getMatchPGN(UUID matchId) {
         logger.debug("Fetching PGN for match: {}", matchId);
-        MatchRecord matchRecord = matchRecordRepo.findById(matchId).orElseThrow(() -> new IllegalArgumentException("Game with id " + matchId + " does not exist"));
+        MatchRecord matchRecord = matchRecordRepo.findById(matchId).orElseThrow(() -> new GameNotFoundException("Game with id " + matchId + " does not exist"));
         return matchRecord.getPgn();
     }
 

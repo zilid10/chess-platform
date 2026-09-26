@@ -1,6 +1,8 @@
 package me.zilid.chessplatform.service;
 
 
+import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
+import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.FriendRequestConverter;
 import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
@@ -43,11 +45,11 @@ public class FriendService {
 
         // check if they are already friends
         User sender = userRepo.findById(senderId)
-                .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
+                .orElseThrow(() -> new UserNotFoundException("Sender not found"));
         User recipient = userRepo.findById(recipientId)
-                .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
+                .orElseThrow(() -> new UserNotFoundException("Recipient not found"));
         if (friendRequestRepo.existsFriendships(senderId, recipientId)) {
-            throw new IllegalArgumentException("Users are already friends");
+            throw new FriendAlreadyExistsException("Users are already friends");
         }
 
         // check if there already exists pending friend request
@@ -123,8 +125,8 @@ public class FriendService {
     @Transactional
     public void deleteFriend(UUID userId, UUID friendId) {
         logger.info("Removing friendship between user {} and {}", userId, friendId);
-        User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
-        User friend = userRepo.findById(friendId).orElseThrow(() -> new IllegalArgumentException("Friend not found"));
+        User user = userRepo.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+        User friend = userRepo.findById(friendId).orElseThrow(() -> new UserNotFoundException("Friend not found"));
         if (!friend.getFriends().contains(user)) {
             throw new IllegalArgumentException("friendship does not exist");
         }

@@ -76,6 +76,8 @@ class UserSessionIT {
         assertThat(session.isInvalid()).isTrue();
 
         mvc.perform(get("/api/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail").value("Authentication required"));
     }
 }

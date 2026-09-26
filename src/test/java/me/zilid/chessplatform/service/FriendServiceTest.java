@@ -1,5 +1,7 @@
 package me.zilid.chessplatform.service;
 
+import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
+import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.FriendRequestConverter;
 import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
@@ -56,12 +58,12 @@ class FriendServiceTest {
     @Test
     void cannotSendRequestWhenSenderOrRecipientDoesNotExist() {
         assertThatThrownBy(() -> service.createFriendRequest(alice.getId(), bob.getId()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(UserNotFoundException.class)
                 .hasMessage("Sender not found");
 
         when(userRepo.findById(alice.getId())).thenReturn(Optional.of(alice));
         assertThatThrownBy(() -> service.createFriendRequest(alice.getId(), bob.getId()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(UserNotFoundException.class)
                 .hasMessage("Recipient not found");
         verifyNoInteractions(requestRepo);
     }
@@ -72,7 +74,7 @@ class FriendServiceTest {
         when(requestRepo.existsFriendships(alice.getId(), bob.getId())).thenReturn(true);
 
         assertThatThrownBy(() -> service.createFriendRequest(alice.getId(), bob.getId()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(FriendAlreadyExistsException.class)
                 .hasMessage("Users are already friends");
         verify(requestRepo, never()).save(any());
     }

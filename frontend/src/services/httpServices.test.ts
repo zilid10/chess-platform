@@ -143,6 +143,21 @@ describe('HTTP services', () => {
     expect(location.href).toBe('/register');
   });
 
+  it.each([
+    [{ detail: 'User not found', title: 'Not Found', status: 404 }, 'User not found'],
+    [{ detail: 'Validation failed', errors: { username: ['Too short'] } }, 'Validation failed'],
+    [{ title: 'Service Unavailable' }, 'Service Unavailable'],
+    [{ detail: 'New format', error: 'Old format' }, 'New format'],
+    [{ detail: { nested: 'invalid' }, error: 123 }, 'Request failed'],
+    [{ detail: '   ' }, 'Request failed'],
+    ['<html>Bad Gateway</html>', 'Request failed'],
+    [null, 'Request failed'],
+  ])('reads problem details and tolerates unexpected bodies: %j', (data, expected) => {
+    const response = { data, status: 400 } as AxiosResponse;
+    const error = new AxiosError('Request error', AxiosError.ERR_BAD_RESPONSE, undefined, undefined, response);
+    expect(apiErrorMessage(error, 'Request failed')).toBe(expected);
+  });
+
   it('extracts API error messages and falls back for other errors', () => {
     const response = { data: { error: 'Name already taken' }, status: 409 } as AxiosResponse;
     const error = new AxiosError('Conflict', AxiosError.ERR_BAD_RESPONSE, undefined, undefined, response);

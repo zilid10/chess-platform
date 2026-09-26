@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.service;
 
 import jakarta.transaction.Transactional;
+import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
@@ -38,7 +39,7 @@ public class UserService {
     @Transactional
     public UserResponse updateUser(UUID userId, UserUpdateRequest request) {
         logger.debug("Updating user with ID: {}", userId);
-        User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found!"));
+        User user = userRepo.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found!"));
         userConverter.updateEntityFromDto(request, user);
         logger.info("User updated successfully: {}", user.getUsername());
         return userConverter.toResponse(user);
@@ -61,7 +62,7 @@ public class UserService {
     @Transactional
     public UserResponse getUserById(UUID userId) {
         logger.debug("Fetching user by ID: {}", userId);
-        User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found!"));
+        User user = userRepo.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found!"));
         return userConverter.toResponse(user);
     }
 
