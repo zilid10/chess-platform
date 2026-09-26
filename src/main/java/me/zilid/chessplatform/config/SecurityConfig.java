@@ -1,9 +1,14 @@
 package me.zilid.chessplatform.config;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,6 +25,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import tools.jackson.databind.json.JsonMapper;
+
+import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
@@ -46,7 +55,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper) {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
@@ -59,6 +68,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated() // all other endpoints require authentication
                 )
+                // Filter failures happen before MVC, so controller advice cannot render them.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, ex) -> writeProblem(
+                                jsonMapper, request, response, HttpStatus.UNAUTHORIZED, "Authentication required"))
+                        .accessDeniedHandler((request, response, ex) -> writeProblem(
+                                jsonMapper, request, response, HttpStatus.FORBIDDEN,
+                                "You do not have permission to perform this action")))
                 .httpBasic(AbstractHttpConfigurer::disable) // disable HTTP Basic auth
                 .formLogin(AbstractHttpConfigurer::disable) // disable default form login
                 .logout(logout -> logout
@@ -69,6 +85,15 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    private static void writeProblem(JsonMapper jsonMapper, HttpServletRequest request,
+                                     HttpServletResponse response, HttpStatus status, String detail) throws IOException {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setInstance(URI.create(request.getRequestURI()));
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        jsonMapper.writeValue(response.getOutputStream(), problem);
     }
 
     @Bean

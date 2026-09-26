@@ -2,6 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.config.SecurityConfig;
 import me.zilid.chessplatform.exception.GlobalExceptionHandler;
+import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
@@ -35,7 +36,6 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -46,6 +46,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // The production application enables JPA repositories, so keep this MVC slice isolated.
@@ -100,7 +101,12 @@ class UserControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value(containsString(field + ": ")));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Validation failed"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.instance").value("/api/users"))
+                .andExpect(jsonPath("$.errors." + field).isArray())
+                .andExpect(jsonPath("$.errors." + field + "[0]").isNotEmpty());
 
         verifyNoInteractions(userService);
     }
@@ -131,7 +137,7 @@ class UserControllerWebMvcTest {
                                  "rawPassword":"password123"}
                                 """))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("Request conflicts with existing data"));
+                .andExpect(jsonPath("$.detail").value("Request conflicts with existing data"));
     }
 
     @Test
@@ -140,7 +146,7 @@ class UserControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Invalid request body"));
+                .andExpect(jsonPath("$.detail").value("Invalid request body"));
 
         verifyNoInteractions(userService);
     }
@@ -148,7 +154,7 @@ class UserControllerWebMvcTest {
     @Test
     void currentUserRequiresAuthentication() throws Exception {
         mvc.perform(get("/api/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(userService);
     }
@@ -203,7 +209,7 @@ class UserControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"ab\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value(containsString("username: ")));
+                .andExpect(jsonPath("$.errors.username").isArray());
 
         verifyNoInteractions(userService);
     }
@@ -235,8 +241,38 @@ class UserControllerWebMvcTest {
                                 {"username":"player","password":"wrong"}
                                 """))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Invalid email or password"));
+                .andExpect(jsonPath("$.detail").value("Invalid username or password"));
 
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void missingUserReturnsNotFound() throws Exception {
+        when(userService.getUserById(USER_ID)).thenThrow(new UserNotFoundException("User not found!"));
+        mvc.perform(get("/api/me").with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("User not found!"));
+    }
+
+    @Test
+    void unsupportedContentTypeReturns415() throws Exception {
+        mvc.perform(post("/api/users").contentType(MediaType.TEXT_PLAIN).content("not JSON"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415));
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void validationReportsAllInvalidFieldsWithoutEchoingRejectedValues() throws Exception {
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"ab","email":"invalid","rawPassword":"pw"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.username[0]").isNotEmpty())
+                .andExpect(jsonPath("$.errors.email[0]").isNotEmpty())
+                .andExpect(jsonPath("$.errors.rawPassword[0]").isNotEmpty())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("pw"))));
         verifyNoInteractions(userService);
     }
 }

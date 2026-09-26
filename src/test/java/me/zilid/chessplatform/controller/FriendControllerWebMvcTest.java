@@ -2,6 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.config.SecurityConfig;
 import me.zilid.chessplatform.exception.GlobalExceptionHandler;
+import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.entity.FriendRequest;
@@ -68,7 +69,7 @@ class FriendControllerWebMvcTest {
     @ParameterizedTest
     @MethodSource("friendRoutes")
     void everyFriendRouteRequiresAuthentication(MockHttpServletRequestBuilder request) throws Exception {
-        mvc.perform(request).andExpect(status().isForbidden());
+        mvc.perform(request).andExpect(status().isUnauthorized());
 
         verifyNoInteractions(friendService);
     }
@@ -155,10 +156,10 @@ class FriendControllerWebMvcTest {
     @Test
     void invalidFriendRequestUsesTheApplicationErrorResponse() throws Exception {
         when(friendService.createFriendRequest(USER_ID, FRIEND_ID))
-                .thenThrow(new IllegalArgumentException("Users are already friends"));
+                .thenThrow(new FriendAlreadyExistsException("Users are already friends"));
 
         mvc.perform(post("/api/friends/send/{userId}", FRIEND_ID).with(user(PLAYER)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Users are already friends"));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Users are already friends"));
     }
 }
