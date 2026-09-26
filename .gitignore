@@ -1,14 +1,15 @@
-./docker/volumes
-frontend/node_modules
-.idea*
-docker/volumes
+/docker/volumes/
 .DS_Store
 
-HELP.md
+# Backend
 target/
-.mvn/wrapper/maven-wrapper.jar
+backend/.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+# Frontend
+node_modules/
+dist/
 
 ### STS ###
 .apt_generated

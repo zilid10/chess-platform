@@ -32,7 +32,7 @@ services:
       - ./docker/volumes/redis-dev:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -46,7 +46,7 @@ services:
     networks:
       - backend
     volumes:
-      - ./docker/db/migrations:/flyway/sql
+      - ./backend/src/main/resources/db/migrations:/flyway/sql:ro
     environment:
       FLYWAY_URL: jdbc:postgresql://db:5432/chessdb
       FLYWAY_USER: root
@@ -60,14 +60,14 @@ services:
     container_name: chess-backend
     hostname: backend
     build:
-      context: .
+      context: ./backend
     ports:
       - "8080:8080"
     networks:
       - backend
       - frontend
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health"]
+      test: [ "CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
