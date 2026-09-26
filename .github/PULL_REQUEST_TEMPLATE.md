@@ -20,7 +20,7 @@
 
 - [ ] I kept the change focused and reviewed my own diff.
 - [ ] I added or updated tests for changed behavior, where appropriate.
-- [ ] Backend tests pass with `./mvnw verify`.
+- [ ] Backend tests pass with `./mvnw verify` from `backend/`.
 - [ ] Frontend checks pass with `npm ci && npm run build` from `frontend/`, if applicable.
 - [ ] I updated documentation or API examples, if applicable.
 - [ ] I did not commit secrets, credentials, or generated build artifacts.

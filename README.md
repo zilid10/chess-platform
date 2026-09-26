@@ -15,10 +15,34 @@ Chess Platform is a web-based chess application that allows users to:
 
 ## Project Architecture
 
+### Repository Layout
+
+```text
+chess-platform/
+├── backend/
+│   ├── .mvn/                  # Maven wrapper configuration
+│   ├── src/main/java/         # Application and chess logic
+│   ├── src/main/resources/    # Spring configuration and db/migrations/
+│   ├── src/test/              # Backend tests
+│   ├── Dockerfile
+│   ├── flyway.conf            # Local Flyway CLI configuration
+│   ├── mvnw / mvnw.cmd
+│   └── pom.xml
+├── frontend/                  # React application, npm config, and Dockerfile
+├── docker/volumes/            # Local runtime data (Git-ignored)
+├── .github/                   # CI and dependency updates
+└── docker-compose.yml         # Shared application stack
+```
+
+Run Docker Compose from the repository root, Maven and Flyway commands from
+`backend/`, and npm commands from `frontend/`. Compose, CI, and the local Flyway
+configuration all use `backend/src/main/resources/db/migrations/` as the migration source.
+Migrations are applied externally; Spring Boot does not run Flyway automatically.
+
 ### Backend
 
 - Java 21: with Virtual Threads
-- Spring Boot 4.1.0: Core framework
+- Spring Boot 4.1.1: Core framework
 - Spring Security: Session-based authentication
 - Spring WebSocket: Real-time bidirectional communication (STOMP over WebSocket)
 - Spring Data JPA: Data persistence layer
@@ -34,7 +58,7 @@ Chess Platform is a web-based chess application that allows users to:
 
 ### Backend Architecture
 
-This project used layered architecture:
+The backend uses a layered architecture under `backend/src/main/java/me/zilid/chessplatform/`:
 
 - `chess/` - Board state, move rules, game lifecycle, and notation
 - `controller/` - API endpoints and WebSocket handlers
@@ -57,11 +81,12 @@ This project used layered architecture:
 
 Core Engine Components:
 
-- `Game.java` - Thread safe game management
-- `ChessEngine.java` - Chess engine implementation
-- `Board.java` - Board state management and move validation
-- `Move.java` & `MoveHistory.java` - Move tracking
-- `Position.java` - Chess notation and coordinate translation
+- `chess/game/Game.java` - Game lifecycle and move history
+- `chess/MoveGenerator.java` - Legal move generation and validation
+- `chess/Board.java` - Piece placement and attack detection
+- `chess/Position.java` - Position state, move application, and undo
+- `chess/Move.java` and `chess/UndoInfo.java` - Move representation and undo data
+- `chess/format/` - FEN, UCI, SAN, and PGN notation
 
 Chess Piece Implementation:
 
@@ -154,31 +179,40 @@ docker compose up --build
 
 Manual setup can be very error-prone, docker compose setup is recommended.
 
-1. Ensure PostgreSQL is running locally on port 5432
-2. configure `flyway.conf` and migrate database
+1. Ensure PostgreSQL is running locally on port 5432 and Redis on port 6379. Create the database and user.
+2. From the repository root, enter `backend/`, configure `flyway.conf`, and migrate the database:
 
 ```shell
-vim flyway.conf # some settings need to be changed (e.g., flyway.url, flyway.user, flyway.password)
-flyway migrate
+cd backend
+vim flyway.conf # Set flyway.url, flyway.user, and flyway.password for your local database
+flyway -configFiles=flyway.conf migrate
 ```
 
-3. Start up backend
+3. Start the backend from the same `backend/` directory using JDK 21:
 
 ```shell
-./mvnw clean install
-./mvnw spring-boot:run -Dspring.datasource.url=jdbc:postgresql://localhost:5432/your_db \
-                       -Dspring.datasource.username=your_db_user \
-                       -Dspring.datasource.password=your_db_password
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/your_db
+export SPRING_DATASOURCE_USERNAME=your_db_user
+export SPRING_DATASOURCE_PASSWORD=your_db_password
+export SPRING_DATA_REDIS_HOST=localhost
+./mvnw spring-boot:run
 ```
 
-4. configure `vite.config.ts` and run frontend
+4. In a separate terminal at the repository root, configure and run the frontend:
 
 ```bash
-vim vite.config.ts # some settings need to be changed (Change proxy target from 'http://backend:8080' to 'http://localhost:8080')
 cd frontend
-npm install
+vim vite.config.ts # Change both proxy targets from 'http://backend:8080' to 'http://localhost:8080'
+npm ci
 npm run dev
 ```
+
+### Validation
+
+- From `backend/`: `./mvnw test` for the quick suite. Run `./mvnw verify` with
+  PostgreSQL, Redis, applied migrations, and the environment variables above for
+  database-backed tests and integration tests.
+- From `frontend/`: `npm ci`, `npm run lint`, `npm test`, and `npm run build`.
 
 ### Access the Application
 
