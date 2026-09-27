@@ -34,6 +34,25 @@ export interface FriendRequest {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 }
 
+export type TimeControl = 'BULLET' | 'BLITZ' | 'RAPID' | 'CLASSICAL' | 'CORRESPONDENCE';
+
+export const TIME_CONTROLS: TimeControl[] = ['BULLET', 'BLITZ', 'RAPID', 'CLASSICAL', 'CORRESPONDENCE'];
+
+export const TIME_CONTROL_LABELS: Record<TimeControl, string> = {
+  BULLET: 'Bullet',
+  BLITZ: 'Blitz',
+  RAPID: 'Rapid',
+  CLASSICAL: 'Classical',
+  CORRESPONDENCE: 'Correspondence',
+};
+
+export interface PlayerRating {
+  timeControl: TimeControl;
+  rating: number;
+  gamesPlayed: number;
+  peakRating: number;
+}
+
 export interface MatchRecord {
   id: string;
   whitePlayer: User;
@@ -41,7 +60,14 @@ export interface MatchRecord {
   startTime: string;
   endTime?: string;
   result: string;
+  reason?: string;
   pgn?: string;
+  // Rating fields are null for games played before ratings were tracked.
+  timeControl?: TimeControl | null;
+  whiteRating?: number | null;
+  blackRating?: number | null;
+  whiteRatingChange?: number | null;
+  blackRatingChange?: number | null;
 }
 
 export interface GameState {
@@ -89,6 +115,7 @@ export interface PageResponse<T> {
 export interface GameCreatedResponse {
   gameId: string;
   color: 'WHITE' | 'BLACK';
+  timeControl: TimeControl;
   fen: string;
   socketUrl: string;
 }
@@ -96,6 +123,7 @@ export interface GameCreatedResponse {
 export interface GameJoinResponse {
   gameId: string;
   role: string;
+  timeControl: TimeControl;
   fen: string;
   status: GameStatus;
   currentTurn: string;

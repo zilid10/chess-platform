@@ -33,6 +33,7 @@ public class Game {
 
     // game metadata
     private final Instant startTime;
+    private final TimeControl timeControl;
     private volatile @Nullable Instant endTime;
     private volatile GameStatus status;
     private volatile @Nullable UserPrincipal whitePlayer;
@@ -44,6 +45,10 @@ public class Game {
     }
 
     public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
+        this(whitePlayer, blackPlayer, TimeControl.RAPID);
+    }
+
+    public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer, TimeControl timeControl) {
         position = Position.startingPosition();
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
@@ -51,6 +56,7 @@ public class Game {
         repetitions.put(position.hashCode(), 1);
         status = GameStatus.ONGOING;
         startTime = Instant.now();
+        this.timeControl = timeControl;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
@@ -61,6 +67,7 @@ public class Game {
             Map<Integer, Integer> repetitions,
             Instant startTime,
             Instant endTime,
+            TimeControl timeControl,
             GameStatus status,
             UserPrincipal whitePlayer,
             UserPrincipal blackPlayer,
@@ -71,6 +78,7 @@ public class Game {
         this.repetitions = repetitions;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.timeControl = timeControl;
         this.status = status;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
@@ -123,6 +131,7 @@ public class Game {
                 Map.copyOf(repetitions),
                 startTime,
                 endTime,
+                timeControl,
                 status,
                 whitePlayer.getId(),
                 blackPlayer.getId(),
@@ -238,6 +247,10 @@ public class Game {
 
     public Instant getStartTime() {
         return startTime;
+    }
+
+    public TimeControl getTimeControl() {
+        return timeControl;
     }
 
     public @Nullable Instant getEndTime() {

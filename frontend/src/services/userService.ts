@@ -1,5 +1,5 @@
 import api from './api';
-import { User, UserCreateRequest, UserUpdateRequest, PageResponse } from '../types';
+import { User, UserCreateRequest, UserUpdateRequest, PageResponse, PlayerRating } from '../types';
 
 export const userService = {
   createUser: async (request: UserCreateRequest): Promise<User> => {
@@ -34,6 +34,11 @@ export const userService = {
 
   getCurrentUser: async (): Promise<User> => {
     const response = await api.get('/me');
+    return response.data;
+  },
+
+  getRatings: async (userId: string): Promise<PlayerRating[]> => {
+    const response = await api.get(`/users/${userId}/ratings`);
     return response.data;
   },
 };

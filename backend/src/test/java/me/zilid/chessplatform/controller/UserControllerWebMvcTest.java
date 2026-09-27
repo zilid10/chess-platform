@@ -1,12 +1,15 @@
 package me.zilid.chessplatform.controller;
 
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.config.SecurityConfig;
 import me.zilid.chessplatform.exception.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.UserNotFoundException;
+import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.service.RatingService;
 import me.zilid.chessplatform.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -73,7 +76,43 @@ class UserControllerWebMvcTest {
     private UserService userService;
 
     @MockitoBean
+    private RatingService ratingService;
+
+    @MockitoBean
     private AuthenticationManager authenticationManager;
+
+    @Test
+    void ratingsAreListedPerTimeControl() throws Exception {
+        when(ratingService.getRatings(USER_ID)).thenReturn(List.of(
+                new PlayerRatingResponse(TimeControl.BLITZ, 1250, 12, 1290),
+                new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200)));
+
+        mvc.perform(get("/api/users/{userId}/ratings", USER_ID)
+                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].timeControl").value("BLITZ"))
+                .andExpect(jsonPath("$[0].rating").value(1250))
+                .andExpect(jsonPath("$[0].gamesPlayed").value(12))
+                .andExpect(jsonPath("$[0].peakRating").value(1290))
+                .andExpect(jsonPath("$[1].timeControl").value("RAPID"));
+    }
+
+    @Test
+    void ratingsForUnknownUserAreNotFound() throws Exception {
+        when(ratingService.getRatings(USER_ID)).thenThrow(new UserNotFoundException("User not found!"));
+
+        mvc.perform(get("/api/users/{userId}/ratings", USER_ID)
+                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void ratingsRequireAuthentication() throws Exception {
+        mvc.perform(get("/api/users/{userId}/ratings", USER_ID))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(ratingService);
+    }
 
     @Test
     void registrationIsPublicAndReturnsCreatedUser() throws Exception {

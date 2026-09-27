@@ -20,7 +20,12 @@ public class MatchRecordConverter {
                 matchRecord.getMatchResult(),
                 matchRecord.getReason(),
                 matchRecord.getStartTime(),
-                matchRecord.getEndTime()
+                matchRecord.getEndTime(),
+                matchRecord.getTimeControl(),
+                matchRecord.getWhiteRating(),
+                matchRecord.getBlackRating(),
+                matchRecord.getWhiteRatingChange(),
+                matchRecord.getBlackRatingChange()
         );
     }
 }

@@ -3,6 +3,7 @@ package me.zilid.chessplatform.model.dto;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.game.GameStatus;
+import me.zilid.chessplatform.chess.game.TimeControl;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,6 +21,7 @@ public record ActiveGameState(
         // game metadata
         Instant startTime,
         Instant endTime,
+        TimeControl timeControl,
         GameStatus status,
         UUID whitePlayerId,
         UUID blackPlayerId,

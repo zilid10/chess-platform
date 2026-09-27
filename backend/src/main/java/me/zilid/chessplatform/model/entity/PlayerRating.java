@@ -14,7 +14,7 @@ import me.zilid.chessplatform.chess.game.TimeControl;
         }
 )
 public class PlayerRating extends AuditedBaseEntity {
-    private static final int DEFAULT_RATING = 1200;
+    public static final int DEFAULT_RATING = 1200;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", updatable = false, nullable = false)

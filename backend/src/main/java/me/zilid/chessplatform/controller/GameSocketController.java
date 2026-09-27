@@ -9,6 +9,7 @@ import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -230,12 +231,22 @@ public class GameSocketController {
         if (response.gameStatus().isGameOver()) {
             sendSystemMessage(gameId, "Game Over: " + response.gameStatus().getDescription());
             try {
-                matchService.archiveMatch(gameId, matchService.getGameOrThrow(gameId));
+                Game game = matchService.getGameOrThrow(gameId);
+                RatingChange ratingChange = matchService.archiveMatch(gameId, game);
+                sendSystemMessage(gameId, ratingSummary(game, ratingChange));
                 matchService.scheduleGameCleanup(gameId);
             } catch (Exception e) {
                 logger.error("Failed to archive game {}", gameId, e);
             }
         }
+    }
+
+    private static String ratingSummary(Game game, RatingChange change) {
+        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().getUsername();
+        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().getUsername();
+        return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
+                game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
+                black, change.blackAfter(), change.blackDelta());
     }
 
     @MessageExceptionHandler

@@ -3,6 +3,7 @@ package me.zilid.chessplatform.service;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
@@ -13,6 +14,7 @@ import me.zilid.chessplatform.model.dto.MatchRecordResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.jspecify.annotations.Nullable;
@@ -39,13 +41,16 @@ public class MatchService {
     private final MatchRecordConverter matchRecordConverter;
     private final MatchRecordRepo matchRecordRepo;
     private final UserRepo userRepo;
+    private final RatingService ratingService;
 
     private final ConcurrentMap<UUID, Game> gameSessions = new ConcurrentHashMap<>();
 
-    public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo) {
+    public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo,
+                        RatingService ratingService) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
         this.userRepo = userRepo;
+        this.ratingService = ratingService;
     }
 
     @Transactional(readOnly = true)
@@ -69,19 +74,19 @@ public class MatchService {
         return matchRecord.getPgn();
     }
 
-    public GameCreatedResponse createGame(UserPrincipal currentUser, Color color) {
+    public GameCreatedResponse createGame(UserPrincipal currentUser, Color color, TimeControl timeControl) {
         UUID gameId = UUID.randomUUID();
-        logger.info("Creating new game {} for user {} with color {}", gameId, currentUser.getUsername(), color);
-        Game game = getOrCreateGameSession(gameId);
-        if (color.isWhite()) {
-            game.setWhitePlayer(currentUser);
-        } else {
-            game.setBlackPlayer(currentUser);
-        }
+        logger.info("Creating new {} game {} for user {} with color {}",
+                timeControl, gameId, currentUser.getUsername(), color);
+        Game game = color.isWhite()
+                ? new Game(currentUser, null, timeControl)
+                : new Game(null, currentUser, timeControl);
+        gameSessions.put(gameId, game);
 
         return new GameCreatedResponse(
                 gameId,
                 color,
+                timeControl,
                 game.getFen(),
                 "/game/" + gameId
         );
@@ -115,6 +120,7 @@ public class MatchService {
             return new GameJoinResponse(
                     gameId,
                     role,
+                    game.getTimeControl(),
                     game.getFen(),
                     game.getStatus(),
                     game.getTurnColor().name()
@@ -202,8 +208,11 @@ public class MatchService {
         }
     }
 
+    /**
+     * Save the finished game and apply its result to both players' ratings in one transaction.
+     */
     @Transactional
-    public void archiveMatch(UUID matchId, Game game) {
+    public RatingChange archiveMatch(UUID matchId, Game game) {
         if (!game.isGameOver()) {
             throw new IllegalStateException("Game is not over");
         }
@@ -220,8 +229,13 @@ public class MatchService {
         matchRecord.setReason(game.getStatus().getReason());
         matchRecord.setStartTime(game.getStartTime());
         matchRecord.setEndTime(game.getEndTime());
+        matchRecord.setTimeControl(game.getTimeControl());
+        RatingChange ratingChange = ratingService.applyResult(
+                whitePlayerId, blackPlayerId, game.getTimeControl(), game.getStatus());
+        matchRecord.setRatingChange(ratingChange);
         matchRecordRepo.save(matchRecord);
         logger.info("Match {} archived successfully", matchId);
+        return ratingChange;
     }
 
     public void scheduleGameCleanup(UUID gameId) {
@@ -245,10 +259,6 @@ public class MatchService {
             throw new GameNotFoundException("Game not found: " + gameId);
         }
         return game;
-    }
-
-    public Game getOrCreateGameSession(UUID gameId) {
-        return gameSessions.computeIfAbsent(gameId, (k) -> new Game());
     }
 
     public void removeGameSession(UUID gameId) {

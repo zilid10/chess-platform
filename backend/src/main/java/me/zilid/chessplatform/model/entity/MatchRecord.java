@@ -1,6 +1,9 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
+import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.rating.RatingChange;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 
@@ -29,6 +32,23 @@ public class MatchRecord extends BaseEntity {
 
     @Column(name = "end_time", nullable = false)
     private Instant endTime;
+
+    // Rating snapshot; null for matches archived before ratings were tracked.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "time_control", updatable = false)
+    private @Nullable TimeControl timeControl;
+
+    @Column(name = "white_rating")
+    private @Nullable Integer whiteRating;
+
+    @Column(name = "black_rating")
+    private @Nullable Integer blackRating;
+
+    @Column(name = "white_rating_change")
+    private @Nullable Integer whiteRatingChange;
+
+    @Column(name = "black_rating_change")
+    private @Nullable Integer blackRatingChange;
 
     public MatchRecord(User white, User black) {
         this.whitePlayer = white;
@@ -102,5 +122,39 @@ public class MatchRecord extends BaseEntity {
 
     public void setEndTime(Instant endTime) {
         this.endTime = endTime;
+    }
+
+    public @Nullable TimeControl getTimeControl() {
+        return timeControl;
+    }
+
+    public void setTimeControl(@Nullable TimeControl timeControl) {
+        this.timeControl = timeControl;
+    }
+
+    public @Nullable Integer getWhiteRating() {
+        return whiteRating;
+    }
+
+    public @Nullable Integer getBlackRating() {
+        return blackRating;
+    }
+
+    public @Nullable Integer getWhiteRatingChange() {
+        return whiteRatingChange;
+    }
+
+    public @Nullable Integer getBlackRatingChange() {
+        return blackRatingChange;
+    }
+
+    /**
+     * Record the players' ratings after this match and how much each one moved.
+     */
+    public void setRatingChange(RatingChange change) {
+        this.whiteRating = change.whiteAfter();
+        this.blackRating = change.blackAfter();
+        this.whiteRatingChange = change.whiteDelta();
+        this.blackRatingChange = change.blackDelta();
     }
 }

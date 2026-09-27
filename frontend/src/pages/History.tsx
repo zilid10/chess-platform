@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiErrorMessage } from '../services/errors';
 import { useAuth } from '../context/AuthContext';
 import { gameService } from '../services/gameService';
-import { MatchRecord } from '../types';
+import { MatchRecord, TIME_CONTROL_LABELS } from '../types';
 import { Trophy, Clock, Calendar, Download, Copy } from 'lucide-react';
 
 const History = () => {
@@ -69,6 +69,18 @@ const History = () => {
       return game.blackPlayer?.username || 'Unknown';
     }
     return game.whitePlayer?.username || 'Unknown';
+  };
+
+  const getRatingChange = (game: MatchRecord) => {
+    if (!user) return null;
+    const isWhite = game.whitePlayer?.id === user.id;
+    const rating = isWhite ? game.whiteRating : game.blackRating;
+    const change = isWhite ? game.whiteRatingChange : game.blackRatingChange;
+    if (rating == null || change == null) return null;
+
+    const sign = change > 0 ? '+' : '';
+    const color = change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-600';
+    return { text: `${rating} (${sign}${change})`, color };
   };
 
   const getPlayerColor = (game: MatchRecord) => {
@@ -159,6 +171,7 @@ const History = () => {
           <div className="space-y-4">
             {games.map((game) => {
               const result = getGameResult(game);
+              const ratingChange = getRatingChange(game);
               
               return (
                 <div key={game.id} className="card hover:shadow-lg transition-shadow">
@@ -178,6 +191,19 @@ const History = () => {
                           <span className="font-medium">Playing as:</span>
                           <span>{getPlayerColor(game)}</span>
                         </div>
+
+                        {game.timeControl && (
+                          <div className="flex items-center space-x-1">
+                            <span className="font-medium">{TIME_CONTROL_LABELS[game.timeControl]}</span>
+                          </div>
+                        )}
+
+                        {ratingChange && (
+                          <div className="flex items-center space-x-1">
+                            <span className="font-medium">Rating:</span>
+                            <span className={ratingChange.color}>{ratingChange.text}</span>
+                          </div>
+                        )}
                         
                         <div className="flex items-center space-x-1">
                           <Calendar size={14} />

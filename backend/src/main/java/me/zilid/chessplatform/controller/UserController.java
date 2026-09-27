@@ -6,10 +6,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import me.zilid.chessplatform.model.dto.LoginRequest;
+import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.service.RatingService;
 import me.zilid.chessplatform.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,17 +27,24 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api")
 public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
+    private final RatingService ratingService;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
 
-    public UserController(UserService userService, AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository) {
+    public UserController(UserService userService, RatingService ratingService,
+                          AuthenticationManager authenticationManager,
+                          SecurityContextRepository securityContextRepository) {
         this.userService = userService;
+        this.ratingService = ratingService;
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
     }
@@ -124,6 +133,13 @@ public class UserController {
     public Page<UserResponse> getUser(@RequestParam("search") String search, Pageable pageable) {
         logger.debug("Searching users with query: {}", search);
         return userService.getUser(search, pageable);
+    }
+
+    @GetMapping("/users/{userId}/ratings")
+    @ResponseStatus(HttpStatus.OK)
+    public List<PlayerRatingResponse> getRatings(@PathVariable("userId") UUID userId) {
+        logger.debug("Fetching ratings for user: {}", userId);
+        return ratingService.getRatings(userId);
     }
 
 }
