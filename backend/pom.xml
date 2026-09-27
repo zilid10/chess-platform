@@ -74,10 +74,22 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- TCP client for the STOMP broker relay -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-reactor-netty</artifactId>
+        </dependency>
+
         <!-- Spring Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Share login sessions between backend instances -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-session-data-redis</artifactId>
         </dependency>
 
         <!-- Spring Validation -->

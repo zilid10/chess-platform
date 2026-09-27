@@ -5,11 +5,16 @@ import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.Serial;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
 
 public class UserPrincipal implements UserDetails, CredentialsContainer {
+    // Stored in Redis-backed sessions; keep stable so sessions survive redeploys
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private final UUID id;
     private final String username;
     private final String email;

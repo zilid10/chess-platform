@@ -4,7 +4,7 @@ import me.zilid.chessplatform.model.dto.ActiveGameState;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -15,8 +15,12 @@ import java.util.function.Supplier;
 
 /**
  * Keeps games in progress in Redis so they survive restarts and can be shared by several backend instances.
+ * <p>
+ * Deliberately a {@code @Component}, not a {@code @Repository}: exception translation would turn the game-rule
+ * exceptions thrown inside {@link #withLock} into {@code InvalidDataAccessApiUsageException}. Redis errors are
+ * already translated by {@link StringRedisTemplate}.
  */
-@Repository
+@Component
 public class GameStateStore {
 
     static final Duration GAME_TTL = Duration.ofHours(1);

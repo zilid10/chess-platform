@@ -10,8 +10,12 @@ import me.zilid.chessplatform.model.dto.ActiveGameState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
@@ -19,6 +23,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -27,13 +35,14 @@ import static org.mockito.Mockito.when;
 class GameStateStoreTest {
     private static final UUID GAME_ID = UUID.randomUUID();
 
+    private StringRedisTemplate redisTemplate;
     private ValueOperations<String, String> values;
     private GameStateStore store;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        redisTemplate = mock(StringRedisTemplate.class);
         values = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
         store = new GameStateStore(redisTemplate, JsonMapper.builder().build());
@@ -65,5 +74,27 @@ class GameStateStoreTest {
     @Test
     void missingGameLoadsAsNull() {
         assertThat(store.loadGame(GAME_ID)).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void actionExceptionsEscapeTheSpringBeanUntranslated() {
+        when(values.setIfAbsent(eq("game:" + GAME_ID + ":lock"), anyString(), eq(GameStateStore.LOCK_TTL)))
+                .thenReturn(true);
+        IllegalStateException notYourTurn = new IllegalStateException("It is not your turn");
+
+        // The JPA dialect is the translator the application context registers alongside Hibernate.
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(PersistenceExceptionTranslationPostProcessor.class);
+            context.registerBean(HibernateJpaDialect.class);
+            context.registerBean(GameStateStore.class, () -> store);
+            context.refresh();
+            GameStateStore bean = context.getBean(GameStateStore.class);
+
+            assertThatThrownBy(() -> bean.withLock(GAME_ID, () -> {
+                throw notYourTurn;
+            })).isSameAs(notYourTurn);
+        }
+        verify(redisTemplate).execute(any(RedisScript.class), anyList(), anyString());
     }
 }

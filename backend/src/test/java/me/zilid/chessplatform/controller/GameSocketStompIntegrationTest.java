@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.config.WebsocketConfig;
+import me.zilid.chessplatform.exception.WebSocketExceptionHandler;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -78,7 +79,7 @@ class GameSocketStompIntegrationTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-    @Import({WebsocketConfig.class, GameSocketController.class})
+    @Import({WebsocketConfig.class, GameSocketController.class, WebSocketExceptionHandler.class})
     static class TestApplication {
         @Bean
         SecurityFilterChain testSecurity(HttpSecurity http) throws Exception {
@@ -156,7 +157,7 @@ class GameSocketStompIntegrationTest {
     @Test
     void authenticatedJoinAndMoveReachTheGameTopic() throws Exception {
         StompSession session = connect("white");
-        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game/" + GAME_ID,
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
                 GameStateResponse.class);
 
         session.send("/app/game/" + GAME_ID + "/join", new byte[0]);
@@ -178,7 +179,7 @@ class GameSocketStompIntegrationTest {
     @Test
     void spectatorMoveProducesOnlyAPrivateError() throws Exception {
         StompSession session = connect("spectator");
-        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game/" + GAME_ID,
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
                 GameStateResponse.class);
         BlockingQueue<ErrorResponse> errors = subscribeErrors(session, "spectator");
 
@@ -199,9 +200,30 @@ class GameSocketStompIntegrationTest {
     }
 
     @Test
+    void illegalMoveProducesTheSpecificPrivateError() throws Exception {
+        StompSession session = connect("white");
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
+                GameStateResponse.class);
+        BlockingQueue<ErrorResponse> errors = subscribeErrors(session, "white");
+
+        session.send("/app/game/" + GAME_ID + "/join", new byte[0]);
+        assertThat(take(updates).fen()).isEqualTo(game.getFen());
+
+        session.send("/app/game/" + GAME_ID + "/move",
+                new MoveRequest(GAME_ID.toString(), "e2", "e5", null));
+
+        ErrorResponse error;
+        do {
+            error = take(errors);
+        } while (SUBSCRIPTION_PROBE.equals(error));
+        assertThat(error.error()).isEqualTo("Invalid input: Invalid move: e2 to e5");
+        assertThat(updates.poll(200, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    @Test
     void chatSenderComesFromTheAuthenticatedSession() throws Exception {
         StompSession session = connect("white");
-        BlockingQueue<ChatMessage> chat = subscribe(session, "/topic/game/" + GAME_ID + "/chat",
+        BlockingQueue<ChatMessage> chat = subscribe(session, "/topic/game." + GAME_ID + ".chat",
                 ChatMessage.class);
 
         session.send("/app/game/" + GAME_ID + "/chat", new ChatMessage("forged", "hello"));
@@ -258,7 +280,7 @@ class GameSocketStompIntegrationTest {
     private BlockingQueue<ErrorResponse> subscribeErrors(StompSession session, String username)
             throws InterruptedException {
         BlockingQueue<ErrorResponse> errors = new LinkedBlockingQueue<>();
-        session.subscribe("/user/queue/errors", new StompFrameHandler() {
+        session.subscribe("/user/topic/errors", new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
                 return ErrorResponse.class;
@@ -271,7 +293,7 @@ class GameSocketStompIntegrationTest {
         });
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (System.nanoTime() < deadline) {
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", SUBSCRIPTION_PROBE);
+            messagingTemplate.convertAndSendToUser(username, "/topic/errors", SUBSCRIPTION_PROBE);
             ErrorResponse received = errors.poll(100, TimeUnit.MILLISECONDS);
             if (SUBSCRIPTION_PROBE.equals(received)) {
                 return errors;

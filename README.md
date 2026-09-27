@@ -44,7 +44,10 @@ Migrations are applied externally; Spring Boot does not run Flyway automatically
 - Java 21: with Virtual Threads
 - Spring Boot 4.1.1: Core framework
 - Spring Security: Session-based authentication
+- Spring Session + Redis: Login sessions shared by every backend instance
 - Spring WebSocket: Real-time bidirectional communication (STOMP over WebSocket)
+- RabbitMQ 4.1: External STOMP broker, so WebSocket messages reach clients on any backend instance
+- nginx: Load balancer in front of the backend instances (Docker Compose)
 - Spring Data JPA: Data persistence layer
 - PostgreSQL 17.5: Primary database
 - Flyway: Database migration management
@@ -133,19 +136,26 @@ WebSocket Features:
     - `/app/game/{gameId}/resign` - Player resignation
     - `/app/game/{gameId}/draw/offer` - Draw offer
     - `/app/game/{gameId}/draw/accept` - Draw acceptance
-- Broadcasting:
-    - `/topic/game/{gameId}` - Game state updates to all participants
-    - `/topic/game/{gameId}/chat` - Chat messages
+- Broadcasting (dot-separated, as RabbitMQ topic names cannot contain `/`):
+    - `/topic/game.{gameId}` - Game state updates to all participants
+    - `/topic/game.{gameId}.chat` - Chat messages
 - Error Handling:
-    - `/queue/errors` - User-specific error messages;
+    - `/user/topic/errors` - User-specific error messages
     - `@MessageExceptionHandler` - Handle WebSocket exceptions
     - Custom exceptions (`GameNotFoundException`, `GameIsOverException`)
+- Horizontal scaling (`WebsocketConfig.java`):
+    - With `APP_WEBSOCKET_RELAY_ENABLED=true`, subscriptions live in RabbitMQ through Spring's STOMP broker relay
+      instead of each instance's memory, so a move handled by one instance reaches players connected to another
+    - User destinations are broadcast through the broker, so `/user/...` messages find users on any instance
+    - Without the relay, each instance uses Spring's in-memory broker, which only works for a single instance
+    - `WebSocketRelayIT` starts two instances against RabbitMQ and checks delivery between them
 
 ### 3. Security & Authentication
 
 Spring Security configuration with:
 
-- Session-based authentication (JSESSIONID cookie)
+- Session-based authentication (JSESSIONID cookie), with sessions stored in Redis by Spring Session so any backend
+  instance can serve any request
 - Password encryption with BCrypt (`DelegatingPasswordEncoder`)
 - Custom `UserDetailsService` and `UserDetails` implementation
 - CORS configuration for frontend
@@ -170,17 +180,22 @@ Flyway manages database versioning with migration scripts:
 Prerequisites
 
 - Docker and Docker Compose installed
-- Ports available: 3000 (frontend), 8080 (backend), 5432 (database)
+- Ports available: 3000 (frontend), 8080 (backend load balancer), 5432 (database), 6379 (Redis),
+  61613 and 15672 (RabbitMQ STOMP and management UI)
 
 ```bash
 docker compose up --build
 ```
 
+Compose starts two backend instances behind an nginx load balancer (`backend-lb`). Change `deploy.replicas` under
+`backend` in `docker-compose.yml` to run more or fewer, then restart `backend-lb` so it picks up the new instances.
+
 ### Manual Setup (Without Docker Compose, Not Recommended)
 
 Manual setup can be very error-prone, docker compose setup is recommended.
 
-1. Ensure PostgreSQL is running locally on port 5432 and Redis on port 6379. Create the database and user.
+1. Ensure PostgreSQL is running locally on port 5432 and Redis on port 6379. Create the database and user. A single
+   backend instance does not need RabbitMQ; it uses the in-memory broker unless `APP_WEBSOCKET_RELAY_ENABLED=true`.
 2. From the repository root, enter `backend/`, configure `flyway.conf`, and migrate the database:
 
 ```shell
@@ -203,7 +218,7 @@ export SPRING_DATA_REDIS_HOST=localhost
 
 ```bash
 cd frontend
-vim vite.config.ts # Change both proxy targets from 'http://backend:8080' to 'http://localhost:8080'
+vim vite.config.ts # Change both proxy targets from 'http://backend-lb:8080' to 'http://localhost:8080'
 npm ci
 npm run dev
 ```
@@ -212,7 +227,9 @@ npm run dev
 
 - From `backend/`: `./mvnw test` for the quick suite. Run `./mvnw verify` with
   PostgreSQL, Redis, applied migrations, and the environment variables above for
-  database-backed tests and integration tests.
+  database-backed tests and integration tests. `WebSocketRelayIT` also needs RabbitMQ with the STOMP plugin and
+  `APP_WEBSOCKET_RELAY_HOST`, `APP_WEBSOCKET_RELAY_LOGIN`, and `APP_WEBSOCKET_RELAY_PASSCODE` (Compose uses
+  `chess` / `password`).
 - From `frontend/`: `npm ci`, `npm run lint`, `npm test`, and `npm run build`.
 
 ### Access the Application
@@ -220,6 +237,7 @@ npm run dev
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8080/api
     - Health Check: http://localhost:8080/actuator/health
+- RabbitMQ management UI: http://localhost:15672 (`chess` / `password`)
 
 Testing: To test the chess game, use two different browsers (or incognito/private windows) to log in with these test
 accounts (or create new accounts):

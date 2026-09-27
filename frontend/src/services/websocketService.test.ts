@@ -77,16 +77,16 @@ describe('WebSocketService', () => {
 
     client.onConnect();
     expect([...client.subscriptions.keys()]).toEqual([
-      '/topic/game/game-1',
-      '/topic/game/game-1/chat',
-      '/user/queue/errors',
+      '/topic/game.game-1',
+      '/topic/game.game-1.chat',
+      '/user/topic/errors',
     ]);
     expect(client.publish).toHaveBeenCalledWith({ destination: '/app/game/game-1/join', body: '{}' });
 
     const state: GameState = { gameStatus: 'ONGOING', fen: 'example', turnColor: 'WHITE' };
     const chat: ChatMessage = { sender: 'bob', message: 'Hi', timestamp: 'now', type: 'CHAT' };
-    client.subscriptions.get('/topic/game/game-1')?.({ body: JSON.stringify(state) });
-    client.subscriptions.get('/topic/game/game-1/chat')?.({ body: JSON.stringify(chat) });
+    client.subscriptions.get('/topic/game.game-1')?.({ body: JSON.stringify(state) });
+    client.subscriptions.get('/topic/game.game-1.chat')?.({ body: JSON.stringify(chat) });
 
     expect(onGameUpdate).toHaveBeenCalledExactlyOnceWith(state);
     expect(onChatMessage).toHaveBeenCalledExactlyOnceWith(chat);
@@ -101,7 +101,7 @@ describe('WebSocketService', () => {
     const client = latestClient();
     client.onConnect();
 
-    client.subscriptions.get('/user/queue/errors')?.({
+    client.subscriptions.get('/user/topic/errors')?.({
       body: JSON.stringify({ error: 'Invalid input: illegal move' }),
     });
 
@@ -134,7 +134,7 @@ describe('WebSocketService', () => {
     service.connect('game-2', 'alice', vi.fn(), vi.fn());
     const newClient = latestClient();
     oldClient.onConnect();
-    oldClient.subscriptions.get('/topic/game/game-1')?.({
+    oldClient.subscriptions.get('/topic/game.game-1')?.({
       body: JSON.stringify({ gameStatus: 'ONGOING', fen: 'example', turnColor: 'WHITE' }),
     });
 
@@ -143,7 +143,7 @@ describe('WebSocketService', () => {
     expect(newClient.publish).not.toHaveBeenCalled();
 
     newClient.onConnect();
-    expect([...newClient.subscriptions.keys()]).toContain('/topic/game/game-2');
+    expect([...newClient.subscriptions.keys()]).toContain('/topic/game.game-2');
     expect(newClient.publish).toHaveBeenCalledWith({
       destination: '/app/game/game-2/join',
       body: '{}',

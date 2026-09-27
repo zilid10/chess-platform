@@ -4,9 +4,7 @@ import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ChatMessage;
-import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
@@ -18,13 +16,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,7 +51,7 @@ class GameSocketControllerTest {
         controller.movePiece(GAME_ID, request("a7", "a8", symbol), authentication());
 
         verify(matchService).makeMove(PLAYER, GAME_ID, "a7", "a8", pieceType);
-        verify(messagingTemplate).convertAndSend("/topic/game/" + GAME_ID, response);
+        verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, response);
     }
 
     @Test
@@ -67,7 +62,7 @@ class GameSocketControllerTest {
         controller.movePiece(GAME_ID, request("e2", "e4", null), authentication());
 
         verify(matchService).makeMove(PLAYER, GAME_ID, "e2", "e4", null);
-        verify(messagingTemplate).convertAndSend("/topic/game/" + GAME_ID, response);
+        verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, response);
     }
 
     @ParameterizedTest
@@ -88,7 +83,7 @@ class GameSocketControllerTest {
         controller.sendChatMessage(GAME_ID, new ChatMessage("forged", "hello"), authentication());
 
         ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSend(eq("/topic/game/" + GAME_ID + "/chat"), payload.capture());
+        verify(messagingTemplate).convertAndSend(eq("/topic/game." + GAME_ID + ".chat"), payload.capture());
         ChatMessage sent = (ChatMessage) payload.getValue();
         assertThat(sent.sender()).isEqualTo(PLAYER.getUsername());
         assertThat(sent.message()).isEqualTo("hello");
@@ -112,7 +107,7 @@ class GameSocketControllerTest {
         controller.resign(GAME_ID, authentication());
 
         ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate, times(2)).convertAndSend(eq("/topic/game/" + GAME_ID + "/chat"), payload.capture());
+        verify(messagingTemplate, times(2)).convertAndSend(eq("/topic/game." + GAME_ID + ".chat"), payload.capture());
         assertThat(payload.getAllValues()).map(message -> ((ChatMessage) message).message()).containsExactly(
                 "Game Over: Black wins by resignation",
                 "BLITZ ratings: player 1190 (-10), opponent 1210 (+10)");
@@ -127,30 +122,6 @@ class GameSocketControllerTest {
                 .hasMessage("Authentication required");
 
         verifyNoInteractions(matchService, messagingTemplate);
-    }
-
-    @Test
-    void unexpectedSocketErrorDoesNotRevealInternalDetails() {
-        controller.handleException(new RuntimeException("private database detail"), sessionHeaders());
-
-        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSendToUser(eq("player"), eq("/queue/errors"), payload.capture());
-        assertThat(((ErrorResponse) payload.getValue()).error()).isEqualTo("An unexpected error occurred");
-    }
-
-    @Test
-    void missingGameSocketErrorHasOneClearMessage() {
-        controller.handleException(new GameNotFoundException("Game not found: " + GAME_ID), sessionHeaders());
-
-        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSendToUser(eq("player"), eq("/queue/errors"), payload.capture());
-        assertThat(((ErrorResponse) payload.getValue()).error()).isEqualTo("Game not found: " + GAME_ID);
-    }
-
-    private static SimpMessageHeaderAccessor sessionHeaders() {
-        SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
-        headers.setSessionAttributes(Map.of("username", "player"));
-        return headers;
     }
 
     private static MoveRequest request(String from, String to, @Nullable String promotion) {
