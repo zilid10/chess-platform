@@ -1,13 +1,23 @@
 package me.zilid.chessplatform.chess.game;
 
-import me.zilid.chessplatform.chess.*;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.Move;
+import me.zilid.chessplatform.chess.MoveGenerator;
+import me.zilid.chessplatform.chess.PieceType;
+import me.zilid.chessplatform.chess.Position;
+import me.zilid.chessplatform.chess.Square;
+import me.zilid.chessplatform.chess.UndoInfo;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.jspecify.annotations.Nullable;
-
-import java.time.Instant;
-import java.util.*;
 
 /**
  * Represents a complete chess game with history and metadata
@@ -23,6 +33,7 @@ public class Game {
 
     // game metadata
     private final Instant startTime;
+    private final TimeControl timeControl;
     private volatile @Nullable Instant endTime;
     private volatile GameStatus status;
     private volatile @Nullable UserPrincipal whitePlayer;
@@ -34,6 +45,10 @@ public class Game {
     }
 
     public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
+        this(whitePlayer, blackPlayer, TimeControl.RAPID);
+    }
+
+    public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer, TimeControl timeControl) {
         position = Position.startingPosition();
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
@@ -41,26 +56,29 @@ public class Game {
         repetitions.put(position.hashCode(), 1);
         status = GameStatus.ONGOING;
         startTime = Instant.now();
+        this.timeControl = timeControl;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
 
     public Game(Position position,
-                List<Move> moves,
-                List<UndoInfo> undoes,
-                Map<Integer, Integer> repetitions,
-                Instant startTime,
-                Instant endTime,
-                GameStatus status,
-                UserPrincipal whitePlayer,
-                UserPrincipal blackPlayer,
-                Color drawOfferedBy) {
+            List<Move> moves,
+            List<UndoInfo> undoes,
+            Map<Integer, Integer> repetitions,
+            Instant startTime,
+            Instant endTime,
+            TimeControl timeControl,
+            GameStatus status,
+            UserPrincipal whitePlayer,
+            UserPrincipal blackPlayer,
+            Color drawOfferedBy) {
         this.position = position;
         this.moves = moves;
         this.undoes = undoes;
         this.repetitions = repetitions;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.timeControl = timeControl;
         this.status = status;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
@@ -87,7 +105,7 @@ public class Game {
             // Record the move with special move flags
             moves.add(move);
             int positionHash = position.hashCode();
-            repetitions.merge(positionHash, 1, Integer::sum);
+            repetitions.merge(positionHash, 1, (a, b) -> a + b);
 
             // Update game status
             updateGameStatus();
@@ -113,11 +131,11 @@ public class Game {
                 Map.copyOf(repetitions),
                 startTime,
                 endTime,
+                timeControl,
                 status,
                 whitePlayer.getId(),
                 blackPlayer.getId(),
-                drawOfferedBy
-        );
+                drawOfferedBy);
     }
 
     /**
@@ -143,9 +161,7 @@ public class Game {
             return;
         }
 
-        status = color.isWhite() ?
-                GameStatus.RESIGNED_BLACK_WINS :
-                GameStatus.RESIGNED_WHITE_WINS;
+        status = color.isWhite() ? GameStatus.RESIGNED_BLACK_WINS : GameStatus.RESIGNED_WHITE_WINS;
         endTime = Instant.now();
     }
 
@@ -166,9 +182,8 @@ public class Game {
      */
     private synchronized void updateGameStatus() {
         if (position.isCheckmate(position.getTurnColor())) {
-            status = position.getTurnColor().isWhite() ?
-                    GameStatus.CHECKMATE_BLACK_WINS :
-                    GameStatus.CHECKMATE_WHITE_WINS;
+            status = position.getTurnColor().isWhite() ? GameStatus.CHECKMATE_BLACK_WINS
+                    : GameStatus.CHECKMATE_WHITE_WINS;
             endTime = Instant.now();
         } else if (position.isStalemate(position.getTurnColor())) {
             status = GameStatus.STALEMATE;
@@ -188,7 +203,6 @@ public class Game {
     private synchronized boolean isThreefoldRepetition() {
         return repetitions.getOrDefault(position.hashCode(), 0) >= 3;
     }
-
 
     public synchronized Color getTurnColor() {
         return position.getTurnColor();
@@ -235,6 +249,10 @@ public class Game {
         return startTime;
     }
 
+    public TimeControl getTimeControl() {
+        return timeControl;
+    }
+
     public @Nullable Instant getEndTime() {
         return endTime;
     }
@@ -264,8 +282,10 @@ public class Game {
     }
 
     public synchronized void acceptDraw(Color by) {
-        if (drawOfferedBy == null) return;
-        if (drawOfferedBy != by.opposite()) return;
+        if (drawOfferedBy == null)
+            return;
+        if (drawOfferedBy != by.opposite())
+            return;
         agreeDraw();
         drawOfferedBy = null;
     }

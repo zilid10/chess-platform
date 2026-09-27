@@ -1,22 +1,16 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import me.zilid.chessplatform.chess.game.TimeControl;
 
-import java.time.Instant;
+import java.util.EnumMap;
 import java.util.HashSet;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class User {
-    @Id
-    @Column(name = "id", columnDefinition = "uuid")
-    private UUID id = UUID.randomUUID();
-
+public class User extends AuditedBaseEntity {
     @Column(name = "email", unique = true, nullable = false)
     private String email;
 
@@ -29,14 +23,6 @@ public class User {
     @Column(name = "about")
     private String about;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_friendship",
@@ -44,6 +30,10 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "friend_id")
     )
     private Set<User> friends = new HashSet<>();
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @MapKey(name = "timeControl")
+    private Map<TimeControl, PlayerRating> playerRatings = new EnumMap<>(TimeControl.class);
 
     public User() {
     }
@@ -53,29 +43,10 @@ public class User {
         this.username = username;
         this.passwordHash = passwordHash;
         this.about = about;
-    }
-
-    public void addFriend(User friend) {
-        this.friends.add(friend);
-    }
-
-    public void removeFriend(User friend) {
-        this.friends.remove(friend);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof User user)) return false;
-        return Objects.equals(id, user.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
-    }
-
-    public UUID getId() {
-        return id;
+        for (TimeControl timeControl : TimeControl.values()) {
+            PlayerRating playerRating = new PlayerRating(this, timeControl);
+            playerRatings.put(timeControl, playerRating);
+        }
     }
 
     public String getEmail() {
@@ -110,16 +81,24 @@ public class User {
         this.about = about;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
     public Set<User> getFriends() {
         return friends;
     }
 
+    public void addFriend(User other) {
+        this.friends.add(other);
+        other.friends.add(this);
+    }
+
+    public void removeFriend(User other) {
+        this.friends.remove(other);
+        other.friends.remove(this);
+    }
+
+    public PlayerRating getPlayerRating(TimeControl timeControl) {
+        if (!playerRatings.containsKey(timeControl)) {
+            throw new IllegalStateException("error registering user");
+        }
+        return playerRatings.get(timeControl);
+    }
 }

@@ -6,7 +6,7 @@ import { Chess } from 'chess.js';
 import { websocketService } from '../services/websocketService';
 import { gameService } from '../services/gameService';
 import { useAuth } from '../context/AuthContext';
-import { GameState, ChatMessage as ChatMessageType } from '../types';
+import { GameState, ChatMessage as ChatMessageType, TIME_CONTROL_LABELS, TimeControl } from '../types';
 import { Copy, Flag, Scale, Send } from 'lucide-react';
 
 const Game = () => {
@@ -24,6 +24,7 @@ const Game = () => {
   const [playerColor, setPlayerColor] = useState<'white' | 'black'>('white');
   const [drawOffered, setDrawOffered] = useState(false);
   const [isPlayer, setIsPlayer] = useState(true);
+  const [timeControl, setTimeControl] = useState<TimeControl | null>(null);
   const iOfferedDrawRef = useRef(false);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ const Game = () => {
         // Check if user is a player or spectator
         const isActualPlayer = joinResponse.role === 'WHITE' || joinResponse.role === 'BLACK';
         setIsPlayer(isActualPlayer);
+        setTimeControl(joinResponse.timeControl);
         
         // Set player color based on role (role is like "WHITE" or "BLACK")
         if (isActualPlayer) {
@@ -265,7 +267,14 @@ const Game = () => {
           <div className="card">
             <div className="mb-4 flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Chess Game</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Chess Game
+                  {timeControl && (
+                    <span className="ml-2 text-sm font-medium text-gray-500">
+                      Rated {TIME_CONTROL_LABELS[timeControl]}
+                    </span>
+                  )}
+                </h2>
                 <p className="text-sm text-gray-600 mt-1">{getStatusMessage()}</p>
               </div>
               <div className="flex items-center space-x-2">

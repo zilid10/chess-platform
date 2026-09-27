@@ -3,12 +3,14 @@ package me.zilid.chessplatform.controller;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -90,6 +93,30 @@ class GameSocketControllerTest {
         assertThat(sent.sender()).isEqualTo(PLAYER.getUsername());
         assertThat(sent.message()).isEqualTo("hello");
         assertThat(sent.type()).isEqualTo(ChatMessage.MessageType.CHAT);
+    }
+
+    @Test
+    void resignationArchivesTheMatchAndAnnouncesRatingChanges() {
+        UserPrincipal opponent = new UserPrincipal(UUID.randomUUID(), "opponent", "opponent@example.com",
+                "password", true, List.of());
+        GameStateResponse resigned = new GameStateResponse(
+                GameStatus.RESIGNED_BLACK_WINS, "final-fen", "e2", "e4", "BLACK");
+        when(matchService.resign(PLAYER, GAME_ID)).thenReturn(resigned);
+        when(matchService.getGameOrThrow(GAME_ID)).thenReturn(game);
+        when(game.getWhitePlayer()).thenReturn(PLAYER);
+        when(game.getBlackPlayer()).thenReturn(opponent);
+        when(game.getTimeControl()).thenReturn(TimeControl.BLITZ);
+        when(matchService.archiveMatch(GAME_ID, game)).thenReturn(
+                new RatingChange(PLAYER.getId(), opponent.getId(), 1190, 1210, -10, 10));
+
+        controller.resign(GAME_ID, authentication());
+
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(messagingTemplate, times(2)).convertAndSend(eq("/topic/game/" + GAME_ID + "/chat"), payload.capture());
+        assertThat(payload.getAllValues()).map(message -> ((ChatMessage) message).message()).containsExactly(
+                "Game Over: Black wins by resignation",
+                "BLITZ ratings: player 1190 (-10), opponent 1210 (+10)");
+        verify(matchService).scheduleGameCleanup(GAME_ID);
     }
 
     @Test

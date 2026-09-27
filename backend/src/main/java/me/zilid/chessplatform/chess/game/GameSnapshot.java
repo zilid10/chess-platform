@@ -19,6 +19,7 @@ public record GameSnapshot(
         // game metadata
         Instant startTime,
         Instant endTime,
+        TimeControl timeControl,
         GameStatus status,
         UUID whitePlayerId,
         UUID blackPlayerId,

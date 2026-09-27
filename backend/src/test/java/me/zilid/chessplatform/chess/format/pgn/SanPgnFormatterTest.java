@@ -1,10 +1,6 @@
 package me.zilid.chessplatform.chess.format.pgn;
 
-import me.zilid.chessplatform.chess.Move;
-import me.zilid.chessplatform.chess.MoveGenerator;
-import me.zilid.chessplatform.chess.PieceType;
-import me.zilid.chessplatform.chess.Position;
-import me.zilid.chessplatform.chess.Square;
+import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,6 +30,11 @@ class SanPgnFormatterTest {
         );
     }
 
+    private static Move legalMove(Position position, String from, String to, PieceType promotion) {
+        return MoveGenerator.findLegalMove(position, Square.fromNotation(from), Square.fromNotation(to), promotion)
+                .orElseThrow();
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("sanCases")
     void formatsSanWithoutChangingPosition(
@@ -58,10 +59,5 @@ class SanPgnFormatterTest {
 
         assertThat(new PgnFormatter().format(Position.startingPosition(), moves))
                 .isEqualTo("1. f3 e5 2. g4 Qh4#");
-    }
-
-    private static Move legalMove(Position position, String from, String to, PieceType promotion) {
-        return MoveGenerator.findLegalMove(position, Square.fromNotation(from), Square.fromNotation(to), promotion)
-                .orElseThrow();
     }
 }

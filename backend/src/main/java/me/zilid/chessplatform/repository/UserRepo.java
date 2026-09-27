@@ -11,6 +11,8 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepo extends CrudRepository<User, UUID> {
+    User getReferenceById(UUID id);
+
     Optional<User> findByEmail(String email);
 
     Page<User> findByUsernameContainingIgnoreCase(String username, Pageable pageable);

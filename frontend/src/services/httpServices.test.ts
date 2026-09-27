@@ -74,15 +74,27 @@ describe('HTTP services', () => {
     responseData = { gameId: 'game-1' };
 
     await gameService.createGame('BLACK');
+    await gameService.createGame('WHITE', 'BLITZ');
     await gameService.joinGame('game-1');
     await gameService.getGameState('game-1');
     await gameService.getGamePGN('game-1');
 
     expect(requests.map(({ method, url, params }) => ({ method, url, params }))).toEqual([
-      { method: 'post', url: '/games', params: { color: 'BLACK' } },
+      { method: 'post', url: '/games', params: { color: 'BLACK', timeControl: 'RAPID' } },
+      { method: 'post', url: '/games', params: { color: 'WHITE', timeControl: 'BLITZ' } },
       { method: 'post', url: '/games/game-1/join', params: undefined },
       { method: 'get', url: '/games/game-1/state', params: undefined },
       { method: 'get', url: '/games/game-1/pgn', params: undefined },
+    ]);
+  });
+
+  it('fetches a user\'s ratings by id', async () => {
+    const ratings = [{ timeControl: 'BLITZ', rating: 1250, gamesPlayed: 12, peakRating: 1290 }];
+    responseData = ratings;
+
+    await expect(userService.getRatings('user-1')).resolves.toEqual(ratings);
+    expect(requests.map(({ method, url }) => ({ method, url }))).toEqual([
+      { method: 'get', url: '/users/user-1/ratings' },
     ]);
   });
 

@@ -3,6 +3,7 @@ package me.zilid.chessplatform.service;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
@@ -12,6 +13,7 @@ import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.jspecify.annotations.Nullable;
@@ -23,7 +25,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -39,11 +40,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class MatchServiceTest {
     private MatchRecordRepo matchRecordRepo;
     private UserRepo userRepo;
+    private RatingService ratingService;
     private MatchService service;
 
     private final UserPrincipal alice = principal("alice");
@@ -54,15 +57,18 @@ class MatchServiceTest {
     void setUp() {
         matchRecordRepo = mock(MatchRecordRepo.class);
         userRepo = mock(UserRepo.class);
-        service = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo);
+        ratingService = mock(RatingService.class);
+        service = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo, ratingService);
     }
 
     @Test
     void creatorKeepsSeatWhenReconnectingAndThirdUserSpectates() {
-        GameCreatedResponse created = service.createGame(alice, Color.WHITE);
+        GameCreatedResponse created = service.createGame(alice, Color.WHITE, TimeControl.BLITZ);
         UUID gameId = created.gameId();
 
         assertThat(created.color()).isEqualTo(Color.WHITE);
+        assertThat(created.timeControl()).isEqualTo(TimeControl.BLITZ);
+        assertThat(service.getGameSession(gameId).getTimeControl()).isEqualTo(TimeControl.BLITZ);
         assertThat(created.socketUrl()).isEqualTo("/game/" + gameId);
         assertThat(created.fen()).isEqualTo(service.getGameState(gameId).fen());
         assertThat(service.joinGame(gameId, alice).role()).isEqualTo("WHITE");
@@ -74,11 +80,12 @@ class MatchServiceTest {
 
     @Test
     void joiningBlackCreatorsGameTakesOpenWhiteSeat() {
-        UUID gameId = service.createGame(alice, Color.BLACK).gameId();
+        UUID gameId = service.createGame(alice, Color.BLACK, TimeControl.CLASSICAL).gameId();
 
         GameJoinResponse joined = service.joinGame(gameId, bob);
 
         assertThat(joined.role()).isEqualTo("WHITE");
+        assertThat(joined.timeControl()).isEqualTo(TimeControl.CLASSICAL);
         assertThat(joined.status()).isEqualTo(GameStatus.ONGOING);
         assertThat(joined.currentTurn()).isEqualTo("WHITE");
         assertThat(service.joinGame(gameId, alice).role()).isEqualTo("BLACK");
@@ -109,7 +116,8 @@ class MatchServiceTest {
                 return super.getBlackPlayer();
             }
         };
-        MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo) {
+        MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
+                ratingService) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -193,7 +201,8 @@ class MatchServiceTest {
                 return isTurn;
             }
         };
-        MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo) {
+        MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
+                ratingService) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -271,18 +280,22 @@ class MatchServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Game is not over");
         verify(matchRecordRepo, never()).save(any());
+        verifyNoInteractions(ratingService);
     }
 
     @Test
-    void archiveStoresPlayersResultNotationAndTimes() {
+    void archiveStoresPlayersResultNotationTimesAndRatingChange() {
         User aliceEntity = new User("alice@example.com", "alice", "hash", "");
         User bobEntity = new User("bob@example.com", "bob", "hash", "");
-        Game game = new Game(principal(aliceEntity), principal(bobEntity));
+        Game game = new Game(principal(aliceEntity), principal(bobEntity), TimeControl.BLITZ);
         game.resign(Color.WHITE);
-        when(userRepo.findById(aliceEntity.getId())).thenReturn(Optional.of(aliceEntity));
-        when(userRepo.findById(bobEntity.getId())).thenReturn(Optional.of(bobEntity));
+        when(userRepo.getReferenceById(aliceEntity.getId())).thenReturn(aliceEntity);
+        when(userRepo.getReferenceById(bobEntity.getId())).thenReturn(bobEntity);
+        RatingChange ratingChange = new RatingChange(aliceEntity.getId(), bobEntity.getId(), 1180, 1220, -20, 20);
+        when(ratingService.applyResult(aliceEntity.getId(), bobEntity.getId(), TimeControl.BLITZ,
+                GameStatus.RESIGNED_BLACK_WINS)).thenReturn(ratingChange);
 
-        service.archiveMatch(UUID.randomUUID(), game);
+        assertThat(service.archiveMatch(UUID.randomUUID(), game)).isEqualTo(ratingChange);
 
         ArgumentCaptor<MatchRecord> record = ArgumentCaptor.forClass(MatchRecord.class);
         verify(matchRecordRepo).save(record.capture());
@@ -294,6 +307,11 @@ class MatchServiceTest {
         assertThat(saved.getPgn()).contains("[White \"alice\"]", "[Black \"bob\"]", "[Result \"0-1\"]");
         assertThat(saved.getStartTime()).isEqualTo(game.getStartTime());
         assertThat(saved.getEndTime()).isEqualTo(game.getEndTime());
+        assertThat(saved.getTimeControl()).isEqualTo(TimeControl.BLITZ);
+        assertThat(saved.getWhiteRating()).isEqualTo(1180);
+        assertThat(saved.getBlackRating()).isEqualTo(1220);
+        assertThat(saved.getWhiteRatingChange()).isEqualTo(-20);
+        assertThat(saved.getBlackRatingChange()).isEqualTo(20);
     }
 
     @Test
@@ -312,7 +330,7 @@ class MatchServiceTest {
     }
 
     private UUID gameWithBothPlayers() {
-        UUID gameId = service.createGame(alice, Color.WHITE).gameId();
+        UUID gameId = service.createGame(alice, Color.WHITE, TimeControl.RAPID).gameId();
         service.joinGame(gameId, bob);
         return gameId;
     }

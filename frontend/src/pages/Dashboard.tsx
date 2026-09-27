@@ -3,12 +3,15 @@ import { apiErrorMessage } from '../services/errors';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { gameService } from '../services/gameService';
+import RatingsCard from '../components/RatingsCard';
+import { TIME_CONTROLS, TIME_CONTROL_LABELS, TimeControl } from '../types';
 import { Play, Users } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [gameId, setGameId] = useState('');
+  const [timeControl, setTimeControl] = useState<TimeControl>('RAPID');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,7 +20,7 @@ const Dashboard = () => {
     setError('');
     try {
       // Create a game with WHITE color
-      const response = await gameService.createGame('WHITE');
+      const response = await gameService.createGame('WHITE', timeControl);
       navigate(`/game/${response.gameId}`);
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to create game'));
@@ -53,7 +56,22 @@ const Dashboard = () => {
             <Play className="text-primary-600" size={24} />
             <h2 className="text-xl font-semibold">Create New Game</h2>
           </div>
-          <p className="text-gray-600 mb-6">Start a new chess game and invite a friend</p>
+          <p className="text-gray-600 mb-4">Start a new chess game and invite a friend</p>
+          <label htmlFor="time-control" className="block text-sm font-medium text-gray-700 mb-2">
+            Time control (rated)
+          </label>
+          <select
+            id="time-control"
+            className="input mb-4"
+            value={timeControl}
+            onChange={(e) => setTimeControl(e.target.value as TimeControl)}
+          >
+            {TIME_CONTROLS.map((option) => (
+              <option key={option} value={option}>
+                {TIME_CONTROL_LABELS[option]}
+              </option>
+            ))}
+          </select>
           <button
             onClick={handleCreateGame}
             disabled={loading}
@@ -89,6 +107,12 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {user?.id && (
+        <div className="mt-6">
+          <RatingsCard userId={user.id} />
+        </div>
+      )}
+
       {/* Quick Start Guide */}
       <div className="mt-12 card bg-blue-50">
         <h3 className="text-lg font-semibold mb-4">Quick Start Guide</h3>
@@ -97,6 +121,7 @@ const Dashboard = () => {
           <li>• Enter a game ID in "Join Game" to play with someone</li>
           <li>• Use the chat feature during the game to communicate</li>
           <li>• You can resign or offer a draw during the game</li>
+          <li>• Every finished game updates both players' rating for its time control</li>
         </ul>
       </div>
     </div>

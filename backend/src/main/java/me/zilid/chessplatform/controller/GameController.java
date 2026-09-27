@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.Color;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -44,9 +45,10 @@ public class GameController {
     @ResponseStatus(HttpStatus.CREATED)
     public GameCreatedResponse createGame(
             @AuthenticationPrincipal UserPrincipal currentUser,
-            @RequestParam("color") Color color) {
-        logger.info("User {} creating game with color {}", currentUser.getUsername(), color);
-        return matchService.createGame(currentUser, color);
+            @RequestParam("color") Color color,
+            @RequestParam(value = "timeControl", defaultValue = "RAPID") TimeControl timeControl) {
+        logger.info("User {} creating {} game with color {}", currentUser.getUsername(), timeControl, color);
+        return matchService.createGame(currentUser, color, timeControl);
     }
 
     @PostMapping("/games/{gameId}/join")

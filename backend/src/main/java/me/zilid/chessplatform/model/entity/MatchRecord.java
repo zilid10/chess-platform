@@ -1,25 +1,21 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
+import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.rating.RatingChange;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
-import java.util.Objects;
-import java.util.UUID;
 
 @Entity
 @Table(name = "match_records")
-public class MatchRecord {
-
-    @Id
-    @Column(name = "id", columnDefinition = "uuid")
-    private UUID id = UUID.randomUUID();
-
-    @ManyToOne
-    @JoinColumn(name = "white_user_id", nullable = false)
+public class MatchRecord extends BaseEntity {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "white_user_id", updatable = false, nullable = false)
     private User whitePlayer;
 
-    @ManyToOne
-    @JoinColumn(name = "black_user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "black_user_id", updatable = false, nullable = false)
     private User blackPlayer;
 
     @Column(name = "result")
@@ -28,14 +24,36 @@ public class MatchRecord {
     @Column(name = "reason")
     private String reason;
 
-    @Column(name = "pgn", columnDefinition = "TEXT")
+    @Column(name = "pgn")
     private String pgn;
 
-    @Column(name = "start_time")
+    @Column(name = "start_time", nullable = false)
     private Instant startTime;
 
-    @Column(name = "end_time")
+    @Column(name = "end_time", nullable = false)
     private Instant endTime;
+
+    // Rating snapshot; null for matches archived before ratings were tracked.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "time_control", updatable = false)
+    private @Nullable TimeControl timeControl;
+
+    @Column(name = "white_rating")
+    private @Nullable Integer whiteRating;
+
+    @Column(name = "black_rating")
+    private @Nullable Integer blackRating;
+
+    @Column(name = "white_rating_change")
+    private @Nullable Integer whiteRatingChange;
+
+    @Column(name = "black_rating_change")
+    private @Nullable Integer blackRatingChange;
+
+    public MatchRecord(User white, User black) {
+        this.whitePlayer = white;
+        this.blackPlayer = black;
+    }
 
     public MatchRecord(User white, User black, String result, String reason, String pgn, Instant start) {
         this.whitePlayer = white;
@@ -48,21 +66,6 @@ public class MatchRecord {
     }
 
     public MatchRecord() {
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof MatchRecord that)) return false;
-        return Objects.equals(id, that.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
-    }
-
-    public UUID getId() {
-        return id;
     }
 
     public User getWhitePlayer() {
@@ -119,5 +122,39 @@ public class MatchRecord {
 
     public void setEndTime(Instant endTime) {
         this.endTime = endTime;
+    }
+
+    public @Nullable TimeControl getTimeControl() {
+        return timeControl;
+    }
+
+    public void setTimeControl(@Nullable TimeControl timeControl) {
+        this.timeControl = timeControl;
+    }
+
+    public @Nullable Integer getWhiteRating() {
+        return whiteRating;
+    }
+
+    public @Nullable Integer getBlackRating() {
+        return blackRating;
+    }
+
+    public @Nullable Integer getWhiteRatingChange() {
+        return whiteRatingChange;
+    }
+
+    public @Nullable Integer getBlackRatingChange() {
+        return blackRatingChange;
+    }
+
+    /**
+     * Record the players' ratings after this match and how much each one moved.
+     */
+    public void setRatingChange(RatingChange change) {
+        this.whiteRating = change.whiteAfter();
+        this.blackRating = change.blackAfter();
+        this.whiteRatingChange = change.whiteDelta();
+        this.blackRatingChange = change.blackDelta();
     }
 }

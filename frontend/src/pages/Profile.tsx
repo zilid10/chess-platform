@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiErrorMessage } from '../services/errors';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
+import RatingsCard from '../components/RatingsCard';
 import { User } from '../types';
 import { Edit2, Save, X } from 'lucide-react';
 
@@ -271,6 +272,12 @@ const Profile = () => {
           )}
         </form>
       </div>
+
+      {user?.id && (
+        <div className="mt-6">
+          <RatingsCard userId={user.id} />
+        </div>
+      )}
     </div>
   );
 };

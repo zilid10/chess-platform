@@ -2,6 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.GameStatus;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.config.SecurityConfig;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.exception.GameIsOverException;
@@ -98,25 +99,41 @@ class GameControllerWebMvcTest {
     }
 
     @Test
-    void createGamePassesAuthenticatedPlayerAndColor() throws Exception {
-        when(matchService.createGame(PLAYER, Color.BLACK)).thenReturn(new GameCreatedResponse(
-                GAME_ID, Color.BLACK, "starting-fen", "/game/" + GAME_ID));
+    void createGamePassesAuthenticatedPlayerColorAndTimeControl() throws Exception {
+        when(matchService.createGame(PLAYER, Color.BLACK, TimeControl.BLITZ)).thenReturn(new GameCreatedResponse(
+                GAME_ID, Color.BLACK, TimeControl.BLITZ, "starting-fen", "/game/" + GAME_ID));
 
         mvc.perform(post("/api/games")
                         .param("color", "BLACK")
+                        .param("timeControl", "BLITZ")
                         .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.gameId").value(GAME_ID.toString()))
                 .andExpect(jsonPath("$.color").value("BLACK"))
+                .andExpect(jsonPath("$.timeControl").value("BLITZ"))
                 .andExpect(jsonPath("$.socketUrl").value("/game/" + GAME_ID));
 
-        verify(matchService).createGame(PLAYER, Color.BLACK);
+        verify(matchService).createGame(PLAYER, Color.BLACK, TimeControl.BLITZ);
+    }
+
+    @Test
+    void createGameDefaultsToRapid() throws Exception {
+        when(matchService.createGame(PLAYER, Color.WHITE, TimeControl.RAPID)).thenReturn(new GameCreatedResponse(
+                GAME_ID, Color.WHITE, TimeControl.RAPID, "starting-fen", "/game/" + GAME_ID));
+
+        mvc.perform(post("/api/games")
+                        .param("color", "WHITE")
+                        .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.timeControl").value("RAPID"));
+
+        verify(matchService).createGame(PLAYER, Color.WHITE, TimeControl.RAPID);
     }
 
     @Test
     void joinGameReturnsTheAssignedRole() throws Exception {
         when(matchService.joinGame(GAME_ID, PLAYER)).thenReturn(new GameJoinResponse(
-                GAME_ID, "WHITE", "starting-fen", GameStatus.ONGOING, "WHITE"));
+                GAME_ID, "WHITE", TimeControl.RAPID, "starting-fen", GameStatus.ONGOING, "WHITE"));
 
         mvc.perform(post("/api/games/{gameId}/join", GAME_ID)
                         .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
