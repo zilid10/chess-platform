@@ -3,15 +3,34 @@ package me.zilid.chessplatform.repository;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.types.Expiration;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Supplier;
 
+/**
+ * Keeps games in progress in Redis so they survive restarts and can be shared by several backend instances.
+ */
 @Repository
 public class GameStateStore {
+
+    static final Duration GAME_TTL = Duration.ofHours(1);
+    static final Duration LOCK_TTL = Duration.ofSeconds(10);
+    private static final Duration LOCK_WAIT = Duration.ofSeconds(3);
+    private static final Duration LOCK_RETRY_INTERVAL = Duration.ofMillis(10);
+
+    // Only the holder of the lock may release it, even if its TTL expired and someone else took it.
+    private static final RedisScript<Long> RELEASE_LOCK = RedisScript.of("""
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('del', KEYS[1])
+            end
+            return 0
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -21,16 +40,19 @@ public class GameStateStore {
         this.objectMapper = objectMapper;
     }
 
-    public void storeGame(String gameId, ActiveGameState game) {
+    /**
+     * Save the game and reset its expiry to {@link #GAME_TTL}.
+     */
+    public void storeGame(UUID gameId, ActiveGameState game) {
         try {
             String json = objectMapper.writeValueAsString(game);
-            redisTemplate.opsForValue().set(key(gameId), json, Expiration.from(1, TimeUnit.HOURS));
+            redisTemplate.opsForValue().set(key(gameId), json, GAME_TTL);
         } catch (JacksonException e) {
             throw new IllegalArgumentException("failed to serialize game state for gameId=" + gameId, e);
         }
     }
 
-    public @Nullable ActiveGameState loadGame(String gameId) {
+    public @Nullable ActiveGameState loadGame(UUID gameId) {
         String json = redisTemplate.opsForValue().get(key(gameId));
         if (json == null) {
             return null;
@@ -43,7 +65,47 @@ public class GameStateStore {
         }
     }
 
-    private String key(String gameId) {
+    public void expireGame(UUID gameId, Duration timeout) {
+        redisTemplate.expire(key(gameId), timeout);
+    }
+
+    /**
+     * Run {@code action} while holding a distributed lock on the game, so a load-modify-store cycle
+     * cannot interleave with another one on any backend instance.
+     *
+     * @throws IllegalStateException if the lock could not be acquired in time
+     */
+    public <T> T withLock(UUID gameId, Supplier<T> action) {
+        String lockKey = lockKey(gameId);
+        String token = UUID.randomUUID().toString();
+        acquireLock(lockKey, token);
+        try {
+            return action.get();
+        } finally {
+            redisTemplate.execute(RELEASE_LOCK, List.of(lockKey), token);
+        }
+    }
+
+    private void acquireLock(String lockKey, String token) {
+        long deadline = System.nanoTime() + LOCK_WAIT.toNanos();
+        while (!Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(lockKey, token, LOCK_TTL))) {
+            if (System.nanoTime() >= deadline) {
+                throw new IllegalStateException("Game is busy, please try again");
+            }
+            try {
+                Thread.sleep(LOCK_RETRY_INTERVAL);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while waiting for game lock", e);
+            }
+        }
+    }
+
+    private static String key(UUID gameId) {
         return "game:" + gameId;
+    }
+
+    private static String lockKey(UUID gameId) {
+        return "game:" + gameId + ":lock";
     }
 }

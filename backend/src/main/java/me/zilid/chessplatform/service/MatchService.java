@@ -6,7 +6,9 @@ import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
+import me.zilid.chessplatform.model.converter.ActiveGameStateConverter;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
+import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -15,6 +17,7 @@ import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.rating.RatingChange;
+import me.zilid.chessplatform.repository.GameStateStore;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.jspecify.annotations.Nullable;
@@ -27,30 +30,32 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 @Service
 public class MatchService {
 
     private static final Logger logger = LoggerFactory.getLogger(MatchService.class);
+    private static final Duration FINISHED_GAME_TTL = Duration.ofMinutes(1);
 
     private final MatchRecordConverter matchRecordConverter;
     private final MatchRecordRepo matchRecordRepo;
     private final UserRepo userRepo;
     private final RatingService ratingService;
-
-    private final ConcurrentMap<UUID, Game> gameSessions = new ConcurrentHashMap<>();
+    private final GameStateStore gameStateStore;
+    private final ActiveGameStateConverter activeGameStateConverter;
 
     public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo,
-                        RatingService ratingService) {
+                        RatingService ratingService, GameStateStore gameStateStore,
+                        ActiveGameStateConverter activeGameStateConverter) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
         this.userRepo = userRepo;
         this.ratingService = ratingService;
+        this.gameStateStore = gameStateStore;
+        this.activeGameStateConverter = activeGameStateConverter;
     }
 
     @Transactional(readOnly = true)
@@ -81,7 +86,7 @@ public class MatchService {
         Game game = color.isWhite()
                 ? new Game(currentUser, null, timeControl)
                 : new Game(null, currentUser, timeControl);
-        gameSessions.put(gameId, game);
+        saveGame(gameId, game);
 
         return new GameCreatedResponse(
                 gameId,
@@ -94,9 +99,7 @@ public class MatchService {
 
     public GameJoinResponse joinGame(UUID gameId, UserPrincipal currentUser) {
         logger.info("User {} attempting to join game {}", currentUser.getUsername(), gameId);
-        Game game = getGameOrThrow(gameId);
-
-        synchronized (game) {
+        return updateGame(gameId, game -> {
             String role;
             if (currentUser.equals(game.getWhitePlayer())) {
                 role = "WHITE"; // reconnect
@@ -125,13 +128,12 @@ public class MatchService {
                     game.getStatus(),
                     game.getTurnColor().name()
             );
-        }
+        });
     }
 
     public GameStateResponse makeMove(UserPrincipal currentUser, UUID gameId,
                                       String moveFrom, String moveTo, @Nullable PieceType promotion) {
-        Game game = getGameOrThrow(gameId);
-        synchronized (game) {
+        return updateGame(gameId, game -> {
             requirePlayer(game, currentUser);
             if (game.isGameOver()) {
                 throw new IllegalStateException("Game is already over");
@@ -144,25 +146,24 @@ public class MatchService {
             }
             logger.info("Move executed in game {}: {} to {}", gameId, moveFrom, moveTo);
             return buildGameStateResponse(game);
-        }
+        });
     }
 
     public void offerDraw(UserPrincipal currentUser, UUID gameId) {
         logger.info("User {} offering draw in game {}", currentUser.getUsername(), gameId);
-        Game game = getGameOrThrow(gameId);
-        synchronized (game) {
+        updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
             if (game.isGameOver()) {
                 throw new IllegalStateException("Game is over");
             }
             game.offerDraw(color);
             logger.info("Draw offered by {} in game {}", color, gameId);
-        }
+            return color;
+        });
     }
 
     public GameStateResponse acceptDraw(UserPrincipal currentUser, UUID gameId) {
-        Game game = getGameOrThrow(gameId);
-        synchronized (game) {
+        return updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
             if (game.isGameOver()) {
                 logger.warn("Attempted draw acceptance on completed game {}", gameId);
@@ -170,12 +171,11 @@ public class MatchService {
             }
             game.acceptDraw(color);
             return buildGameStateResponse(game);
-        }
+        });
     }
 
     public GameStateResponse resign(UserPrincipal currentUser, UUID gameId) {
-        Game game = getGameOrThrow(gameId);
-        synchronized (game) {
+        return updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
             if (game.isGameOver()) {
                 logger.warn("Attempted resignation on completed game {}", gameId);
@@ -184,7 +184,7 @@ public class MatchService {
             game.resign(color);
             logger.info("Player {} resigned in game {}", color, gameId);
             return buildGameStateResponse(game);
-        }
+        });
     }
 
     public GameStateResponse getGameState(UUID gameId) {
@@ -238,19 +238,20 @@ public class MatchService {
         return ratingChange;
     }
 
+    /**
+     * Keep a finished game readable for a short while (late joiners, reconnects), then let Redis evict it
+     */
     public void scheduleGameCleanup(UUID gameId) {
-        CompletableFuture.delayedExecutor(1, TimeUnit.MINUTES)
-                .execute(() -> {
-                    removeGameSession(gameId);
-                    logger.info("Cleaning up Game Session");
-                });
+        gameStateStore.expireGame(gameId, FINISHED_GAME_TTL);
+        logger.info("Game {} will be removed in {}", gameId, FINISHED_GAME_TTL);
     }
 
     /**
-     * Get a game session (useful for testing or administrative purposes)
+     * Load a game session (useful for testing or administrative purposes)
      */
     public @Nullable Game getGameSession(UUID gameId) {
-        return gameSessions.get(gameId);
+        ActiveGameState state = gameStateStore.loadGame(gameId);
+        return state == null ? null : activeGameStateConverter.toGame(state);
     }
 
     public Game getGameOrThrow(UUID gameId) {
@@ -261,8 +262,21 @@ public class MatchService {
         return game;
     }
 
-    public void removeGameSession(UUID gameId) {
-        gameSessions.remove(gameId);
+    /**
+     * Load the game, apply {@code action} and store the result, all under the game's distributed lock.
+     * Nothing is stored if {@code action} throws.
+     */
+    private <T> T updateGame(UUID gameId, Function<Game, T> action) {
+        return gameStateStore.withLock(gameId, () -> {
+            Game game = getGameOrThrow(gameId);
+            T result = action.apply(game);
+            saveGame(gameId, game);
+            return result;
+        });
+    }
+
+    private void saveGame(UUID gameId, Game game) {
+        gameStateStore.storeGame(gameId, activeGameStateConverter.toState(game));
     }
 
     public void requirePlayer(Game game, UserPrincipal user) {

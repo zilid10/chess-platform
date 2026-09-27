@@ -120,11 +120,12 @@ The platform uses Spring WebSocket with STOMP protocol for real-time gameplay:
 WebSocket Features:
 
 - Game Session Management (`MatchService.java`)
-    - Thread safe management
-    - Active games are stored in a `ConcurrentHashMap` (`MatchService.java`) for high-performance access
+    - Active games are stored in Redis (`GameStateStore.java`), so they survive restarts and can be shared by
+      several backend instances; each game expires after 1 hour without activity
+    - Every change runs under a per-game Redis lock, so concurrent moves and joins are serialized across instances
     - Player connection/disconnection handling
     - Spectator support
-    - Automatic cleanup after game completion (1-minute delay)
+    - Automatic cleanup after game completion (the Redis entry expires after 1 minute)
     - Games are persisted to database when completed
 - Publishing:
     - `/app/game/{gameId}/join` - Player joins game

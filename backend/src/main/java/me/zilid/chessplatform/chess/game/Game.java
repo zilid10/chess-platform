@@ -44,45 +44,45 @@ public class Game {
         this(null, null);
     }
 
-    public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
+    public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer) {
         this(whitePlayer, blackPlayer, TimeControl.RAPID);
     }
 
     public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer, TimeControl timeControl) {
+        this(whitePlayer, blackPlayer, timeControl, Instant.now());
+    }
+
+    private Game(@Nullable UserPrincipal whitePlayer,
+            @Nullable UserPrincipal blackPlayer,
+            TimeControl timeControl,
+            Instant startTime) {
         position = Position.startingPosition();
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
         repetitions = new HashMap<>();
         repetitions.put(position.hashCode(), 1);
         status = GameStatus.ONGOING;
-        startTime = Instant.now();
+        this.startTime = startTime;
         this.timeControl = timeControl;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
 
-    public Game(Position position,
-            List<Move> moves,
-            List<UndoInfo> undoes,
-            Map<Integer, Integer> repetitions,
-            Instant startTime,
-            Instant endTime,
-            TimeControl timeControl,
-            GameStatus status,
-            UserPrincipal whitePlayer,
-            UserPrincipal blackPlayer,
-            Color drawOfferedBy) {
-        this.position = position;
-        this.moves = moves;
-        this.undoes = undoes;
-        this.repetitions = repetitions;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.timeControl = timeControl;
-        this.status = status;
-        this.whitePlayer = whitePlayer;
-        this.blackPlayer = blackPlayer;
-        this.drawOfferedBy = drawOfferedBy;
+    /**
+     * Rebuild a game from a snapshot by replaying its moves from the starting position, so derived
+     * state (position, undo history, repetition counts) never has to be persisted.
+     */
+    public static Game fromSnapshot(GameSnapshot snapshot,
+            @Nullable UserPrincipal whitePlayer,
+            @Nullable UserPrincipal blackPlayer) {
+        Game game = new Game(whitePlayer, blackPlayer, snapshot.timeControl(), snapshot.startTime());
+        for (Move move : snapshot.history()) {
+            game.recordMove(move);
+        }
+        game.endTime = snapshot.endTime();
+        game.status = snapshot.status();
+        game.drawOfferedBy = snapshot.drawOfferedBy();
+        return game;
     }
 
     /**
@@ -100,12 +100,7 @@ public class Game {
             // Make moves
             Move move = MoveGenerator.findLegalMove(position, from, to, promotionType)
                     .orElseThrow(() -> new IllegalArgumentException("no such moves"));
-            position.applyMove(move);
-
-            // Record the move with special move flags
-            moves.add(move);
-            int positionHash = position.hashCode();
-            repetitions.merge(positionHash, 1, (a, b) -> a + b);
+            recordMove(move);
 
             // Update game status
             updateGameStatus();
@@ -124,17 +119,23 @@ public class Game {
         return MoveGenerator.legalDestinations(position, from);
     }
 
+    private void recordMove(Move move) {
+        undoes.add(position.applyMove(move));
+        moves.add(move);
+        repetitions.merge(position.hashCode(), 1, Integer::sum);
+    }
+
     public synchronized GameSnapshot getGameSnapshot() {
+        UserPrincipal white = whitePlayer;
+        UserPrincipal black = blackPlayer;
         return new GameSnapshot(
-                getFen(),
                 List.copyOf(moves),
-                Map.copyOf(repetitions),
                 startTime,
                 endTime,
                 timeControl,
                 status,
-                whitePlayer.getId(),
-                blackPlayer.getId(),
+                white == null ? null : white.getId(),
+                black == null ? null : black.getId(),
                 drawOfferedBy);
     }
 

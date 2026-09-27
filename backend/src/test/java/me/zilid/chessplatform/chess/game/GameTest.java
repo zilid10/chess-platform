@@ -1,7 +1,6 @@
 package me.zilid.chessplatform.chess.game;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.Position;
 import me.zilid.chessplatform.chess.Square;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.junit.jupiter.api.Test;
@@ -67,12 +66,9 @@ class GameTest {
         Game game = game();
         GameSnapshot snapshot = game.getGameSnapshot();
 
-        assertThat(snapshot.fen()).isEqualTo(START_FEN);
-        assertThat(snapshot.positionHistory()).containsEntry(Position.startingPosition().hashCode(), 1);
         assertThat(snapshot.history()).isEmpty();
         play(game, "e2", "e4");
         assertThat(snapshot.history()).isEmpty();
-        assertThat(snapshot.fen()).isEqualTo(START_FEN);
         assertThatThrownBy(() -> snapshot.history().clear()).isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -88,10 +84,54 @@ class GameTest {
             assertThat(game.getStatus()).isEqualTo(cycle == 0 ? GameStatus.ONGOING : GameStatus.DRAW_BY_REPETITION);
         }
 
-        assertThat(game.getGameSnapshot().positionHistory())
-                .containsEntry(Position.startingPosition().hashCode(), 3);
         assertThat(game.getEndTime()).isNotNull();
         assertThat(game.makeMove("e2", "e4", null)).isFalse();
+    }
+
+    @Test
+    void restoredGameReplaysMovesAndKeepsMetadata() {
+        Game game = new Game(player("white"), player("black"), TimeControl.BLITZ);
+        play(game, "e2", "e4");
+        play(game, "e7", "e5");
+        game.offerDraw(Color.WHITE);
+
+        Game restored = Game.fromSnapshot(game.getGameSnapshot(), game.getWhitePlayer(), game.getBlackPlayer());
+
+        assertThat(restored.getFen()).isEqualTo(game.getFen());
+        assertThat(restored.getMoves()).isEqualTo(game.getMoves());
+        assertThat(restored.getStartTime()).isEqualTo(game.getStartTime());
+        assertThat(restored.getTimeControl()).isEqualTo(TimeControl.BLITZ);
+        assertThat(restored.getStatus()).isEqualTo(GameStatus.ONGOING);
+        assertThat(restored.getDrawOfferedBy()).isEqualTo(Color.WHITE);
+        assertThat(restored.getWhitePlayer()).isEqualTo(game.getWhitePlayer());
+        assertThat(restored.getBlackPlayer()).isEqualTo(game.getBlackPlayer());
+    }
+
+    @Test
+    void restoredGameStillCountsEarlierRepetitions() {
+        Game game = game();
+        play(game, "g1", "f3");
+        play(game, "g8", "f6");
+        play(game, "f3", "g1");
+        play(game, "f6", "g8");
+        play(game, "g1", "f3");
+        play(game, "g8", "f6");
+        play(game, "f3", "g1");
+
+        Game restored = Game.fromSnapshot(game.getGameSnapshot(), game.getWhitePlayer(), game.getBlackPlayer());
+        play(restored, "f6", "g8");
+
+        assertThat(restored.getStatus()).isEqualTo(GameStatus.DRAW_BY_REPETITION);
+    }
+
+    @Test
+    void snapshotOfGameWaitingForOpponentHasNoMissingPlayerId() {
+        Game game = new Game(player("white"), null);
+
+        GameSnapshot snapshot = game.getGameSnapshot();
+
+        assertThat(snapshot.whitePlayerId()).isEqualTo(game.getWhitePlayer().getId());
+        assertThat(snapshot.blackPlayerId()).isNull();
     }
 
     @Test
