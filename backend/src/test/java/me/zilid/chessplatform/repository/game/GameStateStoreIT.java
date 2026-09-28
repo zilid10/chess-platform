@@ -1,8 +1,8 @@
 package me.zilid.chessplatform.repository.game;
 
+import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.Game;
-import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.repository.UserRepo;
+import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -12,12 +12,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
 /**
  * Runs against the Redis provisioned by the backend CI job.
@@ -37,8 +37,7 @@ class GameStateStoreIT {
         connectionFactory.afterPropertiesSet();
         connectionFactory.start();
         redisTemplate = new StringRedisTemplate(connectionFactory);
-        store = new GameStateStore(redisTemplate, JsonMapper.builder().build(),
-                new ActiveGameStateConverter(mock(UserRepo.class)));
+        store = new GameStateStore(redisTemplate, JsonMapper.builder().build(), new ActiveGameStateConverter());
     }
 
     @AfterAll
@@ -58,11 +57,14 @@ class GameStateStoreIT {
     @Test
     void storesLoadsAndExpiresGames() {
         UUID gameId = UUID.randomUUID();
-        Game game = new Game(null, null, TimeControl.RAPID);
+        Game game = new Game(null, null, ClockSetting.ofMinutes(10, 0));
 
         store.storeGame(gameId, game);
 
-        assertThat(store.loadGame(gameId).getGameSnapshot()).isEqualTo(game.getGameSnapshot());
+        Game loaded = store.loadGame(gameId);
+        assertThat(loaded.getFen()).isEqualTo(game.getFen());
+        assertThat(loaded.getClockSetting()).isEqualTo(game.getClockSetting());
+        assertThat(loaded.getStartTime()).isEqualTo(game.getStartTime());
         assertThat(redisTemplate.getExpire("game:" + gameId, TimeUnit.SECONDS))
                 .isBetween(GameStateStore.GAME_TTL.toSeconds() - 5, GameStateStore.GAME_TTL.toSeconds());
 
@@ -70,6 +72,32 @@ class GameStateStoreIT {
 
         assertThat(redisTemplate.getExpire("game:" + gameId, TimeUnit.SECONDS)).isBetween(25L, 30L);
         redisTemplate.delete("game:" + gameId);
+    }
+
+    @Test
+    void timeoutDeadlinesAreIndexedUntilTheGameEnds() {
+        UUID gameId = UUID.randomUUID();
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(1, 0));
+        game.makeMove("e2", "e4", null, start);
+        game.makeMove("e7", "e5", null, start.plusSeconds(1));
+        Instant deadline = game.timeoutDeadline();
+
+        try {
+            store.storeGame(gameId, game);
+
+            assertThat(store.findTimeoutsDue(deadline.minusMillis(1), 1000)).doesNotContain(gameId);
+            assertThat(store.findTimeoutsDue(deadline, 1000)).contains(gameId);
+
+            game.checkTimeout(deadline);
+            store.storeGame(gameId, game);
+
+            assertThat(store.findTimeoutsDue(deadline, 1000)).doesNotContain(gameId);
+        } finally {
+            store.clearTimeoutDeadline(gameId);
+            redisTemplate.delete("game:" + gameId);
+        }
     }
 
     @Test

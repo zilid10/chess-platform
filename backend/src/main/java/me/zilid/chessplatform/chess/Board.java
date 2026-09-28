@@ -180,46 +180,60 @@ public class Board {
     }
 
     /**
-     * Check if the current position is a draw due to insufficient material
+     * Neither side can checkmate by any sequence of legal moves.
      */
     public boolean isInsufficientMaterial() {
-        List<Piece> otherPieces = new ArrayList<>();
-        List<Square> bishopSquares = new ArrayList<>();
-        int whiteCount = 0, blackCount = 0;
+        return !hasMatingMaterial(Color.WHITE) && !hasMatingMaterial(Color.BLACK);
+    }
+
+    /**
+     * Whether {@code color} could checkmate by some sequence of legal moves, even with the opponent's help. A lone
+     * king never can. A king and knight needs an opponent piece other than a queen to hem the other king in, and
+     * bishops that all stand on one square color need an opponent knight, pawn, or bishop on the other color.
+     */
+    public boolean hasMatingMaterial(Color color) {
+        int knights = 0;
+        boolean[] bishopSquareColors = new boolean[2];
         for (int i = 0; i < BOARD_SIZE; i++) {
-            Piece piece = pieceAt(new Square(i));
-            if (piece != null) {
-                if (piece.color().isWhite()) {
-                    whiteCount++;
-                } else {
-                    blackCount++;
+            Piece piece = pieces[i];
+            if (piece == null || piece.color() != color) {
+                continue;
+            }
+            switch (piece.type()) {
+                case PAWN, ROOK, QUEEN -> {
+                    return true;
                 }
-                if (piece.type() == PieceType.BISHOP) {
-                    bishopSquares.add(new Square(i));
-                }
-                if (piece.type() == PieceType.KNIGHT || piece.type() == PieceType.BISHOP) {
-                    otherPieces.add(piece);
+                case KNIGHT -> knights++;
+                case BISHOP -> bishopSquareColors[squareColor(new Square(i))] = true;
+                case KING -> {
                 }
             }
         }
-
-        // King vs King
-        if (whiteCount == 1 && blackCount == 1) {
+        boolean hasBishops = bishopSquareColors[0] || bishopSquareColors[1];
+        if (knights == 0 && !hasBishops) {
+            return false;
+        }
+        if (knights >= 2 || (knights == 1 && hasBishops) || (bishopSquareColors[0] && bishopSquareColors[1])) {
             return true;
         }
 
-        // King and Bishop vs King or King and Knight vs King
-        if (otherPieces.size() == 1 && (otherPieces.getFirst().type() == PieceType.KNIGHT || otherPieces.getFirst().type() == PieceType.BISHOP)) {
-            return true;
+        boolean opponentHasBlocker = false;
+        for (int i = 0; i < BOARD_SIZE && !opponentHasBlocker; i++) {
+            Piece piece = pieces[i];
+            if (piece == null || piece.color() == color) {
+                continue;
+            }
+            opponentHasBlocker = switch (piece.type()) {
+                case PAWN, KNIGHT -> true;
+                case ROOK -> knights == 1;
+                case BISHOP -> knights == 1 || !bishopSquareColors[squareColor(new Square(i))];
+                case QUEEN, KING -> false;
+            };
         }
+        return opponentHasBlocker;
+    }
 
-        // King and Bishop vs King and Bishop (same color bishop)
-        if (blackCount == 2 && whiteCount == 2 && bishopSquares.size() == 2) {
-            Square b1 = bishopSquares.get(0);
-            Square b2 = bishopSquares.get(1);
-            return (b1.file() + b1.rank()) % 2 == (b2.file() + b2.rank()) % 2;
-        }
-
-        return false;
+    private static int squareColor(Square square) {
+        return (square.file() + square.rank()) % 2;
     }
 }

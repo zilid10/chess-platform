@@ -1,10 +1,10 @@
 import api from './api';
-import { MatchRecord, PageResponse, GameCreatedResponse, GameJoinResponse, GameState, TimeControl } from '../types';
+import { MatchRecord, PageResponse, GameCreatedResponse, GameJoinResponse, GameState, DEFAULT_CLOCK_SETTING } from '../types';
 
 export const gameService = {
-  createGame: async (color: 'WHITE' | 'BLACK', timeControl: TimeControl = 'RAPID'): Promise<GameCreatedResponse> => {
+  createGame: async (color: 'WHITE' | 'BLACK', clockSetting: string = DEFAULT_CLOCK_SETTING): Promise<GameCreatedResponse> => {
     const response = await api.post('/games', null, {
-      params: { color, timeControl }
+      params: { color, timeControl: clockSetting }
     });
     return response.data;
   },

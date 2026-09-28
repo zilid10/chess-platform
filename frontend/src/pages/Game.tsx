@@ -7,6 +7,7 @@ import { websocketService } from '../services/websocketService';
 import { gameService } from '../services/gameService';
 import { useAuth } from '../context/AuthContext';
 import { GameState, ChatMessage as ChatMessageType, TIME_CONTROL_LABELS, TimeControl } from '../types';
+import { formatClock, remainingAt } from '../components/gameClock';
 import { Copy, Flag, Scale, Send } from 'lucide-react';
 
 const Game = () => {
@@ -25,6 +26,10 @@ const Game = () => {
   const [drawOffered, setDrawOffered] = useState(false);
   const [isPlayer, setIsPlayer] = useState(true);
   const [timeControl, setTimeControl] = useState<TimeControl | null>(null);
+  const [clockSetting, setClockSetting] = useState<string | null>(null);
+  const [stateReceivedAt, setStateReceivedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const lastTimeoutClaimRef = useRef(0);
   const iOfferedDrawRef = useRef(false);
 
   useEffect(() => {
@@ -44,6 +49,7 @@ const Game = () => {
         const isActualPlayer = joinResponse.role === 'WHITE' || joinResponse.role === 'BLACK';
         setIsPlayer(isActualPlayer);
         setTimeControl(joinResponse.timeControl);
+        setClockSetting(joinResponse.clockSetting);
         
         // Set player color based on role (role is like "WHITE" or "BLACK")
         if (isActualPlayer) {
@@ -62,7 +68,10 @@ const Game = () => {
           gameId,
           user.username,
           (state: GameState) => {
+            const receivedAt = Date.now();
             setGameState(state);
+            setStateReceivedAt(receivedAt);
+            setNow(receivedAt);
             if (state.fen) {
               const newGame = new Chess(state.fen);
               setGame(newGame);
@@ -103,6 +112,30 @@ const Game = () => {
       websocketService.disconnect();
     };
   }, [gameId, user]);
+
+  const clockTicking = gameState?.gameStatus === 'ONGOING' && gameState.clockRunning;
+
+  useEffect(() => {
+    if (!clockTicking) return;
+    const timer = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(timer);
+  }, [clockTicking]);
+
+  const clocks = gameState ? remainingAt(gameState, stateReceivedAt, now) : null;
+  const sideToMoveLeft = clocks && gameState ? (gameState.turnColor === 'WHITE' ? clocks.white : clocks.black) : null;
+
+  useEffect(() => {
+    // The server ends games on time by itself; claiming the flag only makes the result show up sooner.
+    // Keep claiming once a second in case this browser's clock runs ahead of the server's.
+    if (!gameId || !isPlayer || !clockTicking || sideToMoveLeft === null || sideToMoveLeft > 0) return;
+    if (now - lastTimeoutClaimRef.current < 1000) return;
+    lastTimeoutClaimRef.current = now;
+    try {
+      websocketService.claimTimeout(gameId);
+    } catch (err) {
+      console.warn('Could not claim timeout:', err);
+    }
+  }, [gameId, isPlayer, clockTicking, sideToMoveLeft, now]);
 
   useEffect(() => {
     // Scroll chat to bottom
@@ -192,6 +225,14 @@ const Game = () => {
       return status.includes('WHITE') ? 'White wins by resignation!' : 'Black wins by resignation!';
     }
     
+    if (status.includes('FLAGGED')) {
+      return status.includes('WHITE') ? 'White wins on time!' : 'Black wins on time!';
+    }
+
+    if (status === 'DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL') {
+      return 'Draw - time ran out, but the opponent could not checkmate';
+    }
+
     if (status.includes('DRAW')) {
       return 'Game drawn';
     }
@@ -202,6 +243,27 @@ const Game = () => {
     
     return status;
   };
+
+  const renderClock = (color: 'WHITE' | 'BLACK') => {
+    if (!clocks || !gameState) return null;
+    const millis = color === 'WHITE' ? clocks.white : clocks.black;
+    const active = clockTicking && gameState.turnColor === color;
+    return (
+      <div className="flex justify-end my-2">
+        <span
+          data-testid={`clock-${color.toLowerCase()}`}
+          className={`font-mono text-xl px-3 py-1 rounded ${
+            active ? (millis < 10_000 ? 'bg-red-600 text-white' : 'bg-gray-900 text-white') : 'bg-gray-100 text-gray-700'
+          }`}
+        >
+          {formatClock(millis)}
+        </span>
+      </div>
+    );
+  };
+
+  const topColor = playerColor === 'white' ? 'BLACK' : 'WHITE';
+  const bottomColor = playerColor === 'white' ? 'WHITE' : 'BLACK';
 
   if (loading) {
     return (
@@ -271,7 +333,7 @@ const Game = () => {
                   Chess Game
                   {timeControl && (
                     <span className="ml-2 text-sm font-medium text-gray-500">
-                      Rated {TIME_CONTROL_LABELS[timeControl]}
+                      Rated {TIME_CONTROL_LABELS[timeControl]}{clockSetting && ` · ${clockSetting}`}
                     </span>
                   )}
                 </h2>
@@ -290,12 +352,14 @@ const Game = () => {
             </div>
             
             <div className="w-full max-w-2xl mx-auto">
+              {renderClock(topColor)}
               <Chessboard
                 position={game.fen()}
                 onPieceDrop={onDrop}
                 boardWidth={560}
                 boardOrientation={playerColor}
               />
+              {renderClock(bottomColor)}
             </div>
 
             {isPlayer && gameState?.gameStatus === 'ONGOING' && (

@@ -83,7 +83,14 @@ describe('WebSocketService', () => {
     ]);
     expect(client.publish).toHaveBeenCalledWith({ destination: '/app/game/game-1/join', body: '{}' });
 
-    const state: GameState = { gameStatus: 'ONGOING', fen: 'example', turnColor: 'WHITE' };
+    const state: GameState = {
+      gameStatus: 'ONGOING',
+      fen: 'example',
+      turnColor: 'WHITE',
+      whiteRemainingMillis: 300_000,
+      blackRemainingMillis: 300_000,
+      clockRunning: false,
+    };
     const chat: ChatMessage = { sender: 'bob', message: 'Hi', timestamp: 'now', type: 'CHAT' };
     client.subscriptions.get('/topic/game.game-1')?.({ body: JSON.stringify(state) });
     client.subscriptions.get('/topic/game.game-1.chat')?.({ body: JSON.stringify(chat) });
@@ -150,7 +157,7 @@ describe('WebSocketService', () => {
     });
   });
 
-  it('publishes move, chat, resign, and draw commands to their destinations', () => {
+  it('publishes move, chat, resign, draw, and timeout commands to their destinations', () => {
     const service = new WebSocketService();
     service.connect('game-1', 'alice', vi.fn(), vi.fn());
     const client = latestClient();
@@ -161,6 +168,7 @@ describe('WebSocketService', () => {
     service.resign('game-1', 'WHITE');
     service.offerDraw('game-1');
     service.acceptDraw('game-1');
+    service.claimTimeout('game-1');
 
     expect(client.publish.mock.calls.map(([message]) => message)).toEqual([
       {
@@ -174,6 +182,7 @@ describe('WebSocketService', () => {
       { destination: '/app/game/game-1/resign', body: '{}' },
       { destination: '/app/game/game-1/draw/offer', body: '' },
       { destination: '/app/game/game-1/draw/accept', body: '' },
+      { destination: '/app/game/game-1/flag', body: '' },
     ]);
   });
 
@@ -188,5 +197,6 @@ describe('WebSocketService', () => {
 
     expect(client.deactivate).toHaveBeenCalledOnce();
     expect(() => service.offerDraw('game-1')).toThrow('WebSocket not connected');
+    expect(() => service.claimTimeout('game-1')).toThrow('WebSocket not connected');
   });
 });

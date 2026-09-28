@@ -1,10 +1,13 @@
 package me.zilid.chessplatform.repository;
 
 import jakarta.persistence.EntityManager;
+import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
@@ -57,6 +60,20 @@ class MatchRecordRepoIntegrationTest {
         assertThat(secondPage.map(MatchRecord::getId).getContent())
                 .containsExactly(oldest.getId());
         assertThat(secondPage.getContent().getFirst().getPgn()).isEqualTo("1. e4 e5");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = GameStatus.class, names = {"FLAGGED_WHITE_WINS", "DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL"})
+    void gamesEndedOnTimeCanBeArchived(GameStatus status) {
+        MatchRecord match = new MatchRecord(saveUser("white"), saveUser("black"), status.getSymbol(),
+                status.getReason(), "1. e4 e5", Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-01-01T00:10:00Z"));
+
+        matchRecordRepo.save(match);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(matchRecordRepo.findById(match.getId()).orElseThrow().getReason()).isEqualTo(status.getReason());
     }
 
     private User saveUser(String name) {

@@ -6,8 +6,8 @@ import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
-import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.security.UserPrincipal;
+import me.zilid.chessplatform.service.GameEventPublisher;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -17,12 +17,12 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -31,12 +31,12 @@ import java.util.UUID;
 public class GameSocketController {
     private static final Logger logger = LoggerFactory.getLogger(GameSocketController.class);
 
-    private final SimpMessagingTemplate messagingTemplate;
     private final MatchService matchService;
+    private final GameEventPublisher publisher;
 
-    public GameSocketController(SimpMessagingTemplate messagingTemplate, MatchService matchService) {
-        this.messagingTemplate = messagingTemplate;
+    public GameSocketController(MatchService matchService, GameEventPublisher publisher) {
         this.matchService = matchService;
+        this.publisher = publisher;
     }
 
     private static @Nullable PieceType parsePromotion(@Nullable String promotion) {
@@ -52,29 +52,12 @@ public class GameSocketController {
         };
     }
 
-    // Dot-separated so the names are valid RabbitMQ topics
-    private static String gameTopic(UUID gameId) {
-        return "/topic/game." + gameId;
-    }
-
-    private static String chatTopic(UUID gameId) {
-        return "/topic/game." + gameId + ".chat";
-    }
-
     private static Player currentPlayer(@Nullable Principal principal) {
         if (principal instanceof Authentication authentication
                 && authentication.getPrincipal() instanceof UserPrincipal user) {
             return user.toPlayer();
         }
         throw new IllegalStateException("Authentication required");
-    }
-
-    private static String ratingSummary(Game game, RatingChange change) {
-        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
-        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
-        return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
-                game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
-                black, change.blackAfter(), change.blackDelta());
     }
 
     /**
@@ -99,7 +82,7 @@ public class GameSocketController {
                         username + " disconnected",
                         ChatMessage.MessageType.LEAVE
                 );
-                messagingTemplate.convertAndSend(chatTopic(gameId), disconnectMessage);
+                publisher.publishChat(gameId, disconnectMessage);
             }
         }
     }
@@ -129,15 +112,14 @@ public class GameSocketController {
             logger.info("Spectator {} joined game {}", currentUser.displayName(), gameId);
         }
 
-        GameStateResponse response = matchService.buildGameStateResponse(game);
-        messagingTemplate.convertAndSend(gameTopic(gameId), response);
+        publisher.publishState(gameId, matchService.buildGameStateResponse(game));
 
         ChatMessage notification = new ChatMessage(
                 "System",
                 currentUser.displayName() + (isPlayer ? " (Player)" : " (Spectator)") + " connected",
                 ChatMessage.MessageType.JOIN
         );
-        messagingTemplate.convertAndSend(chatTopic(gameId), notification);
+        publisher.publishChat(gameId, notification);
     }
 
     /**
@@ -152,9 +134,22 @@ public class GameSocketController {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.makeMove(
                 currentUser, gameId, moveRequest.moveFrom(), moveRequest.moveTo(),
-                parsePromotion(moveRequest.promotion()));
-        messagingTemplate.convertAndSend(gameTopic(gameId), response);
-        onGameEnd(gameId, response);
+                parsePromotion(moveRequest.promotion()), Instant.now());
+        publisher.publishUpdate(gameId, response);
+    }
+
+    /**
+     * A client's claim that the side to move has run out of time. The server decides from its own clock; a claim
+     * made too early is ignored, and the client may repeat it.
+     * Maps to: /app/game/{gameId}/flag
+     * Response sent to: /topic/game.{gameId}
+     */
+    @MessageMapping("/game/{gameId}/flag")
+    public void claimTimeout(@DestinationVariable UUID gameId, Principal principal) {
+        Player currentUser = currentPlayer(principal);
+        logger.debug("User {} claims a timeout in game {}", currentUser.displayName(), gameId);
+        matchService.checkTimeout(gameId, Instant.now())
+                .ifPresent(response -> publisher.publishUpdate(gameId, response));
     }
 
     /**
@@ -167,14 +162,8 @@ public class GameSocketController {
                        Principal principal) {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.resign(currentUser, gameId);
-
-        // Send updated game state
-        messagingTemplate.convertAndSend(gameTopic(gameId), response);
-
-        // Send system message
-        String winner = response.gameStatus().isWhiteWin() ? "White" : "Black";
-        logger.info("Resign executed in game {}: {} wins", gameId, winner);
-        onGameEnd(gameId, response);
+        logger.info("Resign handled in game {}: {}", gameId, response.gameStatus());
+        publisher.publishUpdate(gameId, response);
     }
 
     /**
@@ -188,13 +177,8 @@ public class GameSocketController {
             Principal principal) {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
-
-        // update the game state
-        messagingTemplate.convertAndSend(gameTopic(gameId), response);
         logger.info("Draw acceptance handled in game {}", gameId);
-
-        // Send system message
-        onGameEnd(gameId, response);
+        publisher.publishUpdate(gameId, response);
     }
 
     @MessageMapping("/game/{gameId}/draw/offer")
@@ -206,7 +190,7 @@ public class GameSocketController {
         logger.info("Draw offered in game {}", gameId);
 
         // Send system message
-        sendSystemMessage(gameId, "Draw offered");
+        publisher.sendSystemMessage(gameId, "Draw offered");
     }
 
     /**
@@ -229,29 +213,6 @@ public class GameSocketController {
                 ChatMessage.MessageType.CHAT
         );
 
-        messagingTemplate.convertAndSend(chatTopic(gameId), timestampedMessage);
-    }
-
-    private void sendSystemMessage(UUID gameId, String message) {
-        ChatMessage systemMessage = new ChatMessage(
-                "System",
-                message,
-                ChatMessage.MessageType.SYSTEM
-        );
-        messagingTemplate.convertAndSend(chatTopic(gameId), systemMessage);
-    }
-
-    private void onGameEnd(UUID gameId, GameStateResponse response) {
-        if (response.gameStatus().isGameOver()) {
-            sendSystemMessage(gameId, "Game Over: " + response.gameStatus().getDescription());
-            try {
-                Game game = matchService.getGameOrThrow(gameId);
-                RatingChange ratingChange = matchService.archiveMatch(gameId, game);
-                sendSystemMessage(gameId, ratingSummary(game, ratingChange));
-                matchService.scheduleGameCleanup(gameId);
-            } catch (Exception e) {
-                logger.error("Failed to archive game {}", gameId, e);
-            }
-        }
+        publisher.publishChat(gameId, timestampedMessage);
     }
 }

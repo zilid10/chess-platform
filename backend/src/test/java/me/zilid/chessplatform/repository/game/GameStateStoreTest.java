@@ -4,13 +4,10 @@ import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.Square;
+import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
-import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.exception.UserNotFoundException;
-import me.zilid.chessplatform.model.entity.User;
-import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,13 +15,15 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,19 +34,22 @@ import static org.mockito.Mockito.*;
 class GameStateStoreTest {
     private static final UUID GAME_ID = UUID.randomUUID();
 
+    private static final Instant T0 = Instant.parse("2026-09-27T10:15:30Z");
+
     private StringRedisTemplate redisTemplate;
     private ValueOperations<String, String> values;
+    private ZSetOperations<String, String> sortedSets;
     private GameStateStore store;
-    private UserRepo users;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
         redisTemplate = mock(StringRedisTemplate.class);
         values = mock(ValueOperations.class);
+        sortedSets = mock(ZSetOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(values);
-        users = mock(UserRepo.class);
-        store = new GameStateStore(redisTemplate, JsonMapper.builder().build(), new ActiveGameStateConverter(users));
+        when(redisTemplate.opsForZSet()).thenReturn(sortedSets);
+        store = new GameStateStore(redisTemplate, JsonMapper.builder().build(), new ActiveGameStateConverter());
     }
 
     @Test
@@ -57,11 +59,15 @@ class GameStateStoreTest {
                         Move.doublePush(Square.fromNotation("e2"), Square.fromNotation("e4")),
                         Move.promotion(Square.fromNotation("b7"), Square.fromNotation("a8"), PieceType.KNIGHT),
                         Move.castleKingside(Color.BLACK)),
+                ClockSetting.ofMinutes(3, 2),
+                Duration.ofMillis(171_250),
+                Duration.ofSeconds(180),
+                Instant.parse("2026-09-27T10:16:30Z"),
+                Color.WHITE,
                 Instant.parse("2026-09-27T10:15:30Z"),
                 null,
-                TimeControl.BLITZ,
                 GameStatus.ONGOING,
-                UUID.randomUUID(),
+                new StoredPlayer(UUID.randomUUID(), "white"),
                 null,
                 Color.WHITE);
 
@@ -70,60 +76,105 @@ class GameStateStoreTest {
     }
 
     @Test
-    void storeReconstructsGameAndPlayersWithoutAuthentication() {
-        User white = new User("white@example.com", "white", "hash", "");
-        User black = new User("black@example.com", "black", "hash", "");
-        when(users.findById(white.getId())).thenReturn(Optional.of(white));
-        when(users.findById(black.getId())).thenReturn(Optional.of(black));
-        Game game = new Game(new RegisteredPlayer(white.getId(), white.getUsername()),
-                new RegisteredPlayer(black.getId(), black.getUsername()), TimeControl.BLITZ);
-        assertThat(game.makeMove("e2", "e4", null)).isTrue();
+    void storeReconstructsGameClockAndPlayers() {
+        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2));
+        assertThat(game.makeMove("e2", "e4", null, T0)).isTrue();
+        assertThat(game.makeMove("e7", "e5", null, T0.plusSeconds(4))).isTrue();
         game.offerDraw(Color.WHITE);
+
+        Game restored = storeAndLoad(game);
+
+        assertThat(restored.getFen()).isEqualTo(game.getFen());
+        assertThat(restored.getMoves()).isEqualTo(game.getMoves());
+        assertThat(restored.getWhitePlayer()).isEqualTo(game.getWhitePlayer());
+        assertThat(restored.getWhitePlayer().displayName()).isEqualTo("white");
+        assertThat(restored.getBlackPlayer()).isEqualTo(game.getBlackPlayer());
+        assertThat(restored.getDrawOfferedBy()).isEqualTo(Color.WHITE);
+        assertThat(restored.getClockSetting()).isEqualTo(ClockSetting.ofMinutes(3, 2));
+        assertThat(restored.getWhiteRemaining()).isEqualTo(game.getWhiteRemaining());
+        assertThat(restored.getBlackRemaining()).isEqualTo(game.getBlackRemaining());
+        assertThat(restored.getTurnStartAt()).isEqualTo(T0.plusSeconds(4));
+        assertThat(restored.timeoutDeadline()).isEqualTo(game.timeoutDeadline());
+        assertThat(restored.makeMove("g1", "f3", null, T0.plusSeconds(5))).isTrue();
+    }
+
+    @Test
+    void gameWaitingForAnOpponentKeepsTheOpenSeat() {
+        Game game = new Game(null, new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(5, 3));
+
+        Game restored = storeAndLoad(game);
+
+        assertThat(restored.getWhitePlayer()).isNull();
+        assertThat(restored.getBlackPlayer()).isEqualTo(game.getBlackPlayer());
+    }
+
+    @Test
+    void finishedGameStaysFinishedAfterReloading() {
+        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2));
+        game.makeMove("e2", "e4", null, T0);
+        game.makeMove("e7", "e5", null, T0.plusSeconds(1));
+        assertThat(game.checkTimeout(T0.plus(Duration.ofMinutes(10)))).isTrue();
+
+        Game restored = storeAndLoad(game);
+
+        assertThat(restored.getStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
+        assertThat(restored.getEndTime()).isEqualTo(game.getEndTime());
+        assertThat(restored.getWhiteRemaining()).isZero();
+        assertThat(restored.timeoutDeadline()).isNull();
+    }
+
+    @Test
+    void storingAGameWithARunningClockIndexesItsDeadline() {
+        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2));
+        game.makeMove("e2", "e4", null, T0);
+        game.makeMove("e7", "e5", null, T0.plusSeconds(1));
 
         store.storeGame(GAME_ID, game);
 
+        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(),
+                game.timeoutDeadline().toEpochMilli());
+        verify(sortedSets, never()).remove(any(), any());
+    }
+
+    @Test
+    void storingAGameWithoutARunningClockClearsItsDeadline() {
+        store.storeGame(GAME_ID, new Game(null, null, ClockSetting.ofMinutes(3, 2)));
+
+        verify(sortedSets).remove(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString());
+        verify(sortedSets, never()).add(any(), any(), anyDouble());
+    }
+
+    @Test
+    void dueTimeoutsAreReadUpToNow() {
+        UUID other = UUID.randomUUID();
+        when(sortedSets.rangeByScore(GameStateStore.TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY,
+                T0.toEpochMilli(), 0, 50)).thenReturn(new LinkedHashSet<>(List.of(GAME_ID.toString(), other.toString())));
+
+        assertThat(store.findTimeoutsDue(T0, 50)).containsExactly(GAME_ID, other);
+    }
+
+    @Test
+    void storedJsonFromBeforeTheClockDoesNotLoad() {
+        when(values.get("game:" + GAME_ID)).thenReturn("""
+                {"history":[],"startTime":"2026-09-27T10:15:30Z","endTime":null,
+                 "timeControl":"RAPID","status":"ONGOING","whitePlayerId":"%s",
+                 "blackPlayerId":null,"drawOfferedBy":null}
+                """.formatted(UUID.randomUUID()));
+
+        assertThatThrownBy(() -> store.loadGame(GAME_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("failed to parse game state");
+    }
+
+    private Game storeAndLoad(Game game) {
+        store.storeGame(GAME_ID, game);
         ArgumentCaptor<String> json = ArgumentCaptor.forClass(String.class);
         verify(values).set(eq("game:" + GAME_ID), json.capture(), eq(GameStateStore.GAME_TTL));
         when(values.get("game:" + GAME_ID)).thenReturn(json.getValue());
-        Game restored = store.loadGame(GAME_ID);
-        assertThat(restored.getGameSnapshot()).isEqualTo(game.getGameSnapshot());
-        assertThat(restored.getFen()).isEqualTo(game.getFen());
-        assertThat(restored.getWhitePlayer()).isEqualTo(game.getWhitePlayer());
-        assertThat(restored.getBlackPlayer()).isEqualTo(game.getBlackPlayer());
-        assertThat(restored.makeMove("e7", "e5", null)).isTrue();
-    }
-
-    @Test
-    void existingRedisJsonStillLoadsWithAnEmptySeat() {
-        User white = new User("white@example.com", "white", "hash", "");
-        when(users.findById(white.getId())).thenReturn(Optional.of(white));
-        // The stored format has no Java class name; keep these keys compatible across package moves.
-        when(values.get("game:" + GAME_ID)).thenReturn("""
-                {"history":[],"startTime":"2026-09-27T10:15:30Z","endTime":null,
-                 "timeControl":"RAPID","status":"ONGOING","whitePlayerId":"%s",
-                 "blackPlayerId":null,"drawOfferedBy":null}
-                """.formatted(white.getId()));
-
-        Game restored = store.loadGame(GAME_ID);
-
-        assertThat(restored.getWhitePlayer()).isEqualTo(new RegisteredPlayer(white.getId(), "white"));
-        assertThat(restored.getBlackPlayer()).isNull();
-        assertThat(restored.getTimeControl()).isEqualTo(TimeControl.RAPID);
-        verify(users).findById(white.getId());
-        verifyNoMoreInteractions(users);
-    }
-
-    @Test
-    void deletedPlayerIsAnApplicationLookupFailure() {
-        UUID missingId = UUID.randomUUID();
-        when(values.get("game:" + GAME_ID)).thenReturn("""
-                {"history":[],"startTime":"2026-09-27T10:15:30Z","endTime":null,
-                 "timeControl":"RAPID","status":"ONGOING","whitePlayerId":"%s",
-                 "blackPlayerId":null,"drawOfferedBy":null}
-                """.formatted(missingId));
-
-        assertThatThrownBy(() -> store.loadGame(GAME_ID))
-                .isInstanceOf(UserNotFoundException.class);
+        return store.loadGame(GAME_ID);
     }
 
     @Test

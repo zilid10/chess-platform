@@ -1,8 +1,11 @@
 package me.zilid.chessplatform.controller;
 
+import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.Player;
+import me.zilid.chessplatform.chess.game.TestGames;
 import me.zilid.chessplatform.config.WebsocketConfig;
 import me.zilid.chessplatform.controller.advice.WebSocketExceptionHandler;
 import me.zilid.chessplatform.model.dto.ChatMessage;
@@ -10,6 +13,7 @@ import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.security.UserPrincipal;
+import me.zilid.chessplatform.service.GameEventPublisher;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -50,6 +54,7 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -107,13 +112,19 @@ class GameSocketStompIntegrationTest {
                 "{noop}password", true, List.of());
     }
 
+    private static GameStateResponse state(Game game) {
+        Instant now = Instant.now();
+        return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
+                game.getLastMoveTo(), game.getTurnColor().name(),
+                game.getRemaining(Color.WHITE, now).toMillis(), game.getRemaining(Color.BLACK, now).toMillis(),
+                game.isClockRunning());
+    }
+
     @BeforeEach
     void setUp() {
-        game = new Game(WHITE.toPlayer(), BLACK.toPlayer());
+        game = TestGames.game(WHITE.toPlayer(), BLACK.toPlayer());
         when(matchService.getGameOrThrow(GAME_ID)).thenReturn(game);
-        when(matchService.buildGameStateResponse(game)).thenAnswer(invocation -> new GameStateResponse(
-                game.getStatus(), game.getFen(), game.getLastMoveFrom(), game.getLastMoveTo(),
-                game.getTurnColor().name()));
+        when(matchService.buildGameStateResponse(game)).thenAnswer(invocation -> state(game));
         doAnswer(invocation -> {
             Player user = invocation.getArgument(0);
             if (!game.isValidPlayer(user)) {
@@ -128,10 +139,9 @@ class GameSocketStompIntegrationTest {
             if (!game.makeMove(from, to, promotion)) {
                 throw new IllegalArgumentException("Invalid move: " + from + " to " + to);
             }
-            return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
-                    game.getLastMoveTo(), game.getTurnColor().name());
+            return state(game);
         }).when(matchService).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
-                nullable(PieceType.class));
+                nullable(PieceType.class), any(Instant.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
         client.setMessageConverter(new JacksonJsonMessageConverter());
@@ -162,7 +172,27 @@ class GameSocketStompIntegrationTest {
         assertThat(moved.lastMoveTo()).isEqualTo("e4");
         assertThat(moved.turnColor()).isEqualTo("BLACK");
         assertThat(moved.fen()).isEqualTo(game.getFen());
-        verify(matchService).makeMove(WHITE.toPlayer(), GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(eq(WHITE.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull(),
+                any(Instant.class));
+    }
+
+    @Test
+    void acceptedTimeoutClaimReachesTheGameTopic() throws Exception {
+        GameStateResponse flagged = new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, game.getFen(), null, null,
+                "WHITE", 0, 600_000, false);
+        when(matchService.checkTimeout(eq(GAME_ID), any(Instant.class))).thenReturn(Optional.of(flagged));
+        StompSession session = connect("black");
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
+                GameStateResponse.class);
+        session.send("/app/game/" + GAME_ID + "/join", new byte[0]);
+        take(updates);
+
+        session.send("/app/game/" + GAME_ID + "/flag", new byte[0]);
+
+        GameStateResponse update = take(updates);
+        assertThat(update.gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
+        assertThat(update.whiteRemainingMillis()).isZero();
+        verify(matchService).checkTimeout(eq(GAME_ID), any(Instant.class));
     }
 
     @Test
@@ -185,7 +215,8 @@ class GameSocketStompIntegrationTest {
         assertThat(error.error()).contains("not a player");
         assertNoMessage(updates);
         assertThat(game.getLastMoveFrom()).isNull();
-        verify(matchService).makeMove(SPECTATOR.toPlayer(), GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(eq(SPECTATOR.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull(),
+                any(Instant.class));
     }
 
     @Test
@@ -289,7 +320,7 @@ class GameSocketStompIntegrationTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-    @Import({WebsocketConfig.class, GameSocketController.class, WebSocketExceptionHandler.class})
+    @Import({WebsocketConfig.class, GameSocketController.class, GameEventPublisher.class, WebSocketExceptionHandler.class})
     static class TestApplication {
         @Bean
         SecurityFilterChain testSecurity(HttpSecurity http) {

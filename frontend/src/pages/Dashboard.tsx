@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { gameService } from '../services/gameService';
 import RatingsCard from '../components/RatingsCard';
-import { TIME_CONTROLS, TIME_CONTROL_LABELS, TimeControl } from '../types';
+import { CLOCK_SETTINGS, DEFAULT_CLOCK_SETTING } from '../types';
 import { Play, Users } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [gameId, setGameId] = useState('');
-  const [timeControl, setTimeControl] = useState<TimeControl>('RAPID');
+  const [clockSetting, setClockSetting] = useState(DEFAULT_CLOCK_SETTING);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,7 +20,7 @@ const Dashboard = () => {
     setError('');
     try {
       // Create a game with WHITE color
-      const response = await gameService.createGame('WHITE', timeControl);
+      const response = await gameService.createGame('WHITE', clockSetting);
       navigate(`/game/${response.gameId}`);
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to create game'));
@@ -57,18 +57,18 @@ const Dashboard = () => {
             <h2 className="text-xl font-semibold">Create New Game</h2>
           </div>
           <p className="text-gray-600 mb-4">Start a new chess game and invite a friend</p>
-          <label htmlFor="time-control" className="block text-sm font-medium text-gray-700 mb-2">
-            Time control (rated)
+          <label htmlFor="clock-setting" className="block text-sm font-medium text-gray-700 mb-2">
+            Clock (minutes + increment seconds, rated)
           </label>
           <select
-            id="time-control"
+            id="clock-setting"
             className="input mb-4"
-            value={timeControl}
-            onChange={(e) => setTimeControl(e.target.value as TimeControl)}
+            value={clockSetting}
+            onChange={(e) => setClockSetting(e.target.value)}
           >
-            {TIME_CONTROLS.map((option) => (
+            {CLOCK_SETTINGS.map((option) => (
               <option key={option} value={option}>
-                {TIME_CONTROL_LABELS[option]}
+                {option}
               </option>
             ))}
           </select>

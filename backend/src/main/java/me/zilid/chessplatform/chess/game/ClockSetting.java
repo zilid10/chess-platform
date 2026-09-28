@@ -39,6 +39,26 @@ public record ClockSetting(Duration initial, Duration increment) {
     }
 
     /**
+     * Read a setting written like {@link #toString()}: minutes, which may be fractional, then "+" and increment
+     * seconds, such as "5+3" or "0.5+0".
+     *
+     * @throws IllegalArgumentException if {@code text} is malformed or describes an invalid setting
+     */
+    public static ClockSetting parse(String text) {
+        String[] parts = text.split("\\+", -1);
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("clock setting must look like 5+3: " + text);
+        }
+        try {
+            long initialSeconds = new BigDecimal(parts[0].strip()).multiply(BigDecimal.valueOf(60)).longValueExact();
+            long incrementSeconds = Long.parseLong(parts[1].strip());
+            return new ClockSetting(Duration.ofSeconds(initialSeconds), Duration.ofSeconds(incrementSeconds));
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("initial time must be whole seconds: " + text, e);
+        }
+    }
+
+    /**
      * The rating category, from the estimated length of a 40-move game.
      */
     public TimeControl category() {

@@ -4,6 +4,7 @@ import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
@@ -281,6 +282,34 @@ class ChessRulesTest {
                     .as("opposite-colored bishops").isFalse();
             assertThat(Fen.parse("7k/8/8/8/8/8/8/KQ6 w - - 0 1").getBoard().isInsufficientMaterial())
                     .as("queen on the board").isFalse();
+            assertThat(Fen.parse("7k/8/8/8/8/8/8/KQB5 w - - 0 1").getBoard().isInsufficientMaterial())
+                    .as("queen beside a single minor piece").isFalse();
+            assertThat(Fen.parse("7k/8/8/8/8/8/P7/KB6 w - - 0 1").getBoard().isInsufficientMaterial())
+                    .as("pawn beside a single minor piece").isFalse();
+            assertThat(Fen.parse("6nk/8/8/8/8/8/8/KN6 w - - 0 1").getBoard().isInsufficientMaterial())
+                    .as("knight vs knight").isFalse();
+        }
+
+        @ParameterizedTest(name = "{0}: White can mate = {1}, Black can mate = {2}")
+        @CsvSource({
+                "k7/8/8/8/8/8/8/QK6 w - - 0 1, true, false",   // lone king cannot mate
+                "k7/8/8/8/8/8/8/NK6 w - - 0 1, false, false",  // knight vs lone king
+                "kr6/8/8/8/8/8/8/NK6 w - - 0 1, true, true",   // a rook can hem its own king in against a knight
+                "kq6/8/8/8/8/8/8/NK6 w - - 0 1, false, true",  // a queen cannot: it would capture or be pinned
+                "kn6/8/8/8/8/8/8/NK6 w - - 0 1, true, true",   // knight vs knight
+                "k7/1p6/8/8/8/8/8/BK6 w - - 0 1, true, true",  // a pawn can block for a bishop
+                "kr6/8/8/8/8/8/8/BK6 w - - 0 1, false, true",  // a rook cannot block for a bishop
+                "k1b5/8/8/8/8/8/8/1K3B2 w - - 0 1, false, false", // bishops on the same square color
+                "k1b5/8/8/8/8/8/8/1KB5 w - - 0 1, true, true",  // bishops on opposite square colors
+                "k7/8/8/8/8/8/8/NNK5 w - - 0 1, true, false",   // two knights
+                "k7/8/8/8/8/8/8/BNK5 w - - 0 1, true, false",   // bishop and knight
+                "k7/8/8/8/8/8/8/1BBK4 w - - 0 1, true, false",  // bishops on both square colors
+        })
+        void matingMaterialPerSide(String fen, boolean whiteCanMate, boolean blackCanMate) {
+            Board board = Fen.parse(fen).getBoard();
+
+            assertThat(board.hasMatingMaterial(Color.WHITE)).as("White").isEqualTo(whiteCanMate);
+            assertThat(board.hasMatingMaterial(Color.BLACK)).as("Black").isEqualTo(blackCanMate);
         }
     }
 
