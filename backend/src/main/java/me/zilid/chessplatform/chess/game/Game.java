@@ -1,23 +1,13 @@
 package me.zilid.chessplatform.chess.game;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.Move;
-import me.zilid.chessplatform.chess.MoveGenerator;
-import me.zilid.chessplatform.chess.PieceType;
-import me.zilid.chessplatform.chess.Position;
-import me.zilid.chessplatform.chess.Square;
-import me.zilid.chessplatform.chess.UndoInfo;
+import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.jspecify.annotations.Nullable;
+
+import java.time.Instant;
+import java.util.*;
 
 /**
  * Represents a complete chess game with history and metadata
@@ -53,9 +43,9 @@ public class Game {
     }
 
     private Game(@Nullable UserPrincipal whitePlayer,
-            @Nullable UserPrincipal blackPlayer,
-            TimeControl timeControl,
-            Instant startTime) {
+                 @Nullable UserPrincipal blackPlayer,
+                 TimeControl timeControl,
+                 Instant startTime) {
         position = Position.startingPosition();
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
@@ -73,8 +63,8 @@ public class Game {
      * state (position, undo history, repetition counts) never has to be persisted.
      */
     public static Game fromSnapshot(GameSnapshot snapshot,
-            @Nullable UserPrincipal whitePlayer,
-            @Nullable UserPrincipal blackPlayer) {
+                                    @Nullable UserPrincipal whitePlayer,
+                                    @Nullable UserPrincipal blackPlayer) {
         Game game = new Game(whitePlayer, blackPlayer, snapshot.timeControl(), snapshot.startTime());
         for (Move move : snapshot.history()) {
             game.recordMove(move);
@@ -146,11 +136,11 @@ public class Game {
         return Fen.format(position);
     }
 
-    public synchronized String getLastMoveFrom() {
+    public synchronized @Nullable String getLastMoveFrom() {
         return moves.isEmpty() ? null : moves.getLast().from().toNotation();
     }
 
-    public synchronized String getLastMoveTo() {
+    public synchronized @Nullable String getLastMoveTo() {
         return moves.isEmpty() ? null : moves.getLast().to().toNotation();
     }
 

@@ -19,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
@@ -115,9 +116,11 @@ class GameSocketControllerTest {
     }
 
     @Test
-    void unauthenticatedChatIsRejected() {
+    void chatWithoutAnAuthenticatedUserIsRejected() {
+        Principal anonymous = () -> "anonymous";
+
         assertThatThrownBy(() -> controller.sendChatMessage(
-                GAME_ID, new ChatMessage("forged", "hello"), null))
+                GAME_ID, new ChatMessage("forged", "hello"), anonymous))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Authentication required");
 
