@@ -2,8 +2,8 @@ package me.zilid.chessplatform.model.converter;
 
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameSnapshot;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.UserPrincipalService;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -44,10 +44,10 @@ public class ActiveGameStateConverter {
                 state.blackPlayerId(),
                 state.drawOfferedBy()
         );
-        return Game.fromSnapshot(snapshot, loadUser(state.whitePlayerId()), loadUser(state.blackPlayerId()));
+        return Game.fromSnapshot(snapshot, loadPlayer(state.whitePlayerId()), loadPlayer(state.blackPlayerId()));
     }
 
-    private @Nullable UserPrincipal loadUser(@Nullable UUID userId) {
-        return userId == null ? null : userPrincipalService.loadUserById(userId);
+    private @Nullable Player loadPlayer(@Nullable UUID userId) {
+        return userId == null ? null : userPrincipalService.loadUserById(userId).toPlayer();
     }
 }

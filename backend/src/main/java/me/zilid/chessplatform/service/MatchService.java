@@ -3,6 +3,7 @@ package me.zilid.chessplatform.service;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -15,7 +16,6 @@ import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MatchRecordResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.repository.GameStateStore;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
@@ -79,10 +79,10 @@ public class MatchService {
         return matchRecord.getPgn();
     }
 
-    public GameCreatedResponse createGame(UserPrincipal currentUser, Color color, TimeControl timeControl) {
+    public GameCreatedResponse createGame(Player currentUser, Color color, TimeControl timeControl) {
         UUID gameId = UUID.randomUUID();
         logger.info("Creating new {} game {} for user {} with color {}",
-                timeControl, gameId, currentUser.getUsername(), color);
+                timeControl, gameId, currentUser.displayName(), color);
         Game game = color.isWhite()
                 ? new Game(currentUser, null, timeControl)
                 : new Game(null, currentUser, timeControl);
@@ -97,27 +97,27 @@ public class MatchService {
         );
     }
 
-    public GameJoinResponse joinGame(UUID gameId, UserPrincipal currentUser) {
-        logger.info("User {} attempting to join game {}", currentUser.getUsername(), gameId);
+    public GameJoinResponse joinGame(UUID gameId, Player currentUser) {
+        logger.info("User {} attempting to join game {}", currentUser.displayName(), gameId);
         return updateGame(gameId, game -> {
             String role;
             if (currentUser.equals(game.getWhitePlayer())) {
                 role = "WHITE"; // reconnect
-                logger.debug("User {} reconnecting as WHITE to game {}", currentUser.getUsername(), gameId);
+                logger.debug("User {} reconnecting as WHITE to game {}", currentUser.displayName(), gameId);
             } else if (currentUser.equals(game.getBlackPlayer())) {
                 role = "BLACK"; // reconnect
-                logger.debug("User {} reconnecting as BLACK to game {}", currentUser.getUsername(), gameId);
+                logger.debug("User {} reconnecting as BLACK to game {}", currentUser.displayName(), gameId);
             } else if (game.getWhitePlayer() == null) {
                 game.setWhitePlayer(currentUser);
                 role = "WHITE";
-                logger.info("User {} joined game {} as WHITE", currentUser.getUsername(), gameId);
+                logger.info("User {} joined game {} as WHITE", currentUser.displayName(), gameId);
             } else if (game.getBlackPlayer() == null) {
                 game.setBlackPlayer(currentUser);
                 role = "BLACK";
-                logger.info("User {} joined game {} as BLACK", currentUser.getUsername(), gameId);
+                logger.info("User {} joined game {} as BLACK", currentUser.displayName(), gameId);
             } else {
                 role = "SPECTATOR"; // spectator
-                logger.info("User {} joined game {} as SPECTATOR", currentUser.getUsername(), gameId);
+                logger.info("User {} joined game {} as SPECTATOR", currentUser.displayName(), gameId);
             }
 
             return new GameJoinResponse(
@@ -131,7 +131,7 @@ public class MatchService {
         });
     }
 
-    public GameStateResponse makeMove(UserPrincipal currentUser, UUID gameId,
+    public GameStateResponse makeMove(Player currentUser, UUID gameId,
                                       String moveFrom, String moveTo, @Nullable PieceType promotion) {
         return updateGame(gameId, game -> {
             requirePlayer(game, currentUser);
@@ -149,8 +149,8 @@ public class MatchService {
         });
     }
 
-    public void offerDraw(UserPrincipal currentUser, UUID gameId) {
-        logger.info("User {} offering draw in game {}", currentUser.getUsername(), gameId);
+    public void offerDraw(Player currentUser, UUID gameId) {
+        logger.info("User {} offering draw in game {}", currentUser.displayName(), gameId);
         updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
             if (game.isGameOver()) {
@@ -162,7 +162,7 @@ public class MatchService {
         });
     }
 
-    public GameStateResponse acceptDraw(UserPrincipal currentUser, UUID gameId) {
+    public GameStateResponse acceptDraw(Player currentUser, UUID gameId) {
         return updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
             if (game.isGameOver()) {
@@ -174,7 +174,7 @@ public class MatchService {
         });
     }
 
-    public GameStateResponse resign(UserPrincipal currentUser, UUID gameId) {
+    public GameStateResponse resign(Player currentUser, UUID gameId) {
         return updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
             if (game.isGameOver()) {
@@ -218,8 +218,8 @@ public class MatchService {
         }
         logger.info("Archiving match {} with result: {}", matchId, game.getStatus().getSymbol());
         MatchRecord matchRecord = new MatchRecord();
-        UUID whitePlayerId = game.getWhitePlayer().getId();
-        UUID blackPlayerId = game.getBlackPlayer().getId();
+        UUID whitePlayerId = game.getWhitePlayer().id();
+        UUID blackPlayerId = game.getBlackPlayer().id();
         User whitePlayer = userRepo.getReferenceById(whitePlayerId);
         User blackPlayer = userRepo.getReferenceById(blackPlayerId);
         matchRecord.setWhitePlayer(whitePlayer);
@@ -279,13 +279,13 @@ public class MatchService {
         gameStateStore.storeGame(gameId, activeGameStateConverter.toState(game));
     }
 
-    public void requirePlayer(Game game, UserPrincipal user) {
+    public void requirePlayer(Game game, Player user) {
         if (!game.isValidPlayer(user)) {
             throw new IllegalStateException("You are not a player in this game");
         }
     }
 
-    private Color playerColor(Game game, UserPrincipal user) {
+    private Color playerColor(Game game, Player user) {
         requirePlayer(game, user);
         Color color = game.getPlayerColor(user);
         if (color == null) {

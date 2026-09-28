@@ -2,6 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.config.WebsocketConfig;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
@@ -167,7 +168,7 @@ class WebSocketRelayIT {
 
     @BeforeEach
     void setUp() {
-        game = new Game(WHITE, BLACK);
+        game = new Game(WHITE.toPlayer(), BLACK.toPlayer());
         reset(MATCH_SERVICE);
         when(MATCH_SERVICE.getGameOrThrow(GAME_ID)).thenReturn(game);
         when(MATCH_SERVICE.buildGameStateResponse(game)).thenAnswer(invocation -> state(game));
@@ -177,7 +178,7 @@ class WebSocketRelayIT {
             PieceType promotion = invocation.getArgument(4);
             assertThat(game.makeMove(from, to, promotion)).isTrue();
             return state(game);
-        }).when(MATCH_SERVICE).makeMove(any(UserPrincipal.class), eq(GAME_ID), anyString(), anyString(),
+        }).when(MATCH_SERVICE).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
                 nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());

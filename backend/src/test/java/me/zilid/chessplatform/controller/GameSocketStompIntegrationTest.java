@@ -2,6 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.config.WebsocketConfig;
 import me.zilid.chessplatform.exception.WebSocketExceptionHandler;
 import me.zilid.chessplatform.model.dto.ChatMessage;
@@ -108,13 +109,13 @@ class GameSocketStompIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        game = new Game(WHITE, BLACK);
+        game = new Game(WHITE.toPlayer(), BLACK.toPlayer());
         when(matchService.getGameOrThrow(GAME_ID)).thenReturn(game);
         when(matchService.buildGameStateResponse(game)).thenAnswer(invocation -> new GameStateResponse(
                 game.getStatus(), game.getFen(), game.getLastMoveFrom(), game.getLastMoveTo(),
                 game.getTurnColor().name()));
         doAnswer(invocation -> {
-            UserPrincipal user = invocation.getArgument(0);
+            Player user = invocation.getArgument(0);
             if (!game.isValidPlayer(user)) {
                 throw new IllegalStateException("You are not a player in this game");
             }
@@ -129,7 +130,7 @@ class GameSocketStompIntegrationTest {
             }
             return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
                     game.getLastMoveTo(), game.getTurnColor().name());
-        }).when(matchService).makeMove(any(UserPrincipal.class), eq(GAME_ID), anyString(), anyString(),
+        }).when(matchService).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
                 nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
@@ -161,7 +162,7 @@ class GameSocketStompIntegrationTest {
         assertThat(moved.lastMoveTo()).isEqualTo("e4");
         assertThat(moved.turnColor()).isEqualTo("BLACK");
         assertThat(moved.fen()).isEqualTo(game.getFen());
-        verify(matchService).makeMove(WHITE, GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(WHITE.toPlayer(), GAME_ID, "e2", "e4", null);
     }
 
     @Test
@@ -184,7 +185,7 @@ class GameSocketStompIntegrationTest {
         assertThat(error.error()).contains("not a player");
         assertNoMessage(updates);
         assertThat(game.getLastMoveFrom()).isNull();
-        verify(matchService).makeMove(SPECTATOR, GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(SPECTATOR.toPlayer(), GAME_ID, "e2", "e4", null);
     }
 
     @Test

@@ -2,10 +2,8 @@ package me.zilid.chessplatform.chess.game;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Square;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,8 +12,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GameTest {
     private static final String START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-    private static UserPrincipal player(String name) {
-        return new UserPrincipal(UUID.randomUUID(), name, name + "@example.com", "hash", true, List.of());
+    private static RegisteredPlayer player(String name) {
+        return new RegisteredPlayer(UUID.randomUUID(), name);
     }
 
     private static Game game() {
@@ -130,8 +128,19 @@ class GameTest {
 
         GameSnapshot snapshot = game.getGameSnapshot();
 
-        assertThat(snapshot.whitePlayerId()).isEqualTo(game.getWhitePlayer().getId());
+        assertThat(snapshot.whitePlayerId()).isEqualTo(game.getWhitePlayer().id());
         assertThat(snapshot.blackPlayerId()).isNull();
+    }
+
+    @Test
+    void playerIsRecognizedByIdAfterRenaming() {
+        RegisteredPlayer white = player("white");
+        Game game = new Game(white, player("black"));
+        RegisteredPlayer renamed = new RegisteredPlayer(white.id(), "new-name");
+
+        assertThat(game.isValidPlayer(renamed)).isTrue();
+        assertThat(game.isUserTurn(renamed)).isTrue();
+        assertThat(game.getPlayerColor(renamed)).isEqualTo(Color.WHITE);
     }
 
     @Test

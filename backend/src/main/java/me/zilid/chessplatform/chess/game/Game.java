@@ -3,7 +3,6 @@ package me.zilid.chessplatform.chess.game;
 import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -26,24 +25,24 @@ public class Game {
     private final TimeControl timeControl;
     private volatile @Nullable Instant endTime;
     private volatile GameStatus status;
-    private volatile @Nullable UserPrincipal whitePlayer;
-    private volatile @Nullable UserPrincipal blackPlayer;
+    private volatile @Nullable Player whitePlayer;
+    private volatile @Nullable Player blackPlayer;
     private volatile @Nullable Color drawOfferedBy;
 
     public Game() {
         this(null, null);
     }
 
-    public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer) {
+    public Game(@Nullable Player whitePlayer, @Nullable Player blackPlayer) {
         this(whitePlayer, blackPlayer, TimeControl.RAPID);
     }
 
-    public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer, TimeControl timeControl) {
+    public Game(@Nullable Player whitePlayer, @Nullable Player blackPlayer, TimeControl timeControl) {
         this(whitePlayer, blackPlayer, timeControl, Instant.now());
     }
 
-    private Game(@Nullable UserPrincipal whitePlayer,
-                 @Nullable UserPrincipal blackPlayer,
+    private Game(@Nullable Player whitePlayer,
+                 @Nullable Player blackPlayer,
                  TimeControl timeControl,
                  Instant startTime) {
         position = Position.startingPosition();
@@ -63,8 +62,8 @@ public class Game {
      * state (position, undo history, repetition counts) never has to be persisted.
      */
     public static Game fromSnapshot(GameSnapshot snapshot,
-                                    @Nullable UserPrincipal whitePlayer,
-                                    @Nullable UserPrincipal blackPlayer) {
+                                    @Nullable Player whitePlayer,
+                                    @Nullable Player blackPlayer) {
         Game game = new Game(whitePlayer, blackPlayer, snapshot.timeControl(), snapshot.startTime());
         for (Move move : snapshot.history()) {
             game.recordMove(move);
@@ -116,16 +115,16 @@ public class Game {
     }
 
     public synchronized GameSnapshot getGameSnapshot() {
-        UserPrincipal white = whitePlayer;
-        UserPrincipal black = blackPlayer;
+        Player white = whitePlayer;
+        Player black = blackPlayer;
         return new GameSnapshot(
                 List.copyOf(moves),
                 startTime,
                 endTime,
                 timeControl,
                 status,
-                white == null ? null : white.getId(),
-                black == null ? null : black.getId(),
+                white == null ? null : white.id(),
+                black == null ? null : black.id(),
                 drawOfferedBy);
     }
 
@@ -216,8 +215,8 @@ public class Game {
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
         sb.append("[Round \"").append(getRound()).append("\"]\n");
-        sb.append("[White \"").append(whitePlayer.getUsername()).append("\"]\n");
-        sb.append("[Black \"").append(blackPlayer.getUsername()).append("\"]\n");
+        sb.append("[White \"").append(whitePlayer.displayName()).append("\"]\n");
+        sb.append("[Black \"").append(blackPlayer.displayName()).append("\"]\n");
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
@@ -227,12 +226,12 @@ public class Game {
     }
 
     /**
-     * Check if now is the turn of the given user
+     * Check if now is the turn of the given player
      */
-    public synchronized boolean isUserTurn(UserPrincipal currentUser) {
+    public synchronized boolean isUserTurn(Player player) {
         return switch (position.getTurnColor()) {
-            case WHITE -> currentUser.equals(whitePlayer);
-            case BLACK -> currentUser.equals(blackPlayer);
+            case WHITE -> player.equals(whitePlayer);
+            case BLACK -> player.equals(blackPlayer);
         };
     }
 
@@ -248,19 +247,19 @@ public class Game {
         return endTime;
     }
 
-    public @Nullable UserPrincipal getWhitePlayer() {
+    public @Nullable Player getWhitePlayer() {
         return whitePlayer;
     }
 
-    public void setWhitePlayer(UserPrincipal whitePlayer) {
+    public void setWhitePlayer(Player whitePlayer) {
         this.whitePlayer = whitePlayer;
     }
 
-    public @Nullable UserPrincipal getBlackPlayer() {
+    public @Nullable Player getBlackPlayer() {
         return blackPlayer;
     }
 
-    public void setBlackPlayer(UserPrincipal blackPlayer) {
+    public void setBlackPlayer(Player blackPlayer) {
         this.blackPlayer = blackPlayer;
     }
 
@@ -291,22 +290,22 @@ public class Game {
     }
 
     /**
-     * Get the color in this game of the given user, spectator will get a null
+     * Get the color in this game of the given player, spectator will get a null
      */
-    public @Nullable Color getPlayerColor(UserPrincipal currentUser) {
-        if (currentUser.equals(whitePlayer)) {
+    public @Nullable Color getPlayerColor(Player player) {
+        if (player.equals(whitePlayer)) {
             return Color.WHITE;
         }
-        if (currentUser.equals(blackPlayer)) {
+        if (player.equals(blackPlayer)) {
             return Color.BLACK;
         }
         return null;
     }
 
     /**
-     * Check if the given user is the player of the game
+     * Check if the given player is seated in the game
      */
-    public boolean isValidPlayer(UserPrincipal currentUser) {
-        return currentUser.equals(whitePlayer) || currentUser.equals(blackPlayer);
+    public boolean isValidPlayer(Player player) {
+        return player.equals(whitePlayer) || player.equals(blackPlayer);
     }
 }

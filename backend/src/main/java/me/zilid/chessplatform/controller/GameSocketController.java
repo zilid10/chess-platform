@@ -2,6 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
@@ -74,20 +75,20 @@ public class GameSocketController {
     public void joinGame(@DestinationVariable UUID gameId,
                          Principal principal,
                          SimpMessageHeaderAccessor headerAccessor) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         var attributes = Objects.requireNonNull(headerAccessor.getSessionAttributes());
         attributes.put("gameId", gameId);
-        attributes.put("userId", currentUser.getId());
-        attributes.put("username", currentUser.getUsername());
+        attributes.put("userId", currentUser.id());
+        attributes.put("username", currentUser.displayName());
 
         Game game = matchService.getGameOrThrow(gameId);
         boolean isPlayer = game.isValidPlayer(currentUser);
 
         headerAccessor.getSessionAttributes().put("isPlayer", isPlayer);
         if (isPlayer) {
-            logger.info("Player {} joined game {}", currentUser.getUsername(), gameId);
+            logger.info("Player {} joined game {}", currentUser.displayName(), gameId);
         } else {
-            logger.info("Spectator {} joined game {}", currentUser.getUsername(), gameId);
+            logger.info("Spectator {} joined game {}", currentUser.displayName(), gameId);
         }
 
         GameStateResponse response = matchService.buildGameStateResponse(game);
@@ -95,7 +96,7 @@ public class GameSocketController {
 
         ChatMessage notification = new ChatMessage(
                 "System",
-                currentUser.getUsername() + (isPlayer ? " (Player)" : " (Spectator)") + " connected",
+                currentUser.displayName() + (isPlayer ? " (Player)" : " (Spectator)") + " connected",
                 ChatMessage.MessageType.JOIN
         );
         messagingTemplate.convertAndSend(chatTopic(gameId), notification);
@@ -110,7 +111,7 @@ public class GameSocketController {
     public void movePiece(@DestinationVariable UUID gameId,
                           @Payload MoveRequest moveRequest,
                           Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.makeMove(
                 currentUser, gameId, moveRequest.moveFrom(), moveRequest.moveTo(),
                 parsePromotion(moveRequest.promotion()));
@@ -139,7 +140,7 @@ public class GameSocketController {
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
                        Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
@@ -160,7 +161,7 @@ public class GameSocketController {
     public void acceptDraw(
             @DestinationVariable UUID gameId,
             Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
         // update the game state
@@ -175,7 +176,7 @@ public class GameSocketController {
     public void offerDraw(
             @DestinationVariable UUID gameId,
             Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         matchService.offerDraw(currentUser, gameId);
         logger.info("Draw offered in game {}", gameId);
 
@@ -192,13 +193,13 @@ public class GameSocketController {
     public void sendChatMessage(@DestinationVariable UUID gameId,
                                 @Payload ChatMessage chatMessage,
                                 Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         matchService.getGameOrThrow(gameId);
 
-        logger.info("Chat message in game {} from {}", gameId, currentUser.getUsername());
+        logger.info("Chat message in game {} from {}", gameId, currentUser.displayName());
 
         ChatMessage timestampedMessage = new ChatMessage(
-                currentUser.getUsername(),
+                currentUser.displayName(),
                 chatMessage.message(),
                 ChatMessage.MessageType.CHAT
         );
@@ -224,10 +225,10 @@ public class GameSocketController {
         return "/topic/game." + gameId + ".chat";
     }
 
-    private static UserPrincipal currentUser(@Nullable Principal principal) {
+    private static Player currentPlayer(@Nullable Principal principal) {
         if (principal instanceof Authentication authentication
                 && authentication.getPrincipal() instanceof UserPrincipal user) {
-            return user;
+            return user.toPlayer();
         }
         throw new IllegalStateException("Authentication required");
     }
@@ -247,8 +248,8 @@ public class GameSocketController {
     }
 
     private static String ratingSummary(Game game, RatingChange change) {
-        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().getUsername();
-        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().getUsername();
+        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
+        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
         return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
                 game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
                 black, change.blackAfter(), change.blackDelta());

@@ -2,6 +2,8 @@ package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
+import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
@@ -60,9 +62,9 @@ class MatchServiceTest {
     private ActiveGameStateConverter activeGameStateConverter;
     private MatchService service;
 
-    private final UserPrincipal alice = principal("alice");
-    private final UserPrincipal bob = principal("bob");
-    private final UserPrincipal spectator = principal("spectator");
+    private final RegisteredPlayer alice = player("alice");
+    private final RegisteredPlayer bob = player("bob");
+    private final RegisteredPlayer spectator = player("spectator");
 
     @BeforeEach
     void setUp() {
@@ -71,7 +73,8 @@ class MatchServiceTest {
         ratingService = mock(RatingService.class);
         gameStateStore = inMemoryGameStateStore();
         UserPrincipalService userPrincipalService = mock(UserPrincipalService.class);
-        Map<UUID, UserPrincipal> users = Map.of(alice.getId(), alice, bob.getId(), bob, spectator.getId(), spectator);
+        Map<UUID, UserPrincipal> users = Map.of(
+                alice.id(), principal(alice), bob.id(), principal(bob), spectator.id(), principal(spectator));
         when(userPrincipalService.loadUserById(any())).thenAnswer(invocation -> users.get(invocation.<UUID>getArgument(0)));
         activeGameStateConverter = new ActiveGameStateConverter(userPrincipalService);
         service = newService();
@@ -147,7 +150,7 @@ class MatchServiceTest {
             private final ThreadLocal<Integer> blackReads = ThreadLocal.withInitial(() -> 0);
 
             @Override
-            public @Nullable UserPrincipal getBlackPlayer() {
+            public @Nullable Player getBlackPlayer() {
                 int readCount = blackReads.get() + 1;
                 blackReads.set(readCount);
                 if (readCount == 2) {
@@ -236,7 +239,7 @@ class MatchServiceTest {
         CountDownLatch bothTurnChecksReached = new CountDownLatch(2);
         Game game = new Game(alice, bob) {
             @Override
-            public boolean isUserTurn(UserPrincipal user) {
+            public boolean isUserTurn(Player user) {
                 boolean isTurn = super.isUserTurn(user);
                 bothTurnChecksReached.countDown();
                 try {
@@ -335,7 +338,7 @@ class MatchServiceTest {
     void archiveStoresPlayersResultNotationTimesAndRatingChange() {
         User aliceEntity = new User("alice@example.com", "alice", "hash", "");
         User bobEntity = new User("bob@example.com", "bob", "hash", "");
-        Game game = new Game(principal(aliceEntity), principal(bobEntity), TimeControl.BLITZ);
+        Game game = new Game(player(aliceEntity), player(bobEntity), TimeControl.BLITZ);
         game.resign(Color.WHITE);
         when(userRepo.getReferenceById(aliceEntity.getId())).thenReturn(aliceEntity);
         when(userRepo.getReferenceById(bobEntity.getId())).thenReturn(bobEntity);
@@ -364,7 +367,7 @@ class MatchServiceTest {
 
     @Test
     void matchHistoryUsesOneDescendingEndTimeQuery() {
-        UUID userId = alice.getId();
+        UUID userId = alice.id();
         when(matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(eq(userId), eq(userId), any(Pageable.class)))
                 .thenReturn(Page.empty());
 
@@ -418,11 +421,16 @@ class MatchServiceTest {
         }
     }
 
-    private static UserPrincipal principal(String username) {
-        return new UserPrincipal(UUID.randomUUID(), username, username + "@example.com", "hash", true, List.of());
+    private static RegisteredPlayer player(String username) {
+        return new RegisteredPlayer(UUID.randomUUID(), username);
     }
 
-    private static UserPrincipal principal(User user) {
-        return new UserPrincipal(user.getId(), user.getUsername(), user.getEmail(), user.getPasswordHash(), true, List.of());
+    private static RegisteredPlayer player(User user) {
+        return new RegisteredPlayer(user.getId(), user.getUsername());
+    }
+
+    private static UserPrincipal principal(Player player) {
+        String username = player.displayName();
+        return new UserPrincipal(player.id(), username, username + "@example.com", "hash", true, List.of());
     }
 }

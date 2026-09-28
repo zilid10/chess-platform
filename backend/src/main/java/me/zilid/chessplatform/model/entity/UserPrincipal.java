@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.model.entity;
 
+import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
@@ -44,6 +45,13 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
 
     public UUID getId() {
         return id;
+    }
+
+    /**
+     * This user as a {@link me.zilid.chessplatform.chess.game.Game} sees them.
+     */
+    public RegisteredPlayer toPlayer() {
+        return new RegisteredPlayer(id, username);
     }
 
     public String getEmail() {

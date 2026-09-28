@@ -47,22 +47,22 @@ class GameSocketControllerTest {
     @CsvSource({"q, QUEEN", "r, ROOK", "b, BISHOP", "n, KNIGHT"})
     void forwardsPromotionPieceAndBroadcastsUpdatedGame(String symbol, PieceType pieceType) {
         GameStateResponse response = response("a7", "a8");
-        when(matchService.makeMove(PLAYER, GAME_ID, "a7", "a8", pieceType)).thenReturn(response);
+        when(matchService.makeMove(PLAYER.toPlayer(), GAME_ID, "a7", "a8", pieceType)).thenReturn(response);
 
         controller.movePiece(GAME_ID, request("a7", "a8", symbol), authentication());
 
-        verify(matchService).makeMove(PLAYER, GAME_ID, "a7", "a8", pieceType);
+        verify(matchService).makeMove(PLAYER.toPlayer(), GAME_ID, "a7", "a8", pieceType);
         verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, response);
     }
 
     @Test
     void ordinaryMoveHasNoPromotionPiece() {
         GameStateResponse response = response("e2", "e4");
-        when(matchService.makeMove(PLAYER, GAME_ID, "e2", "e4", null)).thenReturn(response);
+        when(matchService.makeMove(PLAYER.toPlayer(), GAME_ID, "e2", "e4", null)).thenReturn(response);
 
         controller.movePiece(GAME_ID, request("e2", "e4", null), authentication());
 
-        verify(matchService).makeMove(PLAYER, GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(PLAYER.toPlayer(), GAME_ID, "e2", "e4", null);
         verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, response);
     }
 
@@ -97,10 +97,10 @@ class GameSocketControllerTest {
                 "password", true, List.of());
         GameStateResponse resigned = new GameStateResponse(
                 GameStatus.RESIGNED_BLACK_WINS, "final-fen", "e2", "e4", "BLACK");
-        when(matchService.resign(PLAYER, GAME_ID)).thenReturn(resigned);
+        when(matchService.resign(PLAYER.toPlayer(), GAME_ID)).thenReturn(resigned);
         when(matchService.getGameOrThrow(GAME_ID)).thenReturn(game);
-        when(game.getWhitePlayer()).thenReturn(PLAYER);
-        when(game.getBlackPlayer()).thenReturn(opponent);
+        when(game.getWhitePlayer()).thenReturn(PLAYER.toPlayer());
+        when(game.getBlackPlayer()).thenReturn(opponent.toPlayer());
         when(game.getTimeControl()).thenReturn(TimeControl.BLITZ);
         when(matchService.archiveMatch(GAME_ID, game)).thenReturn(
                 new RatingChange(PLAYER.getId(), opponent.getId(), 1190, 1210, -10, 10));

@@ -100,7 +100,7 @@ class GameControllerWebMvcTest {
 
     @Test
     void createGamePassesAuthenticatedPlayerColorAndTimeControl() throws Exception {
-        when(matchService.createGame(PLAYER, Color.BLACK, TimeControl.BLITZ)).thenReturn(new GameCreatedResponse(
+        when(matchService.createGame(PLAYER.toPlayer(), Color.BLACK, TimeControl.BLITZ)).thenReturn(new GameCreatedResponse(
                 GAME_ID, Color.BLACK, TimeControl.BLITZ, "starting-fen", "/game/" + GAME_ID));
 
         mvc.perform(post("/api/games")
@@ -113,12 +113,12 @@ class GameControllerWebMvcTest {
                 .andExpect(jsonPath("$.timeControl").value("BLITZ"))
                 .andExpect(jsonPath("$.socketUrl").value("/game/" + GAME_ID));
 
-        verify(matchService).createGame(PLAYER, Color.BLACK, TimeControl.BLITZ);
+        verify(matchService).createGame(PLAYER.toPlayer(), Color.BLACK, TimeControl.BLITZ);
     }
 
     @Test
     void createGameDefaultsToRapid() throws Exception {
-        when(matchService.createGame(PLAYER, Color.WHITE, TimeControl.RAPID)).thenReturn(new GameCreatedResponse(
+        when(matchService.createGame(PLAYER.toPlayer(), Color.WHITE, TimeControl.RAPID)).thenReturn(new GameCreatedResponse(
                 GAME_ID, Color.WHITE, TimeControl.RAPID, "starting-fen", "/game/" + GAME_ID));
 
         mvc.perform(post("/api/games")
@@ -127,12 +127,12 @@ class GameControllerWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.timeControl").value("RAPID"));
 
-        verify(matchService).createGame(PLAYER, Color.WHITE, TimeControl.RAPID);
+        verify(matchService).createGame(PLAYER.toPlayer(), Color.WHITE, TimeControl.RAPID);
     }
 
     @Test
     void joinGameReturnsTheAssignedRole() throws Exception {
-        when(matchService.joinGame(GAME_ID, PLAYER)).thenReturn(new GameJoinResponse(
+        when(matchService.joinGame(GAME_ID, PLAYER.toPlayer())).thenReturn(new GameJoinResponse(
                 GAME_ID, "WHITE", TimeControl.RAPID, "starting-fen", GameStatus.ONGOING, "WHITE"));
 
         mvc.perform(post("/api/games/{gameId}/join", GAME_ID)
@@ -141,7 +141,7 @@ class GameControllerWebMvcTest {
                 .andExpect(jsonPath("$.role").value("WHITE"))
                 .andExpect(jsonPath("$.currentTurn").value("WHITE"));
 
-        verify(matchService).joinGame(GAME_ID, PLAYER);
+        verify(matchService).joinGame(GAME_ID, PLAYER.toPlayer());
     }
 
     @Test
@@ -256,7 +256,7 @@ class GameControllerWebMvcTest {
 
     @Test
     void gameOverIsAnExplicitDomainConflict() throws Exception {
-        when(matchService.joinGame(GAME_ID, PLAYER)).thenThrow(new GameIsOverException("Game is already over"));
+        when(matchService.joinGame(GAME_ID, PLAYER.toPlayer())).thenThrow(new GameIsOverException("Game is already over"));
         mvc.perform(post("/api/games/{gameId}/join", GAME_ID)
                         .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
                 .andExpect(status().isConflict())
