@@ -186,7 +186,7 @@ class WebSocketRelayIT {
             assertThat(game.makeMove(from, to, promotion)).isTrue();
             return state(game);
         }).when(MATCH_SERVICE).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
-                nullable(PieceType.class), any(Instant.class));
+                nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
         client.setMessageConverter(new JacksonJsonMessageConverter());

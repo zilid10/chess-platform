@@ -28,6 +28,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -45,14 +46,16 @@ public class MatchService {
     private final UserRepo userRepo;
     private final RatingService ratingService;
     private final GameStateStore gameStateStore;
+    private final Clock clock;
 
     public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo,
-                        RatingService ratingService, GameStateStore gameStateStore) {
+                        RatingService ratingService, GameStateStore gameStateStore, Clock clock) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
         this.userRepo = userRepo;
         this.ratingService = ratingService;
         this.gameStateStore = gameStateStore;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -81,8 +84,8 @@ public class MatchService {
         logger.info("Creating new {} game {} for user {} with color {}",
                 clockSetting, gameId, currentUser.displayName(), color);
         Game game = color.isWhite()
-                ? new Game(currentUser, null, clockSetting)
-                : new Game(null, currentUser, clockSetting);
+                ? new Game(currentUser, null, clockSetting, clock.instant())
+                : new Game(null, currentUser, clockSetting, clock.instant());
         saveGame(gameId, game);
 
         return new GameCreatedResponse(
@@ -131,8 +134,9 @@ public class MatchService {
     }
 
     public GameStateResponse makeMove(Player currentUser, UUID gameId,
-                                      String moveFrom, String moveTo, @Nullable PieceType promotion, Instant now) {
+                                      String moveFrom, String moveTo, @Nullable PieceType promotion) {
         return updateGame(gameId, game -> {
+            Instant now = clock.instant();
             requirePlayer(game, currentUser);
             if (game.isGameOver()) {
                 throw new IllegalStateException("Game is already over");
@@ -156,7 +160,7 @@ public class MatchService {
         logger.info("User {} offering draw in game {}", currentUser.displayName(), gameId);
         updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
-            if (game.isGameOver() || game.hasTimedOut(Instant.now())) {
+            if (game.isGameOver() || game.hasTimedOut(clock.instant())) {
                 throw new IllegalStateException("Game is over");
             }
             game.offerDraw(color);
@@ -172,10 +176,11 @@ public class MatchService {
                 logger.warn("Attempted draw acceptance on completed game {}", gameId);
                 throw new GameIsOverException("Game is already over");
             }
-            if (game.checkTimeout(Instant.now())) {
+            Instant now = clock.instant();
+            if (game.checkTimeout(now)) {
                 return buildGameStateResponse(game);
             }
-            game.acceptDraw(color);
+            game.acceptDraw(color, now);
             return buildGameStateResponse(game);
         });
     }
@@ -187,10 +192,11 @@ public class MatchService {
                 logger.warn("Attempted resignation on completed game {}", gameId);
                 throw new GameIsOverException("Game is already over");
             }
-            if (game.checkTimeout(Instant.now())) {
+            Instant now = clock.instant();
+            if (game.checkTimeout(now)) {
                 return buildGameStateResponse(game);
             }
-            game.resign(color);
+            game.resign(color, now);
             logger.info("Player {} resigned in game {}", color, gameId);
             return buildGameStateResponse(game);
         });
@@ -204,10 +210,10 @@ public class MatchService {
      * @return the final state if this call ended the game; empty if the game is missing, already over, or still
      * within its time limit
      */
-    public Optional<GameStateResponse> checkTimeout(UUID gameId, Instant now) {
+    public Optional<GameStateResponse> checkTimeout(UUID gameId) {
         return gameStateStore.withLock(gameId, () -> {
             Game game = getGameSession(gameId);
-            if (game == null || !game.checkTimeout(now)) {
+            if (game == null || !game.checkTimeout(clock.instant())) {
                 return Optional.empty();
             }
             saveGame(gameId, game);
@@ -226,7 +232,7 @@ public class MatchService {
      * Build a GameStateResponse from the current game state
      */
     public GameStateResponse buildGameStateResponse(Game game) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         synchronized (game) {
             return new GameStateResponse(
                     game.getStatus(),

@@ -141,7 +141,7 @@ class GameSocketStompIntegrationTest {
             }
             return state(game);
         }).when(matchService).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
-                nullable(PieceType.class), any(Instant.class));
+                nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
         client.setMessageConverter(new JacksonJsonMessageConverter());
@@ -172,15 +172,14 @@ class GameSocketStompIntegrationTest {
         assertThat(moved.lastMoveTo()).isEqualTo("e4");
         assertThat(moved.turnColor()).isEqualTo("BLACK");
         assertThat(moved.fen()).isEqualTo(game.getFen());
-        verify(matchService).makeMove(eq(WHITE.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull(),
-                any(Instant.class));
+        verify(matchService).makeMove(eq(WHITE.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull());
     }
 
     @Test
     void acceptedTimeoutClaimReachesTheGameTopic() throws Exception {
         GameStateResponse flagged = new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, game.getFen(), null, null,
                 "WHITE", 0, 600_000, false);
-        when(matchService.checkTimeout(eq(GAME_ID), any(Instant.class))).thenReturn(Optional.of(flagged));
+        when(matchService.checkTimeout(GAME_ID)).thenReturn(Optional.of(flagged));
         StompSession session = connect("black");
         BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
                 GameStateResponse.class);
@@ -192,7 +191,7 @@ class GameSocketStompIntegrationTest {
         GameStateResponse update = take(updates);
         assertThat(update.gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
         assertThat(update.whiteRemainingMillis()).isZero();
-        verify(matchService).checkTimeout(eq(GAME_ID), any(Instant.class));
+        verify(matchService).checkTimeout(GAME_ID);
     }
 
     @Test
@@ -215,8 +214,7 @@ class GameSocketStompIntegrationTest {
         assertThat(error.error()).contains("not a player");
         assertNoMessage(updates);
         assertThat(game.getLastMoveFrom()).isNull();
-        verify(matchService).makeMove(eq(SPECTATOR.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull(),
-                any(Instant.class));
+        verify(matchService).makeMove(eq(SPECTATOR.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull());
     }
 
     @Test

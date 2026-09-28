@@ -22,7 +22,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -134,7 +133,7 @@ public class GameSocketController {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.makeMove(
                 currentUser, gameId, moveRequest.moveFrom(), moveRequest.moveTo(),
-                parsePromotion(moveRequest.promotion()), Instant.now());
+                parsePromotion(moveRequest.promotion()));
         publisher.publishUpdate(gameId, response);
     }
 
@@ -148,7 +147,7 @@ public class GameSocketController {
     public void claimTimeout(@DestinationVariable UUID gameId, Principal principal) {
         Player currentUser = currentPlayer(principal);
         logger.debug("User {} claims a timeout in game {}", currentUser.displayName(), gameId);
-        matchService.checkTimeout(gameId, Instant.now())
+        matchService.checkTimeout(gameId)
                 .ifPresent(response -> publisher.publishUpdate(gameId, response));
     }
 

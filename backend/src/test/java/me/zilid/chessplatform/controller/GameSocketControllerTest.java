@@ -18,7 +18,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import java.security.Principal;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,8 +54,8 @@ class GameSocketControllerTest {
     @CsvSource({"q, QUEEN", "r, ROOK", "b, BISHOP", "n, KNIGHT"})
     void forwardsPromotionPieceAndBroadcastsUpdatedGame(String symbol, PieceType pieceType) {
         GameStateResponse response = response("a7", "a8");
-        when(matchService.makeMove(eq(PLAYER.toPlayer()), eq(GAME_ID), eq("a7"), eq("a8"), eq(pieceType),
-                any(Instant.class))).thenReturn(response);
+        when(matchService.makeMove(eq(PLAYER.toPlayer()), eq(GAME_ID), eq("a7"), eq("a8"), eq(pieceType)))
+                .thenReturn(response);
 
         controller.movePiece(GAME_ID, request("a7", "a8", symbol), authentication());
 
@@ -66,8 +65,8 @@ class GameSocketControllerTest {
     @Test
     void ordinaryMoveHasNoPromotionPiece() {
         GameStateResponse response = response("e2", "e4");
-        when(matchService.makeMove(eq(PLAYER.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull(),
-                any(Instant.class))).thenReturn(response);
+        when(matchService.makeMove(eq(PLAYER.toPlayer()), eq(GAME_ID), eq("e2"), eq("e4"), isNull()))
+                .thenReturn(response);
 
         controller.movePiece(GAME_ID, request("e2", "e4", null), authentication());
 
@@ -114,7 +113,7 @@ class GameSocketControllerTest {
     void acceptedTimeoutClaimIsPublishedAsAnUpdate() {
         GameStateResponse flagged = new GameStateResponse(
                 GameStatus.FLAGGED_BLACK_WINS, "final-fen", "e7", "e5", "WHITE", 0, 60_000, false);
-        when(matchService.checkTimeout(eq(GAME_ID), any(Instant.class))).thenReturn(Optional.of(flagged));
+        when(matchService.checkTimeout(GAME_ID)).thenReturn(Optional.of(flagged));
 
         controller.claimTimeout(GAME_ID, authentication());
 
@@ -123,11 +122,11 @@ class GameSocketControllerTest {
 
     @Test
     void earlyTimeoutClaimIsIgnored() {
-        when(matchService.checkTimeout(eq(GAME_ID), any(Instant.class))).thenReturn(Optional.empty());
+        when(matchService.checkTimeout(GAME_ID)).thenReturn(Optional.empty());
 
         controller.claimTimeout(GAME_ID, authentication());
 
-        verify(matchService).checkTimeout(eq(GAME_ID), any(Instant.class));
+        verify(matchService).checkTimeout(GAME_ID);
         verifyNoInteractions(publisher);
     }
 

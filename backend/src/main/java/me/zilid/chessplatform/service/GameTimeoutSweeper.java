@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.util.UUID;
 
 /**
@@ -24,17 +24,19 @@ public class GameTimeoutSweeper {
     private final GameStateStore gameStateStore;
     private final MatchService matchService;
     private final GameEventPublisher publisher;
+    private final Clock clock;
 
-    public GameTimeoutSweeper(GameStateStore gameStateStore, MatchService matchService, GameEventPublisher publisher) {
+    public GameTimeoutSweeper(GameStateStore gameStateStore, MatchService matchService, GameEventPublisher publisher,
+                              Clock clock) {
         this.gameStateStore = gameStateStore;
         this.matchService = matchService;
         this.publisher = publisher;
+        this.clock = clock;
     }
 
     @Scheduled(fixedDelayString = "${app.game.timeout-sweep.interval:250ms}")
     public void sweep() {
-        Instant now = Instant.now();
-        for (UUID gameId : gameStateStore.findTimeoutsDue(now, BATCH_SIZE)) {
+        for (UUID gameId : gameStateStore.findTimeoutsDue(clock.instant(), BATCH_SIZE)) {
             try {
                 Game game = matchService.getGameSession(gameId);
                 if (game == null || game.isGameOver()) {
@@ -43,7 +45,7 @@ public class GameTimeoutSweeper {
                     continue;
                 }
                 // Another instance or a player's action may have ended the game first; then there is nothing to send
-                matchService.checkTimeout(gameId, now).ifPresent(state -> publisher.publishUpdate(gameId, state));
+                matchService.checkTimeout(gameId).ifPresent(state -> publisher.publishUpdate(gameId, state));
             } catch (RuntimeException e) {
                 // A busy lock or a Redis hiccup: the deadline stays in the index, so the next sweep retries
                 logger.warn("Timeout check failed for game {}", gameId, e);

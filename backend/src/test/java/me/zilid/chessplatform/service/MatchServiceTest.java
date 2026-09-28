@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.service;
 
+import me.zilid.chessplatform.MutableClock;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.*;
 import me.zilid.chessplatform.exception.GameIsOverException;
@@ -48,6 +49,7 @@ class MatchServiceTest {
     private UserRepo userRepo;
     private RatingService ratingService;
     private GameStateStore gameStateStore;
+    private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
     private MatchService service;
 
     /**
@@ -99,7 +101,7 @@ class MatchServiceTest {
     @Test
     void gamesAreStoredAndReloadedBetweenCalls() {
         UUID gameId = gameWithBothPlayers();
-        service.makeMove(alice, gameId, "e2", "e4", null, Instant.now());
+        service.makeMove(alice, gameId, "e2", "e4", null);
 
         Game reloaded = service.getGameSession(gameId);
         assertThat(reloaded.getMoves()).hasSize(1);
@@ -113,7 +115,7 @@ class MatchServiceTest {
         UUID gameId = gameWithBothPlayers();
         String fenBefore = gameStateStore.loadGame(gameId).getFen();
 
-        assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null, Instant.now()))
+        assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null))
                 .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(gameStateStore.loadGame(gameId).getFen()).isEqualTo(fenBefore);
@@ -187,7 +189,7 @@ class MatchServiceTest {
             }
         };
         MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore) {
+                ratingService, gameStateStore, clock) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -220,26 +222,26 @@ class MatchServiceTest {
     void movesAreValidatedByTheServiceAndReturnTheUpdatedState() {
         UUID gameId = gameWithBothPlayers();
 
-        assertThatThrownBy(() -> service.makeMove(spectator, gameId, "e2", "e4", null, Instant.now()))
+        assertThatThrownBy(() -> service.makeMove(spectator, gameId, "e2", "e4", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("You are not a player in this game");
-        assertThatThrownBy(() -> service.makeMove(bob, gameId, "e7", "e5", null, Instant.now()))
+        assertThatThrownBy(() -> service.makeMove(bob, gameId, "e7", "e5", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("It is not your turn");
-        assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null, Instant.now()))
+        assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid move: e2 to e5");
 
-        GameStateResponse afterWhiteMove = service.makeMove(alice, gameId, "e2", "e4", null, Instant.now());
+        GameStateResponse afterWhiteMove = service.makeMove(alice, gameId, "e2", "e4", null);
         assertThat(afterWhiteMove.lastMoveFrom()).isEqualTo("e2");
         assertThat(afterWhiteMove.lastMoveTo()).isEqualTo("e4");
         assertThat(afterWhiteMove.turnColor()).isEqualTo("BLACK");
         assertThat(afterWhiteMove.fen()).isEqualTo(service.getGameState(gameId).fen());
 
-        assertThatThrownBy(() -> service.makeMove(alice, gameId, "d2", "d4", null, Instant.now()))
+        assertThatThrownBy(() -> service.makeMove(alice, gameId, "d2", "d4", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("It is not your turn");
-        assertThat(service.makeMove(bob, gameId, "e7", "e5", null, Instant.now()).turnColor()).isEqualTo("WHITE");
+        assertThat(service.makeMove(bob, gameId, "e7", "e5", null).turnColor()).isEqualTo("WHITE");
     }
 
     @Test
@@ -247,7 +249,7 @@ class MatchServiceTest {
         UUID gameId = gameWithBothPlayers();
         service.resign(alice, gameId);
 
-        assertThatThrownBy(() -> service.makeMove(bob, gameId, "e7", "e5", null, Instant.now()))
+        assertThatThrownBy(() -> service.makeMove(bob, gameId, "e7", "e5", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Game is already over");
     }
@@ -272,7 +274,7 @@ class MatchServiceTest {
             }
         };
         MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore) {
+                ratingService, gameStateStore, clock) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -399,34 +401,44 @@ class MatchServiceTest {
         assertThat(page.getValue().getSort().getOrderFor("endTime").isDescending()).isTrue();
     }
 
+    @Test
+    void newGamesStartAtTheClocksTime() {
+        UUID gameId = gameWithBothPlayers();
+
+        assertThat(service.getGameSession(gameId).getStartTime()).isEqualTo(clock.instant());
+    }
+
     @Nested
     class Timeout {
-        // Far enough back that the real clock is past White's deadline too
-        private final Instant t0 = Instant.now().minus(Duration.ofMinutes(30));
-        private final Instant deadline = t0.plusSeconds(1).plus(Duration.ofMinutes(10));
+        private final Duration tenMinutes = Duration.ofMinutes(10);
 
-        // White moves at t0 and Black at t0 + 1s, which starts White's ten minutes
+        // White moves at once and Black a second later, which starts White's ten minutes
         private UUID gameWithWhiteToMove() {
             UUID gameId = gameWithBothPlayers();
-            service.makeMove(alice, gameId, "e2", "e4", null, t0);
-            service.makeMove(bob, gameId, "e7", "e5", null, t0.plusSeconds(1));
+            service.makeMove(alice, gameId, "e2", "e4", null);
+            clock.advance(Duration.ofSeconds(1));
+            service.makeMove(bob, gameId, "e7", "e5", null);
             return gameId;
         }
 
         @Test
         void nothingHappensBeforeTheDeadline() {
             UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes.minusMillis(1));
 
-            assertThat(service.checkTimeout(gameId, deadline.minusMillis(1))).isEmpty();
+            assertThat(service.checkTimeout(gameId)).isEmpty();
 
             assertThat(service.getGameSession(gameId).getStatus()).isEqualTo(GameStatus.ONGOING);
+            assertThat(service.getGameState(gameId).whiteRemainingMillis()).isEqualTo(1);
         }
 
         @Test
         void expiredGameIsEndedAndStored() {
             UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes);
+            Instant deadline = clock.instant();
 
-            GameStateResponse state = service.checkTimeout(gameId, deadline).orElseThrow();
+            GameStateResponse state = service.checkTimeout(gameId).orElseThrow();
 
             assertThat(state.gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
             assertThat(state.whiteRemainingMillis()).isZero();
@@ -439,14 +451,17 @@ class MatchServiceTest {
         @Test
         void onlyTheFirstCheckReportsTheResult() {
             UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes);
 
-            assertThat(service.checkTimeout(gameId, deadline)).isPresent();
-            assertThat(service.checkTimeout(gameId, deadline.plusSeconds(1))).isEmpty();
+            assertThat(service.checkTimeout(gameId)).isPresent();
+            clock.advance(Duration.ofSeconds(1));
+            assertThat(service.checkTimeout(gameId)).isEmpty();
         }
 
         @Test
         void concurrentChecksEndTheGameOnce() throws Exception {
             UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes);
             int checkers = 8;
             CountDownLatch start = new CountDownLatch(1);
 
@@ -455,7 +470,7 @@ class MatchServiceTest {
                 for (int i = 0; i < checkers; i++) {
                     results.add(executor.submit(() -> {
                         start.await();
-                        return service.checkTimeout(gameId, deadline);
+                        return service.checkTimeout(gameId);
                     }));
                 }
                 start.countDown();
@@ -470,42 +485,64 @@ class MatchServiceTest {
 
         @Test
         void missingGameHasNoTimeout() {
-            assertThat(service.checkTimeout(UUID.randomUUID(), Instant.now())).isEmpty();
+            assertThat(service.checkTimeout(UUID.randomUUID())).isEmpty();
         }
 
         @Test
         void aMoveAfterTheDeadlineEndsTheGameOnTime() {
             UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes.plusSeconds(1));
 
-            GameStateResponse state = service.makeMove(alice, gameId, "g1", "f3", null, deadline.plusSeconds(1));
+            GameStateResponse state = service.makeMove(alice, gameId, "g1", "f3", null);
 
             assertThat(state.gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
             assertThat(service.getGameSession(gameId).getMoves()).hasSize(2);
-            assertThat(service.checkTimeout(gameId, deadline.plusSeconds(2))).isEmpty();
+            assertThat(service.checkTimeout(gameId)).isEmpty();
         }
 
         @Test
-        void actingAfterTheDeadlineEndsTheGameOnTimeFirst() {
+        void acceptingADrawOfferedInTimeIsTooLateAfterTheDeadline() {
             UUID gameId = gameWithWhiteToMove();
+            service.offerDraw(alice, gameId);
+            clock.advance(tenMinutes);
+
+            assertThat(service.acceptDraw(bob, gameId).gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
+            assertThatThrownBy(() -> service.resign(alice, gameId)).isInstanceOf(GameIsOverException.class);
+        }
+
+        @Test
+        void resigningAfterTheDeadlineStillLosesOnTime() {
+            UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes);
 
             assertThat(service.resign(bob, gameId).gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
-            assertThatThrownBy(() -> service.acceptDraw(alice, gameId)).isInstanceOf(GameIsOverException.class);
         }
 
         @Test
         void drawOfferAfterTheDeadlineIsRejected() {
             UUID gameId = gameWithWhiteToMove();
+            clock.advance(tenMinutes);
 
             assertThatThrownBy(() -> service.offerDraw(bob, gameId))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("Game is over");
             assertThat(service.getGameSession(gameId).getDrawOfferedBy()).isNull();
         }
+
+        @Test
+        void resignationAndDrawsAreTimedByTheClock() {
+            UUID gameId = gameWithWhiteToMove();
+            clock.advance(Duration.ofSeconds(30));
+
+            service.resign(alice, gameId);
+
+            assertThat(service.getGameSession(gameId).getEndTime()).isEqualTo(clock.instant());
+        }
     }
 
     private MatchService newService() {
         return new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore);
+                ratingService, gameStateStore, clock);
     }
 
     private UUID gameWithBothPlayers() {
@@ -516,7 +553,7 @@ class MatchServiceTest {
 
     private Object moveOrFailure(MatchService raceService, UUID gameId, String from, String to) {
         try {
-            return raceService.makeMove(alice, gameId, from, to, null, Instant.now());
+            return raceService.makeMove(alice, gameId, from, to, null);
         } catch (RuntimeException e) {
             return e;
         }

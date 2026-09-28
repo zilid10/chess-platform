@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.service;
 
+import me.zilid.chessplatform.MutableClock;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -18,10 +19,11 @@ class GameTimeoutSweeperTest {
     private static final UUID EXPIRED = UUID.randomUUID();
     private static final UUID OTHER = UUID.randomUUID();
 
+    private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:10:00Z"));
     private final GameStateStore store = mock(GameStateStore.class);
     private final MatchService matchService = mock(MatchService.class);
     private final GameEventPublisher publisher = mock(GameEventPublisher.class);
-    private final GameTimeoutSweeper sweeper = new GameTimeoutSweeper(store, matchService, publisher);
+    private final GameTimeoutSweeper sweeper = new GameTimeoutSweeper(store, matchService, publisher, clock);
 
     private static GameStateResponse flagged() {
         return new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, "fen", "e7", "e5", "WHITE", 0, 60_000, false);
@@ -34,12 +36,21 @@ class GameTimeoutSweeperTest {
     }
 
     @Test
+    void asksForDeadlinesUpToTheClocksTime() {
+        when(store.findTimeoutsDue(any(Instant.class), anyInt())).thenReturn(List.of());
+
+        sweeper.sweep();
+
+        verify(store).findTimeoutsDue(eq(clock.instant()), anyInt());
+    }
+
+    @Test
     void publishesGamesThatThisSweepEnded() {
         when(store.findTimeoutsDue(any(Instant.class), anyInt())).thenReturn(List.of(EXPIRED));
         Game game = ongoingGame();
         when(matchService.getGameSession(EXPIRED)).thenReturn(game);
         GameStateResponse state = flagged();
-        when(matchService.checkTimeout(eq(EXPIRED), any(Instant.class))).thenReturn(Optional.of(state));
+        when(matchService.checkTimeout(EXPIRED)).thenReturn(Optional.of(state));
 
         sweeper.sweep();
 
@@ -51,7 +62,7 @@ class GameTimeoutSweeperTest {
         when(store.findTimeoutsDue(any(Instant.class), anyInt())).thenReturn(List.of(EXPIRED));
         Game game = ongoingGame();
         when(matchService.getGameSession(EXPIRED)).thenReturn(game);
-        when(matchService.checkTimeout(eq(EXPIRED), any(Instant.class))).thenReturn(Optional.empty());
+        when(matchService.checkTimeout(EXPIRED)).thenReturn(Optional.empty());
 
         sweeper.sweep();
 
@@ -70,7 +81,7 @@ class GameTimeoutSweeperTest {
 
         verify(store).clearTimeoutDeadline(EXPIRED);
         verify(store).clearTimeoutDeadline(OTHER);
-        verify(matchService, never()).checkTimeout(any(), any());
+        verify(matchService, never()).checkTimeout(any());
         verifyNoInteractions(publisher);
     }
 
@@ -81,10 +92,10 @@ class GameTimeoutSweeperTest {
         Game second = ongoingGame();
         when(matchService.getGameSession(EXPIRED)).thenReturn(first);
         when(matchService.getGameSession(OTHER)).thenReturn(second);
-        when(matchService.checkTimeout(eq(EXPIRED), any(Instant.class)))
+        when(matchService.checkTimeout(EXPIRED))
                 .thenThrow(new IllegalStateException("Game is busy, please try again"));
         GameStateResponse state = flagged();
-        when(matchService.checkTimeout(eq(OTHER), any(Instant.class))).thenReturn(Optional.of(state));
+        when(matchService.checkTimeout(OTHER)).thenReturn(Optional.of(state));
 
         sweeper.sweep();
 

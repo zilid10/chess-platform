@@ -61,7 +61,14 @@ public class Game {
     public Game(@Nullable Player whitePlayer,
                 @Nullable Player blackPlayer,
                 ClockSetting clockSetting) {
-        this(whitePlayer, blackPlayer, new ChessClock(clockSetting), Instant.now());
+        this(whitePlayer, blackPlayer, clockSetting, Instant.now());
+    }
+
+    public Game(@Nullable Player whitePlayer,
+                @Nullable Player blackPlayer,
+                ClockSetting clockSetting,
+                Instant startTime) {
+        this(whitePlayer, blackPlayer, new ChessClock(clockSetting), startTime);
     }
 
     public static Game restore(List<Move> moves, ClockSetting clockSetting,
@@ -164,21 +171,25 @@ public class Game {
     /**
      * Resign the game for the current player
      */
-    public synchronized void resign(Color color) {
+    public synchronized void resign(Color color, Instant now) {
         if (status.isGameOver()) {
             return;
         }
-        onGameEnd(color.isWhite() ? GameStatus.RESIGNED_BLACK_WINS : GameStatus.RESIGNED_WHITE_WINS, Instant.now());
+        onGameEnd(color.isWhite() ? GameStatus.RESIGNED_BLACK_WINS : GameStatus.RESIGNED_WHITE_WINS, now);
+    }
+
+    public synchronized void resign(Color color) {
+        resign(color, Instant.now());
     }
 
     /**
      * Offer/accept a draw
      */
-    private synchronized void agreeDraw() {
+    private synchronized void agreeDraw(Instant now) {
         if (status.isGameOver()) {
             return;
         }
-        onGameEnd(GameStatus.DRAW_BY_AGREEMENT, Instant.now());
+        onGameEnd(GameStatus.DRAW_BY_AGREEMENT, now);
     }
 
     /**
@@ -358,13 +369,17 @@ public class Game {
         drawOfferedBy = by;
     }
 
-    public synchronized void acceptDraw(Color by) {
+    public synchronized void acceptDraw(Color by, Instant now) {
         if (drawOfferedBy == null)
             return;
         if (drawOfferedBy != by.opposite())
             return;
-        agreeDraw();
+        agreeDraw(now);
         drawOfferedBy = null;
+    }
+
+    public synchronized void acceptDraw(Color by) {
+        acceptDraw(by, Instant.now());
     }
 
     public GameStatus getStatus() {
