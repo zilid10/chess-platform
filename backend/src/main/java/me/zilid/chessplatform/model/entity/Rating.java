@@ -13,7 +13,7 @@ import me.zilid.chessplatform.chess.game.TimeControl;
                 )
         }
 )
-public class PlayerRating extends AuditedBaseEntity {
+public class Rating extends AuditedBaseEntity {
     public static final int DEFAULT_RATING = 1200;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -33,10 +33,10 @@ public class PlayerRating extends AuditedBaseEntity {
     @Column(name = "peak_rating", nullable = false)
     private int peakRating;
 
-    protected PlayerRating() {
+    protected Rating() {
     }
 
-    public PlayerRating(User user, TimeControl timeControl) {
+    public Rating(User user, TimeControl timeControl) {
         this.user = user;
         this.timeControl = timeControl;
         this.rating = DEFAULT_RATING;

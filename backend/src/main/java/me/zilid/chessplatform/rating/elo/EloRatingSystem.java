@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.rating.elo;
 
 import me.zilid.chessplatform.rating.GameOutcome;
-import me.zilid.chessplatform.rating.PlayerRatingDto;
+import me.zilid.chessplatform.rating.PlayerRating;
 import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.rating.RatingSystem;
 
@@ -15,7 +15,7 @@ public class EloRatingSystem implements RatingSystem {
     }
 
     @Override
-    public RatingChange apply(PlayerRatingDto whitePlayerRating, PlayerRatingDto blackPlayerRating, GameOutcome outcome) {
+    public RatingChange apply(PlayerRating whitePlayerRating, PlayerRating blackPlayerRating, GameOutcome outcome) {
         int whiteK = kFactorPolicy.kFor(whitePlayerRating);
         int blackK = kFactorPolicy.kFor(blackPlayerRating);
         int whiteRating = whitePlayerRating.rating();

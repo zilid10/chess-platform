@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.rating.elo;
 
-import me.zilid.chessplatform.rating.PlayerRatingDto;
+import me.zilid.chessplatform.rating.PlayerRating;
 
 public interface KFactorPolicy {
-    int kFor(PlayerRatingDto playerRating);
+    int kFor(PlayerRating playerRating);
 }

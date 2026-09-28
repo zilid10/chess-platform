@@ -34,7 +34,7 @@ public class User extends AuditedBaseEntity {
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @MapKey(name = "timeControl")
-    private Map<TimeControl, PlayerRating> playerRatings = new EnumMap<>(TimeControl.class);
+    private Map<TimeControl, Rating> playerRatings = new EnumMap<>(TimeControl.class);
 
     protected User() {
     }
@@ -45,8 +45,8 @@ public class User extends AuditedBaseEntity {
         this.passwordHash = passwordHash;
         this.about = about;
         for (TimeControl timeControl : TimeControl.values()) {
-            PlayerRating playerRating = new PlayerRating(this, timeControl);
-            playerRatings.put(timeControl, playerRating);
+            Rating rating = new Rating(this, timeControl);
+            playerRatings.put(timeControl, rating);
         }
     }
 
@@ -96,7 +96,7 @@ public class User extends AuditedBaseEntity {
         other.friends.remove(this);
     }
 
-    public PlayerRating getPlayerRating(TimeControl timeControl) {
+    public Rating getPlayerRating(TimeControl timeControl) {
         if (!playerRatings.containsKey(timeControl)) {
             throw new IllegalStateException("error registering user");
         }
