@@ -73,7 +73,7 @@ class PlayerRatingRepoIntegrationTest {
         User white = saveUser("carol");
         User black = saveUser("dave");
         MatchRecord match = new MatchRecord(white, black, "1-0", "CHECKMATE", "1. e4 e5",
-                Instant.parse("2026-01-01T00:00:00Z"));
+                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:30:00Z"));
         match.setTimeControl(TimeControl.RAPID);
         match.setRatingChange(new RatingChange(white.getId(), black.getId(), 1220, 1180, 20, -20));
         matchRecordRepo.save(match);

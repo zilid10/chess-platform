@@ -7,6 +7,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Version;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -19,12 +20,13 @@ public abstract class BaseEntity {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id = uuidGenerator.generate();
 
+    // null until the entity is first saved, which is how Hibernate tells new entities apart
     @Version
     @Column(name = "version", nullable = false)
-    private Long version;
+    private @Nullable Long version;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
         if (!(o instanceof BaseEntity entity)) {
             return false;
         }
@@ -40,7 +42,7 @@ public abstract class BaseEntity {
         return id;
     }
 
-    public Long getVersion() {
+    public @Nullable Long getVersion() {
         return version;
     }
 

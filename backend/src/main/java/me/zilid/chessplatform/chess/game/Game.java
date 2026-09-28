@@ -215,14 +215,19 @@ public class Game {
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
         sb.append("[Round \"").append(getRound()).append("\"]\n");
-        sb.append("[White \"").append(whitePlayer.displayName()).append("\"]\n");
-        sb.append("[Black \"").append(blackPlayer.displayName()).append("\"]\n");
+        sb.append("[White \"").append(pgnName(whitePlayer)).append("\"]\n");
+        sb.append("[Black \"").append(pgnName(blackPlayer)).append("\"]\n");
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
         sb.append(pgnFormatter.format(Position.startingPosition(), moves)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
+    }
+
+    // "?" is PGN's value for an unknown player
+    private static String pgnName(@Nullable Player player) {
+        return player == null ? "?" : player.displayName();
     }
 
     /**

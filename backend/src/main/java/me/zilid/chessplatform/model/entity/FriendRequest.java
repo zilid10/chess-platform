@@ -17,7 +17,7 @@ public class FriendRequest extends AuditedBaseEntity {
     @Column(name = "status", nullable = false)
     private RequestStatus status;
 
-    public FriendRequest() {
+    protected FriendRequest() {
     }
 
     public FriendRequest(User sender, User recipient) {

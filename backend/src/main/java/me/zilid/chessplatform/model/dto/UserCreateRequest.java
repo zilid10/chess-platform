@@ -3,6 +3,7 @@ package me.zilid.chessplatform.model.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
 
 public record UserCreateRequest(
         @NotEmpty(message = "username must be provided")
@@ -19,6 +20,6 @@ public record UserCreateRequest(
         String rawPassword,
 
         @Size(max = 1000, message = "about length can't exceed 1000")
-        String about
+        @Nullable String about
 ) {
 }

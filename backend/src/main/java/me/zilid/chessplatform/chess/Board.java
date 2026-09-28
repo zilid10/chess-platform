@@ -61,8 +61,7 @@ public class Board {
     }
 
     public boolean isInCheck(Color color) {
-        Square king = kingLocations.get(color);
-        return isSquareAttackedBy(king, color.opposite());
+        return isSquareAttackedBy(kingSquare(color), color.opposite());
     }
 
     boolean isSquareAttackedBy(Square square, Color attacker) {
@@ -147,7 +146,11 @@ public class Board {
     }
 
     public Square kingSquare(Color color) {
-        return kingLocations.get(color);
+        Square king = kingLocations.get(color);
+        if (king == null) {
+            throw new IllegalStateException("No " + color + " king on the board");
+        }
+        return king;
     }
 
     public int count(Color color) {
@@ -162,7 +165,7 @@ public class Board {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
         if (!(o instanceof Board board)) {
             return false;
         }

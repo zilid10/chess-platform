@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Sends STOMP handler failures to the user's private {@code /user/topic/errors} queue.
@@ -36,13 +37,13 @@ public class WebSocketExceptionHandler {
     @MessageExceptionHandler(GameNotFoundException.class)
     public void handleException(GameNotFoundException e, SimpMessageHeaderAccessor headerAccessor) {
         logger.warn("WebSocket request failed: {}", e.getMessage());
-        sendError(headerAccessor, e.getMessage());
+        sendError(headerAccessor, Objects.requireNonNullElse(e.getMessage(), "Game not found"));
     }
 
     @MessageExceptionHandler(GameIsOverException.class)
     public void handleException(GameIsOverException e, SimpMessageHeaderAccessor headerAccessor) {
         logger.warn("Game is over: {}", e.getMessage());
-        sendError(headerAccessor, e.getMessage());
+        sendError(headerAccessor, Objects.requireNonNullElse(e.getMessage(), "Game is already over"));
     }
 
     @MessageExceptionHandler(IllegalArgumentException.class)

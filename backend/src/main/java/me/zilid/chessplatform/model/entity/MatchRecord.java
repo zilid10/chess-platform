@@ -50,22 +50,17 @@ public class MatchRecord extends BaseEntity {
     @Column(name = "black_rating_change")
     private @Nullable Integer blackRatingChange;
 
-    public MatchRecord(User white, User black) {
-        this.whitePlayer = white;
-        this.blackPlayer = black;
-    }
-
-    public MatchRecord(User white, User black, String result, String reason, String pgn, Instant start) {
+    public MatchRecord(User white, User black, String result, String reason, String pgn, Instant start, Instant end) {
         this.whitePlayer = white;
         this.blackPlayer = black;
         this.matchResult = result;
         this.reason = reason;
         this.pgn = pgn;
         this.startTime = start;
-        this.endTime = Instant.now();
+        this.endTime = end;
     }
 
-    public MatchRecord() {
+    protected MatchRecord() {
     }
 
     public User getWhitePlayer() {

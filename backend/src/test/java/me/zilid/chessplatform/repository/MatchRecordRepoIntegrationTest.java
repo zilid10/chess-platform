@@ -67,8 +67,7 @@ class MatchRecordRepoIntegrationTest {
     private MatchRecord saveMatch(User white, User black, String endTime) {
         MatchRecord match = new MatchRecord(
                 white, black, "1-0", "CHECKMATE", "1. e4 e5",
-                Instant.parse("2026-01-01T00:00:00Z"));
-        match.setEndTime(Instant.parse(endTime));
+                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse(endTime));
         return matchRecordRepo.save(match);
     }
 }
