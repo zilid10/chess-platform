@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.rating.RatingChange;
 import org.jspecify.annotations.Nullable;
 

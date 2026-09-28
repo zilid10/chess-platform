@@ -1,25 +1,27 @@
-package me.zilid.chessplatform.model.converter;
+package me.zilid.chessplatform.repository.game;
 
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameSnapshot;
 import me.zilid.chessplatform.chess.game.Player;
-import me.zilid.chessplatform.model.dto.ActiveGameState;
-import me.zilid.chessplatform.service.UserPrincipalService;
+import me.zilid.chessplatform.chess.game.RegisteredPlayer;
+import me.zilid.chessplatform.exception.UserNotFoundException;
+import me.zilid.chessplatform.model.entity.User;
+import me.zilid.chessplatform.repository.UserRepo;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 @Component
-public class ActiveGameStateConverter {
+class ActiveGameStateConverter {
 
-    private final UserPrincipalService userPrincipalService;
+    private final UserRepo userRepo;
 
-    public ActiveGameStateConverter(UserPrincipalService userPrincipalService) {
-        this.userPrincipalService = userPrincipalService;
+    ActiveGameStateConverter(UserRepo userRepo) {
+        this.userRepo = userRepo;
     }
 
-    public ActiveGameState toState(Game game) {
+    ActiveGameState toState(Game game) {
         GameSnapshot snapshot = game.getGameSnapshot();
         return new ActiveGameState(
                 snapshot.history(),
@@ -33,7 +35,7 @@ public class ActiveGameStateConverter {
         );
     }
 
-    public Game toGame(ActiveGameState state) {
+    Game toGame(ActiveGameState state) {
         GameSnapshot snapshot = new GameSnapshot(
                 state.history(),
                 state.startTime(),
@@ -48,6 +50,11 @@ public class ActiveGameStateConverter {
     }
 
     private @Nullable Player loadPlayer(@Nullable UUID userId) {
-        return userId == null ? null : userPrincipalService.loadUserById(userId).toPlayer();
+        if (userId == null) {
+            return null;
+        }
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+        return new RegisteredPlayer(user.getId(), user.getUsername());
     }
 }

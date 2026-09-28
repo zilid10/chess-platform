@@ -6,7 +6,7 @@ import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.config.WebsocketConfig;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;

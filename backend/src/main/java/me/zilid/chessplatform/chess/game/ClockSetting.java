@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess.game.clock;
+package me.zilid.chessplatform.chess.game;
 
 import java.math.BigDecimal;
 import java.time.Duration;

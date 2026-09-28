@@ -1,26 +1,19 @@
 package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.game.Game;
-import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.Player;
-import me.zilid.chessplatform.chess.game.RegisteredPlayer;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
+import me.zilid.chessplatform.chess.game.*;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
-import me.zilid.chessplatform.model.converter.ActiveGameStateConverter;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
-import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.rating.RatingChange;
-import me.zilid.chessplatform.repository.GameStateStore;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
+import me.zilid.chessplatform.repository.game.GameStateStore;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +44,6 @@ class MatchServiceTest {
     private UserRepo userRepo;
     private RatingService ratingService;
     private GameStateStore gameStateStore;
-    private ActiveGameStateConverter activeGameStateConverter;
     private MatchService service;
 
     /**
@@ -60,11 +52,14 @@ class MatchServiceTest {
     @SuppressWarnings("unchecked")
     private static GameStateStore inMemoryGameStateStore() {
         GameStateStore store = mock(GameStateStore.class);
-        Map<UUID, ActiveGameState> games = new ConcurrentHashMap<>();
+        Map<UUID, Game> games = new ConcurrentHashMap<>();
         ReentrantLock lock = new ReentrantLock();
-        doAnswer(invocation -> games.put(invocation.getArgument(0), invocation.getArgument(1)))
+        doAnswer(invocation -> games.put(invocation.getArgument(0), copyGame(invocation.getArgument(1))))
                 .when(store).storeGame(any(), any());
-        when(store.loadGame(any())).thenAnswer(invocation -> games.get(invocation.<UUID>getArgument(0)));
+        when(store.loadGame(any())).thenAnswer(invocation -> {
+            Game game = games.get(invocation.<UUID>getArgument(0));
+            return game == null ? null : copyGame(game);
+        });
         when(store.withLock(any(), any())).thenAnswer(invocation -> {
             lock.lock();
             try {
@@ -84,9 +79,8 @@ class MatchServiceTest {
         return new RegisteredPlayer(user.getId(), user.getUsername());
     }
 
-    private static UserPrincipal principal(Player player) {
-        String username = player.displayName();
-        return new UserPrincipal(player.id(), username, username + "@example.com", "hash", true, List.of());
+    private static Game copyGame(Game game) {
+        return Game.fromSnapshot(game.getGameSnapshot(), game.getWhitePlayer(), game.getBlackPlayer());
     }
 
     @BeforeEach
@@ -95,11 +89,6 @@ class MatchServiceTest {
         userRepo = mock(UserRepo.class);
         ratingService = mock(RatingService.class);
         gameStateStore = inMemoryGameStateStore();
-        UserPrincipalService userPrincipalService = mock(UserPrincipalService.class);
-        Map<UUID, UserPrincipal> users = Map.of(
-                alice.id(), principal(alice), bob.id(), principal(bob), spectator.id(), principal(spectator));
-        when(userPrincipalService.loadUserById(any())).thenAnswer(invocation -> users.get(invocation.<UUID>getArgument(0)));
-        activeGameStateConverter = new ActiveGameStateConverter(userPrincipalService);
         service = newService();
     }
 
@@ -118,12 +107,12 @@ class MatchServiceTest {
     @Test
     void rejectedActionsAreNotStored() {
         UUID gameId = gameWithBothPlayers();
-        ActiveGameState before = gameStateStore.loadGame(gameId);
+        GameSnapshot before = gameStateStore.loadGame(gameId).getGameSnapshot();
 
         assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThat(gameStateStore.loadGame(gameId)).isEqualTo(before);
+        assertThat(gameStateStore.loadGame(gameId).getGameSnapshot()).isEqualTo(before);
     }
 
     @Test
@@ -191,7 +180,7 @@ class MatchServiceTest {
             }
         };
         MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore, activeGameStateConverter) {
+                ratingService, gameStateStore) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -276,7 +265,7 @@ class MatchServiceTest {
             }
         };
         MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore, activeGameStateConverter) {
+                ratingService, gameStateStore) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -405,7 +394,7 @@ class MatchServiceTest {
 
     private MatchService newService() {
         return new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore, activeGameStateConverter);
+                ratingService, gameStateStore);
     }
 
     private UUID gameWithBothPlayers() {

@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.config;
+package me.zilid.chessplatform.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -44,6 +44,15 @@ public class SecurityConfig {
                 .toList();
     }
 
+    private static void writeProblem(JsonMapper jsonMapper, HttpServletRequest request,
+                                     HttpServletResponse response, HttpStatus status, String detail) throws IOException {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setInstance(URI.create(request.getRequestURI()));
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        jsonMapper.writeValue(response.getOutputStream(), problem);
+    }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -85,15 +94,6 @@ public class SecurityConfig {
                 );
 
         return http.build();
-    }
-
-    private static void writeProblem(JsonMapper jsonMapper, HttpServletRequest request,
-                                     HttpServletResponse response, HttpStatus status, String detail) throws IOException {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
-        problem.setInstance(URI.create(request.getRequestURI()));
-        response.setStatus(status.value());
-        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        jsonMapper.writeValue(response.getOutputStream(), problem);
     }
 
     @Bean

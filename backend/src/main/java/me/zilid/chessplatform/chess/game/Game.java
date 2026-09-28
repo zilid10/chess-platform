@@ -3,7 +3,6 @@ package me.zilid.chessplatform.chess.game;
 import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -73,6 +72,11 @@ public class Game {
         game.status = snapshot.status();
         game.drawOfferedBy = snapshot.drawOfferedBy();
         return game;
+    }
+
+    // "?" is PGN's value for an unknown player
+    private static String pgnName(@Nullable Player player) {
+        return player == null ? "?" : player.displayName();
     }
 
     /**
@@ -211,7 +215,6 @@ public class Game {
         if (!isGameOver()) {
             return "";
         }
-        PgnFormatter pgnFormatter = new PgnFormatter();
         StringBuilder sb = new StringBuilder();
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
@@ -221,14 +224,9 @@ public class Game {
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
-        sb.append(pgnFormatter.format(Position.startingPosition(), moves)).append("\n");
+        sb.append(PgnFormatter.format(Position.startingPosition(), moves)).append("\n");
         sb.append(status.getSymbol());
         return sb.toString();
-    }
-
-    // "?" is PGN's value for an unknown player
-    private static String pgnName(@Nullable Player player) {
-        return player == null ? "?" : player.displayName();
     }
 
     /**

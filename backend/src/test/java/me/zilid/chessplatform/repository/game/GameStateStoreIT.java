@@ -1,8 +1,8 @@
-package me.zilid.chessplatform.repository;
+package me.zilid.chessplatform.repository.game;
 
-import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
-import me.zilid.chessplatform.model.dto.ActiveGameState;
+import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -12,13 +12,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 /**
  * Runs against the Redis provisioned by the backend CI job.
@@ -38,7 +37,8 @@ class GameStateStoreIT {
         connectionFactory.afterPropertiesSet();
         connectionFactory.start();
         redisTemplate = new StringRedisTemplate(connectionFactory);
-        store = new GameStateStore(redisTemplate, JsonMapper.builder().build());
+        store = new GameStateStore(redisTemplate, JsonMapper.builder().build(),
+                new ActiveGameStateConverter(mock(UserRepo.class)));
     }
 
     @AfterAll
@@ -58,13 +58,11 @@ class GameStateStoreIT {
     @Test
     void storesLoadsAndExpiresGames() {
         UUID gameId = UUID.randomUUID();
-        ActiveGameState state = new ActiveGameState(
-                List.of(), Instant.parse("2026-09-27T10:15:30Z"), null, TimeControl.RAPID, GameStatus.ONGOING,
-                UUID.randomUUID(), null, null);
+        Game game = new Game(null, null, TimeControl.RAPID);
 
-        store.storeGame(gameId, state);
+        store.storeGame(gameId, game);
 
-        assertThat(store.loadGame(gameId)).isEqualTo(state);
+        assertThat(store.loadGame(gameId).getGameSnapshot()).isEqualTo(game.getGameSnapshot());
         assertThat(redisTemplate.getExpire("game:" + gameId, TimeUnit.SECONDS))
                 .isBetween(GameStateStore.GAME_TTL.toSeconds() - 5, GameStateStore.GAME_TTL.toSeconds());
 

@@ -4,18 +4,20 @@ import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.Player;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
-import me.zilid.chessplatform.model.converter.ActiveGameStateConverter;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
-import me.zilid.chessplatform.model.dto.*;
+import me.zilid.chessplatform.model.dto.GameCreatedResponse;
+import me.zilid.chessplatform.model.dto.GameJoinResponse;
+import me.zilid.chessplatform.model.dto.GameStateResponse;
+import me.zilid.chessplatform.model.dto.MatchRecordResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.rating.RatingChange;
-import me.zilid.chessplatform.repository.GameStateStore;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
+import me.zilid.chessplatform.repository.game.GameStateStore;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,17 +44,14 @@ public class MatchService {
     private final UserRepo userRepo;
     private final RatingService ratingService;
     private final GameStateStore gameStateStore;
-    private final ActiveGameStateConverter activeGameStateConverter;
 
     public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo,
-                        RatingService ratingService, GameStateStore gameStateStore,
-                        ActiveGameStateConverter activeGameStateConverter) {
+                        RatingService ratingService, GameStateStore gameStateStore) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
         this.userRepo = userRepo;
         this.ratingService = ratingService;
         this.gameStateStore = gameStateStore;
-        this.activeGameStateConverter = activeGameStateConverter;
     }
 
     @Transactional(readOnly = true)
@@ -248,8 +247,7 @@ public class MatchService {
      * Load a game session (useful for testing or administrative purposes)
      */
     public @Nullable Game getGameSession(UUID gameId) {
-        ActiveGameState state = gameStateStore.loadGame(gameId);
-        return state == null ? null : activeGameStateConverter.toGame(state);
+        return gameStateStore.loadGame(gameId);
     }
 
     public Game getGameOrThrow(UUID gameId) {
@@ -274,7 +272,7 @@ public class MatchService {
     }
 
     private void saveGame(UUID gameId, Game game) {
-        gameStateStore.storeGame(gameId, activeGameStateConverter.toState(game));
+        gameStateStore.storeGame(gameId, game);
     }
 
     public void requirePlayer(Game game, Player user) {

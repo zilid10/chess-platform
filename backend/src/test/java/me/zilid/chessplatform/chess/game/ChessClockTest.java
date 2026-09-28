@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess.game.clock;
+package me.zilid.chessplatform.chess.game;
 
 import me.zilid.chessplatform.chess.Color;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess.game.clock;
+package me.zilid.chessplatform.chess.game;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

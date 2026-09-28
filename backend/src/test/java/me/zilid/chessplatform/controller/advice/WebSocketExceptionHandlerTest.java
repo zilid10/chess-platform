@@ -1,5 +1,6 @@
-package me.zilid.chessplatform.exception;
+package me.zilid.chessplatform.controller.advice;
 
+import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

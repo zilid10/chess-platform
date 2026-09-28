@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess.game.clock;
+package me.zilid.chessplatform.chess.game;
 
 import me.zilid.chessplatform.chess.Color;
 import org.jspecify.annotations.Nullable;
@@ -6,6 +6,7 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
+import java.util.Objects;
 
 /**
  * Both players' remaining time. Nothing ticks: the side to move's remaining time is its stored time minus the time
@@ -49,12 +50,18 @@ public class ChessClock {
         return chessClock;
     }
 
+    // Instances' clocks can disagree slightly; never let that give a player extra time.
+    private static Duration elapsedSince(Instant start, Instant now) {
+        Duration elapsed = Duration.between(start, now);
+        return elapsed.isNegative() ? Duration.ZERO : elapsed;
+    }
+
     /**
      * The time {@code color} has left at {@code now}. Only the side to move loses time, and only once the clock has
      * started. The result is negative after a flag.
      */
     public Duration remaining(Color color, Instant now) {
-        Duration stored = remainings.get(color);
+        Duration stored = Objects.requireNonNull(remainings.get(color));
         if (turnStartAt == null || color != turnColor) {
             return stored;
         }
@@ -130,25 +137,19 @@ public class ChessClock {
      * White's time as of White's last move or the clock stopping. Use {@link #remaining} for the live value.
      */
     public Duration getWhiteRemaining() {
-        return remainings.get(Color.WHITE);
+        return Objects.requireNonNull(remainings.get(Color.WHITE));
     }
 
     /**
      * Black's time as of Black's last move or the clock stopping. Use {@link #remaining} for the live value.
      */
     public Duration getBlackRemaining() {
-        return remainings.get(Color.BLACK);
+        return Objects.requireNonNull(remainings.get(Color.BLACK));
     }
 
     private void requireNotStopped() {
         if (stopped) {
             throw new IllegalStateException("Clock has been stopped");
         }
-    }
-
-    // Instances' clocks can disagree slightly; never let that give a player extra time.
-    private static Duration elapsedSince(Instant start, Instant now) {
-        Duration elapsed = Duration.between(start, now);
-        return elapsed.isNegative() ? Duration.ZERO : elapsed;
     }
 }

@@ -2,7 +2,7 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
 import me.zilid.chessplatform.model.dto.UserResponse;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.FriendService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +56,7 @@ public class FriendController {
     @PostMapping("/friends/send/{userId}")
     @ResponseStatus(HttpStatus.CREATED)
     public FriendRequestResponse sendFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                  @PathVariable("userId") UUID recipientId) {
+                                                   @PathVariable("userId") UUID recipientId) {
         UUID senderId = userPrincipal.getId();
         logger.info("User {} sending friend request to user {}", userPrincipal.getUsername(), recipientId);
         return friendService.createFriendRequest(senderId, recipientId);
@@ -65,7 +65,7 @@ public class FriendController {
     @PostMapping("/friends/accept/{friendRequestId}")
     @ResponseStatus(HttpStatus.CREATED)
     public FriendRequestResponse acceptFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                    @PathVariable("friendRequestId") UUID friendRequestId) {
+                                                     @PathVariable("friendRequestId") UUID friendRequestId) {
         UUID recipientId = userPrincipal.getId();
         logger.info("User {} accepting friend request {}", userPrincipal.getUsername(), friendRequestId);
         return friendService.acceptFriendRequest(friendRequestId, recipientId);

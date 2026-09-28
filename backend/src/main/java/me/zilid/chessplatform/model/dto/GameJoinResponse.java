@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.model.dto;
 
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
+import me.zilid.chessplatform.chess.game.TimeControl;
 
 import java.util.UUID;
 

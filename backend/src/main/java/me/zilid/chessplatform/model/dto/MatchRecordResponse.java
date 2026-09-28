@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.model.dto;
 
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;

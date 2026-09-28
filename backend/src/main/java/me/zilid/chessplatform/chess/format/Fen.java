@@ -10,6 +10,14 @@ public class Fen {
     private Fen() {
     }
 
+    /**
+     * Parses a six-field FEN string into a position.
+     *
+     * <p>Checks the notation's structure but does not check that the
+     * position is reachable through a legal sequence of moves.
+     *
+     * @throws IllegalArgumentException if the FEN cannot be parsed
+     */
     public static Position parse(String fen) {
         String[] parsedFen = fen.split("\\s+");
         if (parsedFen.length != 6) {
@@ -22,7 +30,7 @@ public class Fen {
         for (char c : parsedFen[0].toCharArray()) {
             switch (c) {
                 case 'Q', 'q', 'K', 'k', 'R', 'r', 'B', 'b', 'N', 'n', 'P', 'p' -> {
-                    board.put(Square.of(file, rank), notationToPiece(c));
+                    board.put(Square.of(file, rank), pieceFromNotation(c));
                     file++;
                 }
                 case '/' -> {
@@ -49,7 +57,7 @@ public class Fen {
         if (file != 8 || rank != 0) {
             throw new IllegalArgumentException("Incomplete board in FEN: " + fen);
         }
-        Color turnColor = notationToColor(parsedFen[1]);
+        Color turnColor = colorFromNotation(parsedFen[1]);
         CastlingRights castlingRights = castlingRightsFromSymbol(parsedFen[2]);
         Square enPassantTarget = parsedFen[3].equals("-") ? null : Square.fromNotation(parsedFen[3]);
         try {
@@ -62,7 +70,7 @@ public class Fen {
     }
 
     /**
-     * Get the fen representation of the current position
+     * Get the FEN representation of the current position
      */
     public static String format(Position position) {
         StringBuilder fen = new StringBuilder();
@@ -95,7 +103,7 @@ public class Fen {
         return fen.toString();
     }
 
-    public static Piece notationToPiece(char c) {
+    private static Piece pieceFromNotation(char c) {
         Color color = Character.isUpperCase(c) ? Color.WHITE : Color.BLACK;
         PieceType type = switch (c) {
             case 'Q', 'q' -> PieceType.QUEEN;
@@ -110,7 +118,7 @@ public class Fen {
         return Piece.of(color, type);
     }
 
-    public static char pieceToNotation(Piece piece) {
+    private static char pieceToNotation(Piece piece) {
         char notation = switch (piece.type()) {
             case KING -> 'k';
             case QUEEN -> 'q';
@@ -122,14 +130,14 @@ public class Fen {
         return piece.color().isWhite() ? Character.toUpperCase(notation) : Character.toLowerCase(notation);
     }
 
-    public static char colorToNotation(Color color) {
+    private static char colorToNotation(Color color) {
         return switch (color) {
             case WHITE -> 'w';
             case BLACK -> 'b';
         };
     }
 
-    public static Color notationToColor(String color) {
+    private static Color colorFromNotation(String color) {
         if (color.equals("w")) {
             return Color.WHITE;
         }
@@ -139,7 +147,7 @@ public class Fen {
         throw new IllegalArgumentException("invalid color: " + color);
     }
 
-    public static String castlingRightsToSymbol(CastlingRights castlingRights) {
+    private static String castlingRightsToSymbol(CastlingRights castlingRights) {
         StringBuilder sb = new StringBuilder();
         if (castlingRights.has(Color.WHITE, CastlingSide.KINGSIDE)) {
             sb.append("K");
@@ -156,7 +164,7 @@ public class Fen {
         return sb.isEmpty() ? "-" : sb.toString();
     }
 
-    public static CastlingRights castlingRightsFromSymbol(String symbol) {
+    private static CastlingRights castlingRightsFromSymbol(String symbol) {
         if (!castlingRightsPattern.matcher(symbol).matches()) {
             throw new IllegalArgumentException("castling rights symbol is not valid: '" + symbol + "'");
         }

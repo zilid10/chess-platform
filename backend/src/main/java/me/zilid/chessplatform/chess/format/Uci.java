@@ -4,8 +4,6 @@ import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.Square;
 
-import java.util.Optional;
-
 public class Uci {
     private Uci() {
     }
@@ -20,22 +18,19 @@ public class Uci {
         return uciMove.promotion() != null ? base + promotionChar(uciMove.promotion()) : base;
     }
 
-    public static Optional<UciMove> parse(String uci) {
+    public static UciMove parse(String uci) {
         if (uci.length() != 4 && uci.length() != 5) {
-            return Optional.empty();
+            throw new IllegalArgumentException("Invalid uci: " + uci);
         }
-        Square from, to;
+        
+        Square from = Square.fromNotation(uci.substring(0, 2));
+        Square to = Square.fromNotation(uci.substring(2, 4));
+
         PieceType promotion = null;
-        try {
-            from = Square.fromNotation(uci.substring(0, 2));
-            to = Square.fromNotation(uci.substring(2, 4));
-            if (uci.length() == 5) {
-                promotion = promotionType(uci.charAt(4));
-            }
-            return Optional.of(new UciMove(from, to, promotion));
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
+        if (uci.length() == 5) {
+            promotion = promotionType(uci.charAt(4));
         }
+        return new UciMove(from, to, promotion);
     }
 
     private static PieceType promotionType(char c) {

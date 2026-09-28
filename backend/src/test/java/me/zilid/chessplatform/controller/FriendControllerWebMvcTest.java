@@ -1,12 +1,12 @@
 package me.zilid.chessplatform.controller;
 
-import me.zilid.chessplatform.config.SecurityConfig;
-import me.zilid.chessplatform.exception.GlobalExceptionHandler;
+import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.entity.FriendRequest;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.SecurityConfig;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.FriendService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,25 +27,15 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(FriendController.class)
 @ContextConfiguration(classes = FriendControllerWebMvcTest.TestConfiguration.class)
 class FriendControllerWebMvcTest {
-
-    @SpringBootConfiguration
-    @Import({FriendController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {
-    }
 
     private static final UUID USER_ID = UUID.fromString("02410898-174c-4cb5-b8c5-55fe3cc535b9");
     private static final UUID FRIEND_ID = UUID.fromString("917a66af-bc3f-4438-b52d-4d049122de0e");
@@ -59,20 +49,10 @@ class FriendControllerWebMvcTest {
             USER_ID, "player", "player@example.com", "", CREATED_AT, CREATED_AT);
     private static final FriendRequestResponse REQUEST = new FriendRequestResponse(
             REQUEST_ID, PLAYER_RESPONSE, FRIEND, FriendRequest.RequestStatus.PENDING, CREATED_AT, CREATED_AT);
-
     @Autowired
     private MockMvc mvc;
-
     @MockitoBean
     private FriendService friendService;
-
-    @ParameterizedTest
-    @MethodSource("friendRoutes")
-    void everyFriendRouteRequiresAuthentication(MockHttpServletRequestBuilder request) throws Exception {
-        mvc.perform(request).andExpect(status().isUnauthorized());
-
-        verifyNoInteractions(friendService);
-    }
 
     private static Stream<MockHttpServletRequestBuilder> friendRoutes() {
         return Stream.of(
@@ -83,6 +63,14 @@ class FriendControllerWebMvcTest {
                 post("/api/friends/send/{userId}", FRIEND_ID),
                 post("/api/friends/accept/{friendRequestId}", REQUEST_ID),
                 put("/api/friends/reject/{friendRequestId}", REQUEST_ID));
+    }
+
+    @ParameterizedTest
+    @MethodSource("friendRoutes")
+    void everyFriendRouteRequiresAuthentication(MockHttpServletRequestBuilder request) throws Exception {
+        mvc.perform(request).andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(friendService);
     }
 
     @Test
@@ -161,5 +149,10 @@ class FriendControllerWebMvcTest {
         mvc.perform(post("/api/friends/send/{userId}", FRIEND_ID).with(user(PLAYER)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Users are already friends"));
+    }
+
+    @SpringBootConfiguration
+    @Import({FriendController.class, SecurityConfig.class, GlobalExceptionHandler.class})
+    static class TestConfiguration {
     }
 }

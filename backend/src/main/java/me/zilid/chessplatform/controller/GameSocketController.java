@@ -6,8 +6,8 @@ import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.rating.RatingChange;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -37,6 +37,44 @@ public class GameSocketController {
     public GameSocketController(SimpMessagingTemplate messagingTemplate, MatchService matchService) {
         this.messagingTemplate = messagingTemplate;
         this.matchService = matchService;
+    }
+
+    private static @Nullable PieceType parsePromotion(@Nullable String promotion) {
+        if (promotion == null) {
+            return null;
+        }
+        return switch (promotion) {
+            case "q" -> PieceType.QUEEN;
+            case "r" -> PieceType.ROOK;
+            case "b" -> PieceType.BISHOP;
+            case "n" -> PieceType.KNIGHT;
+            default -> throw new IllegalArgumentException("Invalid promotion: " + promotion);
+        };
+    }
+
+    // Dot-separated so the names are valid RabbitMQ topics
+    private static String gameTopic(UUID gameId) {
+        return "/topic/game." + gameId;
+    }
+
+    private static String chatTopic(UUID gameId) {
+        return "/topic/game." + gameId + ".chat";
+    }
+
+    private static Player currentPlayer(@Nullable Principal principal) {
+        if (principal instanceof Authentication authentication
+                && authentication.getPrincipal() instanceof UserPrincipal user) {
+            return user.toPlayer();
+        }
+        throw new IllegalStateException("Authentication required");
+    }
+
+    private static String ratingSummary(Game game, RatingChange change) {
+        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
+        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
+        return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
+                game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
+                black, change.blackAfter(), change.blackDelta());
     }
 
     /**
@@ -117,19 +155,6 @@ public class GameSocketController {
                 parsePromotion(moveRequest.promotion()));
         messagingTemplate.convertAndSend(gameTopic(gameId), response);
         onGameEnd(gameId, response);
-    }
-
-    private static @Nullable PieceType parsePromotion(@Nullable String promotion) {
-        if (promotion == null) {
-            return null;
-        }
-        return switch (promotion) {
-            case "q" -> PieceType.QUEEN;
-            case "r" -> PieceType.ROOK;
-            case "b" -> PieceType.BISHOP;
-            case "n" -> PieceType.KNIGHT;
-            default -> throw new IllegalArgumentException("Invalid promotion: " + promotion);
-        };
     }
 
     /**
@@ -216,23 +241,6 @@ public class GameSocketController {
         messagingTemplate.convertAndSend(chatTopic(gameId), systemMessage);
     }
 
-    // Dot-separated so the names are valid RabbitMQ topics
-    private static String gameTopic(UUID gameId) {
-        return "/topic/game." + gameId;
-    }
-
-    private static String chatTopic(UUID gameId) {
-        return "/topic/game." + gameId + ".chat";
-    }
-
-    private static Player currentPlayer(@Nullable Principal principal) {
-        if (principal instanceof Authentication authentication
-                && authentication.getPrincipal() instanceof UserPrincipal user) {
-            return user.toPlayer();
-        }
-        throw new IllegalStateException("Authentication required");
-    }
-
     private void onGameEnd(UUID gameId, GameStateResponse response) {
         if (response.gameStatus().isGameOver()) {
             sendSystemMessage(gameId, "Game Over: " + response.gameStatus().getDescription());
@@ -245,13 +253,5 @@ public class GameSocketController {
                 logger.error("Failed to archive game {}", gameId, e);
             }
         }
-    }
-
-    private static String ratingSummary(Game game, RatingChange change) {
-        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
-        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
-        return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
-                game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
-                black, change.blackAfter(), change.blackDelta());
     }
 }

@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.repository;
+package me.zilid.chessplatform.repository.game;
 
-import me.zilid.chessplatform.model.dto.ActiveGameState;
+import me.zilid.chessplatform.chess.game.Game;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -38,32 +38,35 @@ public class GameStateStore {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ActiveGameStateConverter converter;
 
-    public GameStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    GameStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper,
+                   ActiveGameStateConverter converter) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.converter = converter;
     }
 
     /**
      * Save the game and reset its expiry to {@link #GAME_TTL}.
      */
-    public void storeGame(UUID gameId, ActiveGameState game) {
+    public void storeGame(UUID gameId, Game game) {
         try {
-            String json = objectMapper.writeValueAsString(game);
+            String json = objectMapper.writeValueAsString(converter.toState(game));
             redisTemplate.opsForValue().set(key(gameId), json, GAME_TTL);
         } catch (JacksonException e) {
             throw new IllegalArgumentException("failed to serialize game state for gameId=" + gameId, e);
         }
     }
 
-    public @Nullable ActiveGameState loadGame(UUID gameId) {
+    public @Nullable Game loadGame(UUID gameId) {
         String json = redisTemplate.opsForValue().get(key(gameId));
         if (json == null) {
             return null;
         }
 
         try {
-            return objectMapper.readValue(json, ActiveGameState.class);
+            return converter.toGame(objectMapper.readValue(json, ActiveGameState.class));
         } catch (JacksonException e) {
             throw new IllegalArgumentException("failed to parse game state for gameId=" + gameId, e);
         }

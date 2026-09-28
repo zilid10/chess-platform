@@ -6,9 +6,7 @@ import me.zilid.chessplatform.chess.Position;
 import java.util.List;
 
 public class PgnFormatter {
-    private static final SanFormatter sanFormatter = new SanFormatter();
-
-    public String format(Position replayPosition, List<Move> moveHistory) {
+    public static String format(Position replayPosition, List<Move> moveHistory) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < moveHistory.size(); i++) {
             if (i % 2 == 0) {
@@ -20,7 +18,7 @@ public class PgnFormatter {
                 sb.append(' ');
             }
             Move move = moveHistory.get(i);
-            String notation = sanFormatter.format(replayPosition, move);
+            String notation = SanFormatter.format(replayPosition, move);
             sb.append(notation);
             replayPosition.applyMove(move);
         }

@@ -1,5 +1,9 @@
-package me.zilid.chessplatform.exception;
+package me.zilid.chessplatform.controller.advice;
 
+import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
+import me.zilid.chessplatform.exception.GameIsOverException;
+import me.zilid.chessplatform.exception.GameNotFoundException;
+import me.zilid.chessplatform.exception.UserNotFoundException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

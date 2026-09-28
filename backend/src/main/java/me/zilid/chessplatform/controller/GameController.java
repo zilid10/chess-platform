@@ -1,12 +1,12 @@
 package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MatchRecordResponse;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

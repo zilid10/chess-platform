@@ -1,14 +1,14 @@
 package me.zilid.chessplatform.controller;
 
-import me.zilid.chessplatform.chess.game.clock.TimeControl;
-import me.zilid.chessplatform.config.SecurityConfig;
-import me.zilid.chessplatform.exception.GlobalExceptionHandler;
+import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.SecurityConfig;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.RatingService;
 import me.zilid.chessplatform.service.UserService;
 import org.junit.jupiter.api.Test;
