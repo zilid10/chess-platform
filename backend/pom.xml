@@ -40,7 +40,7 @@
         <java.version>21</java.version>
         <revision>0.0.1-SNAPSHOT</revision>
         <springdoc.version>3.1.1</springdoc.version>
-        <uuid.generator.version>5.1.0</uuid.generator.version>
+        <uuid.generator.version>5.2.0</uuid.generator.version>
     </properties>
 
     <dependencies>
