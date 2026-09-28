@@ -1,6 +1,8 @@
 FROM maven:3.9.11-amazoncorretto-21-alpine AS build
 WORKDIR /app
 COPY pom.xml .
+# JVM flags Error Prone needs to run inside javac
+COPY .mvn/jvm.config .mvn/jvm.config
 RUN mvn dependency:go-offline -B
 COPY ./src ./src
 RUN mvn clean package -DskipTests -B

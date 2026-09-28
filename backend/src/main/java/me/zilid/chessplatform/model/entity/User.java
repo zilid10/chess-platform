@@ -2,6 +2,7 @@ package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
 import me.zilid.chessplatform.chess.game.TimeControl;
+import org.jspecify.annotations.Nullable;
 
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -21,7 +22,7 @@ public class User extends AuditedBaseEntity {
     private String passwordHash;
 
     @Column(name = "about")
-    private String about;
+    private @Nullable String about;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -35,10 +36,10 @@ public class User extends AuditedBaseEntity {
     @MapKey(name = "timeControl")
     private Map<TimeControl, PlayerRating> playerRatings = new EnumMap<>(TimeControl.class);
 
-    public User() {
+    protected User() {
     }
 
-    public User(String email, String username, String passwordHash, String about) {
+    public User(String email, String username, String passwordHash, @Nullable String about) {
         this.email = email;
         this.username = username;
         this.passwordHash = passwordHash;
@@ -73,11 +74,11 @@ public class User extends AuditedBaseEntity {
         this.passwordHash = passwordHash;
     }
 
-    public String getAbout() {
+    public @Nullable String getAbout() {
         return about;
     }
 
-    public void setAbout(String about) {
+    public void setAbout(@Nullable String about) {
         this.about = about;
     }
 

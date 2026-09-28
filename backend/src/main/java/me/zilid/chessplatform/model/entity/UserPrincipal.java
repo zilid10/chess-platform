@@ -33,7 +33,7 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
         if (!(o instanceof UserPrincipal that)) return false;
         return Objects.equals(id, that.id);
     }

@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -216,19 +217,20 @@ public class MatchService {
         if (!game.isGameOver()) {
             throw new IllegalStateException("Game is not over");
         }
+        Player white = game.getWhitePlayer();
+        Player black = game.getBlackPlayer();
+        Instant endTime = game.getEndTime();
+        // A lone player can resign before an opponent joins; there is no match to record then
+        if (white == null || black == null || endTime == null) {
+            throw new IllegalStateException("Game " + matchId + " ended without both players seated");
+        }
         logger.info("Archiving match {} with result: {}", matchId, game.getStatus().getSymbol());
-        MatchRecord matchRecord = new MatchRecord();
-        UUID whitePlayerId = game.getWhitePlayer().id();
-        UUID blackPlayerId = game.getBlackPlayer().id();
+        UUID whitePlayerId = white.id();
+        UUID blackPlayerId = black.id();
         User whitePlayer = userRepo.getReferenceById(whitePlayerId);
         User blackPlayer = userRepo.getReferenceById(blackPlayerId);
-        matchRecord.setWhitePlayer(whitePlayer);
-        matchRecord.setBlackPlayer(blackPlayer);
-        matchRecord.setPgn(game.getNotation());
-        matchRecord.setMatchResult(game.getStatus().getSymbol());
-        matchRecord.setReason(game.getStatus().getReason());
-        matchRecord.setStartTime(game.getStartTime());
-        matchRecord.setEndTime(game.getEndTime());
+        MatchRecord matchRecord = new MatchRecord(whitePlayer, blackPlayer, game.getStatus().getSymbol(),
+                game.getStatus().getReason(), game.getNotation(), game.getStartTime(), endTime);
         matchRecord.setTimeControl(game.getTimeControl());
         RatingChange ratingChange = ratingService.applyResult(
                 whitePlayerId, blackPlayerId, game.getTimeControl(), game.getStatus());
