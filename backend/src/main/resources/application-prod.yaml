@@ -8,6 +8,14 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT}
 
+app:
+  websocket:
+    relay:
+      enabled: ${APP_WEBSOCKET_RELAY_ENABLED:true}
+      host: ${APP_WEBSOCKET_RELAY_HOST}
+      login: ${APP_WEBSOCKET_RELAY_LOGIN}
+      passcode: ${APP_WEBSOCKET_RELAY_PASSCODE}
+
 management:
   server:
     port: ${MANAGEMENT_SERVER_PORT:9090}

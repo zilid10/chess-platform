@@ -2,10 +2,8 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
-import me.zilid.chessplatform.exception.GameIsOverException;
-import me.zilid.chessplatform.exception.GameNotFoundException;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.model.dto.ChatMessage;
-import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
@@ -16,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
-import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -64,7 +61,7 @@ public class GameSocketController {
                         username + " disconnected",
                         ChatMessage.MessageType.LEAVE
                 );
-                messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", disconnectMessage);
+                messagingTemplate.convertAndSend(chatTopic(gameId), disconnectMessage);
             }
         }
     }
@@ -72,53 +69,53 @@ public class GameSocketController {
     /**
      * Handle player joining a game session
      * Maps to: /app/game/{gameId}/join
-     * Response sent to: /topic/game/{gameId}
+     * Response sent to: /topic/game.{gameId}
      */
     @MessageMapping("/game/{gameId}/join")
     public void joinGame(@DestinationVariable UUID gameId,
                          Principal principal,
                          SimpMessageHeaderAccessor headerAccessor) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         var attributes = Objects.requireNonNull(headerAccessor.getSessionAttributes());
         attributes.put("gameId", gameId);
-        attributes.put("userId", currentUser.getId());
-        attributes.put("username", currentUser.getUsername());
+        attributes.put("userId", currentUser.id());
+        attributes.put("username", currentUser.displayName());
 
         Game game = matchService.getGameOrThrow(gameId);
         boolean isPlayer = game.isValidPlayer(currentUser);
 
         headerAccessor.getSessionAttributes().put("isPlayer", isPlayer);
         if (isPlayer) {
-            logger.info("Player {} joined game {}", currentUser.getUsername(), gameId);
+            logger.info("Player {} joined game {}", currentUser.displayName(), gameId);
         } else {
-            logger.info("Spectator {} joined game {}", currentUser.getUsername(), gameId);
+            logger.info("Spectator {} joined game {}", currentUser.displayName(), gameId);
         }
 
         GameStateResponse response = matchService.buildGameStateResponse(game);
-        messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
+        messagingTemplate.convertAndSend(gameTopic(gameId), response);
 
         ChatMessage notification = new ChatMessage(
                 "System",
-                currentUser.getUsername() + (isPlayer ? " (Player)" : " (Spectator)") + " connected",
+                currentUser.displayName() + (isPlayer ? " (Player)" : " (Spectator)") + " connected",
                 ChatMessage.MessageType.JOIN
         );
-        messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", notification);
+        messagingTemplate.convertAndSend(chatTopic(gameId), notification);
     }
 
     /**
      * Handle chess piece moves
      * Maps to: /app/game/{gameId}/move
-     * Response sent to: /topic/game/{gameId}
+     * Response sent to: /topic/game.{gameId}
      */
     @MessageMapping("/game/{gameId}/move")
     public void movePiece(@DestinationVariable UUID gameId,
                           @Payload MoveRequest moveRequest,
                           Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.makeMove(
                 currentUser, gameId, moveRequest.moveFrom(), moveRequest.moveTo(),
                 parsePromotion(moveRequest.promotion()));
-        messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
+        messagingTemplate.convertAndSend(gameTopic(gameId), response);
         onGameEnd(gameId, response);
     }
 
@@ -138,16 +135,16 @@ public class GameSocketController {
     /**
      * Handle player resignation
      * Maps to: /app/game/{gameId}/resign
-     * Response sent to: /topic/game/{gameId}
+     * Response sent to: /topic/game.{gameId}
      */
     @MessageMapping("/game/{gameId}/resign")
     public void resign(@DestinationVariable UUID gameId,
                        Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.resign(currentUser, gameId);
 
         // Send updated game state
-        messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
+        messagingTemplate.convertAndSend(gameTopic(gameId), response);
 
         // Send system message
         String winner = response.gameStatus().isWhiteWin() ? "White" : "Black";
@@ -158,17 +155,17 @@ public class GameSocketController {
     /**
      * Handle draw offer/acceptance
      * Maps to: /app/game/{gameId}/draw
-     * Response sent to: /topic/game/{gameId}
+     * Response sent to: /topic/game.{gameId}
      */
     @MessageMapping("/game/{gameId}/draw/accept")
     public void acceptDraw(
             @DestinationVariable UUID gameId,
             Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
 
         // update the game state
-        messagingTemplate.convertAndSend("/topic/game/" + gameId, response);
+        messagingTemplate.convertAndSend(gameTopic(gameId), response);
         logger.info("Draw acceptance handled in game {}", gameId);
 
         // Send system message
@@ -179,7 +176,7 @@ public class GameSocketController {
     public void offerDraw(
             @DestinationVariable UUID gameId,
             Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         matchService.offerDraw(currentUser, gameId);
         logger.info("Draw offered in game {}", gameId);
 
@@ -190,24 +187,24 @@ public class GameSocketController {
     /**
      * Handle chat messages in a game
      * Maps to: /app/game/{gameId}/chat
-     * Response sent to: /topic/game/{gameId}/chat
+     * Response sent to: /topic/game.{gameId}.chat
      */
     @MessageMapping("/game/{gameId}/chat")
     public void sendChatMessage(@DestinationVariable UUID gameId,
                                 @Payload ChatMessage chatMessage,
                                 Principal principal) {
-        UserPrincipal currentUser = currentUser(principal);
+        Player currentUser = currentPlayer(principal);
         matchService.getGameOrThrow(gameId);
 
-        logger.info("Chat message in game {} from {}", gameId, currentUser.getUsername());
+        logger.info("Chat message in game {} from {}", gameId, currentUser.displayName());
 
         ChatMessage timestampedMessage = new ChatMessage(
-                currentUser.getUsername(),
+                currentUser.displayName(),
                 chatMessage.message(),
                 ChatMessage.MessageType.CHAT
         );
 
-        messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", timestampedMessage);
+        messagingTemplate.convertAndSend(chatTopic(gameId), timestampedMessage);
     }
 
     private void sendSystemMessage(UUID gameId, String message) {
@@ -216,13 +213,22 @@ public class GameSocketController {
                 message,
                 ChatMessage.MessageType.SYSTEM
         );
-        messagingTemplate.convertAndSend("/topic/game/" + gameId + "/chat", systemMessage);
+        messagingTemplate.convertAndSend(chatTopic(gameId), systemMessage);
     }
 
-    private static UserPrincipal currentUser(@Nullable Principal principal) {
+    // Dot-separated so the names are valid RabbitMQ topics
+    private static String gameTopic(UUID gameId) {
+        return "/topic/game." + gameId;
+    }
+
+    private static String chatTopic(UUID gameId) {
+        return "/topic/game." + gameId + ".chat";
+    }
+
+    private static Player currentPlayer(@Nullable Principal principal) {
         if (principal instanceof Authentication authentication
                 && authentication.getPrincipal() instanceof UserPrincipal user) {
-            return user;
+            return user.toPlayer();
         }
         throw new IllegalStateException("Authentication required");
     }
@@ -242,51 +248,10 @@ public class GameSocketController {
     }
 
     private static String ratingSummary(Game game, RatingChange change) {
-        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().getUsername();
-        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().getUsername();
+        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
+        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
         return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
                 game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
                 black, change.blackAfter(), change.blackDelta());
-    }
-
-    @MessageExceptionHandler
-    public void handleException(Exception e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.error("Unexpected WebSocket error", e);
-        sendError(headerAccessor, "An unexpected error occurred");
-    }
-
-    @MessageExceptionHandler(GameNotFoundException.class)
-    public void handleException(GameNotFoundException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.warn("WebSocket request failed: {}", e.getMessage());
-        sendError(headerAccessor, e.getMessage());
-    }
-
-    @MessageExceptionHandler(GameIsOverException.class)
-    public void handleException(GameIsOverException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.warn("Game is over: {}", e.getMessage());
-        sendError(headerAccessor, e.getMessage());
-    }
-
-    @MessageExceptionHandler(IllegalArgumentException.class)
-    public void handleInvalidInput(IllegalArgumentException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.warn("Invalid WebSocket input: {}", e.getMessage());
-        sendError(headerAccessor, "Invalid input: " + e.getMessage());
-    }
-
-    @MessageExceptionHandler(IllegalStateException.class)
-    public void handleInvalidState(IllegalStateException e, SimpMessageHeaderAccessor headerAccessor) {
-        logger.warn("Invalid WebSocket state: {}", e.getMessage());
-        sendError(headerAccessor, "Cannot perform action: " + e.getMessage());
-    }
-
-    private void sendError(SimpMessageHeaderAccessor headerAccessor, String message) {
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) {
-            return;
-        }
-        String username = (String) sessionAttributes.get("username");
-        if (username != null) {
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", new ErrorResponse(message));
-        }
     }
 }

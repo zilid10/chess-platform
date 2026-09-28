@@ -52,10 +52,29 @@ jobs:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: password
       SPRING_DATA_REDIS_HOST: localhost
+      APP_WEBSOCKET_RELAY_HOST: localhost
+      APP_WEBSOCKET_RELAY_LOGIN: chess
+      APP_WEBSOCKET_RELAY_PASSCODE: password
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+
+      # Started here rather than as a service because services cannot enable the STOMP plugin
+      - name: Start RabbitMQ
+        run: |
+          docker run --detach --name rabbitmq --publish 61613:61613 \
+            --env RABBITMQ_DEFAULT_USER=chess --env RABBITMQ_DEFAULT_PASS=password \
+            rabbitmq:4.1-management \
+            sh -c 'rabbitmq-plugins enable --offline rabbitmq_stomp && exec docker-entrypoint.sh rabbitmq-server'
+          for attempt in $(seq 1 30); do
+            if docker exec rabbitmq rabbitmq-diagnostics -q check_port_connectivity; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs rabbitmq
+          exit 1
 
       - name: Set up Java
         uses: actions/setup-java@v6

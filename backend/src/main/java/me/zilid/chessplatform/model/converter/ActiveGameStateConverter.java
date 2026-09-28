@@ -1,16 +1,14 @@
 package me.zilid.chessplatform.model.converter;
 
-import me.zilid.chessplatform.chess.Position;
-import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameSnapshot;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.UserPrincipalService;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.UUID;
 
 @Component
 public class ActiveGameStateConverter {
@@ -21,39 +19,35 @@ public class ActiveGameStateConverter {
         this.userPrincipalService = userPrincipalService;
     }
 
-    public ActiveGameState getGameSnapshot(Game game) {
-        GameSnapshot snapShot = game.getGameSnapshot();
+    public ActiveGameState toState(Game game) {
+        GameSnapshot snapshot = game.getGameSnapshot();
         return new ActiveGameState(
-                snapShot.fen(),
-                snapShot.history(),
-                snapShot.positionHistory(),
-                snapShot.startTime(),
-                snapShot.endTime(),
-                snapShot.timeControl(),
-                snapShot.status(),
-                snapShot.whitePlayerId(),
-                snapShot.blackPlayerId(),
-                snapShot.drawOfferedBy()
+                snapshot.history(),
+                snapshot.startTime(),
+                snapshot.endTime(),
+                snapshot.timeControl(),
+                snapshot.status(),
+                snapshot.whitePlayerId(),
+                snapshot.blackPlayerId(),
+                snapshot.drawOfferedBy()
         );
     }
 
     public Game toGame(ActiveGameState state) {
-        UserPrincipal whiteUser = userPrincipalService.loadUserById(state.whitePlayerId());
-        UserPrincipal blackUser = userPrincipalService.loadUserById(state.blackPlayerId());
-        Position position = Fen.parse(state.fen());
-        // TODO: fix this (undo history)
-        return new Game(
-                position,
-                new ArrayList<>(state.history()),
-                new ArrayList<>(),
-                new HashMap<>(state.positionHistory()),
+        GameSnapshot snapshot = new GameSnapshot(
+                state.history(),
                 state.startTime(),
                 state.endTime(),
                 state.timeControl(),
                 state.status(),
-                whiteUser,
-                blackUser,
+                state.whitePlayerId(),
+                state.blackPlayerId(),
                 state.drawOfferedBy()
         );
+        return Game.fromSnapshot(snapshot, loadPlayer(state.whitePlayerId()), loadPlayer(state.blackPlayerId()));
+    }
+
+    private @Nullable Player loadPlayer(@Nullable UUID userId) {
+        return userId == null ? null : userPrincipalService.loadUserById(userId).toPlayer();
     }
 }

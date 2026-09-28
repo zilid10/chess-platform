@@ -1,15 +1,17 @@
 package me.zilid.chessplatform.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.config.WebsocketConfig;
+import me.zilid.chessplatform.exception.WebSocketExceptionHandler;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.service.MatchService;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,11 +24,13 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.converter.JacksonJsonMessageConverter;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.broker.AbstractBrokerMessageHandler;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
+import org.springframework.messaging.simp.broker.SubscriptionRegistry;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -34,6 +38,7 @@ import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -45,24 +50,19 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-/** Exercises the HTTP handshake, STOMP mappings, and broker destinations together. */
+/**
+ * Exercises the HTTP handshake, STOMP mappings, and broker destinations together.
+ */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = GameSocketStompIntegrationTest.TestApplication.class,
@@ -75,55 +75,47 @@ class GameSocketStompIntegrationTest {
     private static final UserPrincipal SPECTATOR = principal("86a726da-2284-431a-97a0-9926e9c954ef", "spectator");
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private static final ErrorResponse SUBSCRIPTION_PROBE = new ErrorResponse("subscription-ready");
-
-    @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-    @Import({WebsocketConfig.class, GameSocketController.class})
-    static class TestApplication {
-        @Bean
-        SecurityFilterChain testSecurity(HttpSecurity http) throws Exception {
-            return http.csrf(csrf -> csrf.disable())
-                    .authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
-                    .httpBasic(Customizer.withDefaults())
-                    .build();
-        }
-
-        @Bean
-        UserDetailsService testUsers() {
-            return username -> switch (username) {
-                case "white" -> principal(WHITE.getId().toString(), username);
-                case "black" -> principal(BLACK.getId().toString(), username);
-                case "spectator" -> principal(SPECTATOR.getId().toString(), username);
-                default -> throw new org.springframework.security.core.userdetails.UsernameNotFoundException(username);
-            };
-        }
-    }
-
+    private final List<StompSession> sessions = new ArrayList<>();
     @LocalServerPort
     private int port;
 
+    // Declared as the @Bean method's return type; the name picks the simple broker over the (null) relay bean
     @Autowired
-    private SimpleBrokerMessageHandler broker;
+    private AbstractBrokerMessageHandler simpleBrokerMessageHandler;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
     @MockitoBean
     private MatchService matchService;
-
-    private final List<StompSession> sessions = new ArrayList<>();
     private WebSocketStompClient client;
     private Game game;
 
+    private static void assertNoMessage(BlockingQueue<?> messages) throws InterruptedException {
+        Object unexpected = messages.poll(200, TimeUnit.MILLISECONDS);
+        assertThat(unexpected).isNull();
+    }
+
+    private static <T> T take(BlockingQueue<T> messages) throws InterruptedException {
+        T message = messages.poll(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        assertThat(message).isNotNull();
+        return message;
+    }
+
+    private static UserPrincipal principal(String id, String username) {
+        return new UserPrincipal(UUID.fromString(id), username, username + "@example.com",
+                "{noop}password", true, List.of());
+    }
+
     @BeforeEach
     void setUp() {
-        game = new Game(WHITE, BLACK);
+        game = new Game(WHITE.toPlayer(), BLACK.toPlayer());
         when(matchService.getGameOrThrow(GAME_ID)).thenReturn(game);
         when(matchService.buildGameStateResponse(game)).thenAnswer(invocation -> new GameStateResponse(
                 game.getStatus(), game.getFen(), game.getLastMoveFrom(), game.getLastMoveTo(),
                 game.getTurnColor().name()));
         doAnswer(invocation -> {
-            UserPrincipal user = invocation.getArgument(0);
+            Player user = invocation.getArgument(0);
             if (!game.isValidPlayer(user)) {
                 throw new IllegalStateException("You are not a player in this game");
             }
@@ -138,13 +130,11 @@ class GameSocketStompIntegrationTest {
             }
             return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
                     game.getLastMoveTo(), game.getTurnColor().name());
-        }).when(matchService).makeMove(any(UserPrincipal.class), eq(GAME_ID), anyString(), anyString(),
+        }).when(matchService).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
                 nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
-        MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
-        converter.setObjectMapper(new ObjectMapper().findAndRegisterModules());
-        client.setMessageConverter(converter);
+        client.setMessageConverter(new JacksonJsonMessageConverter());
     }
 
     @AfterEach
@@ -156,7 +146,7 @@ class GameSocketStompIntegrationTest {
     @Test
     void authenticatedJoinAndMoveReachTheGameTopic() throws Exception {
         StompSession session = connect("white");
-        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game/" + GAME_ID,
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
                 GameStateResponse.class);
 
         session.send("/app/game/" + GAME_ID + "/join", new byte[0]);
@@ -172,13 +162,13 @@ class GameSocketStompIntegrationTest {
         assertThat(moved.lastMoveTo()).isEqualTo("e4");
         assertThat(moved.turnColor()).isEqualTo("BLACK");
         assertThat(moved.fen()).isEqualTo(game.getFen());
-        verify(matchService).makeMove(WHITE, GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(WHITE.toPlayer(), GAME_ID, "e2", "e4", null);
     }
 
     @Test
     void spectatorMoveProducesOnlyAPrivateError() throws Exception {
         StompSession session = connect("spectator");
-        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game/" + GAME_ID,
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
                 GameStateResponse.class);
         BlockingQueue<ErrorResponse> errors = subscribeErrors(session, "spectator");
 
@@ -193,15 +183,36 @@ class GameSocketStompIntegrationTest {
             error = take(errors);
         } while (SUBSCRIPTION_PROBE.equals(error));
         assertThat(error.error()).contains("not a player");
-        assertThat(updates.poll(200, TimeUnit.MILLISECONDS)).isNull();
+        assertNoMessage(updates);
         assertThat(game.getLastMoveFrom()).isNull();
-        verify(matchService).makeMove(SPECTATOR, GAME_ID, "e2", "e4", null);
+        verify(matchService).makeMove(SPECTATOR.toPlayer(), GAME_ID, "e2", "e4", null);
+    }
+
+    @Test
+    void illegalMoveProducesTheSpecificPrivateError() throws Exception {
+        StompSession session = connect("white");
+        BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,
+                GameStateResponse.class);
+        BlockingQueue<ErrorResponse> errors = subscribeErrors(session, "white");
+
+        session.send("/app/game/" + GAME_ID + "/join", new byte[0]);
+        assertThat(take(updates).fen()).isEqualTo(game.getFen());
+
+        session.send("/app/game/" + GAME_ID + "/move",
+                new MoveRequest(GAME_ID.toString(), "e2", "e5", null));
+
+        ErrorResponse error;
+        do {
+            error = take(errors);
+        } while (SUBSCRIPTION_PROBE.equals(error));
+        assertThat(error.error()).isEqualTo("Invalid input: Invalid move: e2 to e5");
+        assertNoMessage(updates);
     }
 
     @Test
     void chatSenderComesFromTheAuthenticatedSession() throws Exception {
         StompSession session = connect("white");
-        BlockingQueue<ChatMessage> chat = subscribe(session, "/topic/game/" + GAME_ID + "/chat",
+        BlockingQueue<ChatMessage> chat = subscribe(session, "/topic/game." + GAME_ID + ".chat",
                 ChatMessage.class);
 
         session.send("/app/game/" + GAME_ID + "/chat", new ChatMessage("forged", "hello"));
@@ -221,13 +232,13 @@ class GameSocketStompIntegrationTest {
 
         StompSession session = client.connectAsync(
                 URI.create("ws://localhost:" + port + "/ws"), headers, new StompHeaders(),
-                new StompSessionHandlerAdapter() {}).get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                new StompSessionHandlerAdapter() {
+                }).get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         sessions.add(session);
         return session;
     }
 
-    private <T> BlockingQueue<T> subscribe(StompSession session, String destination, Class<T> type)
-            throws InterruptedException {
+    private <T> BlockingQueue<T> subscribe(StompSession session, String destination, Class<T> type) {
         BlockingQueue<T> messages = new LinkedBlockingQueue<>();
         session.subscribe(destination, new StompFrameHandler() {
             @Override
@@ -236,42 +247,37 @@ class GameSocketStompIntegrationTest {
             }
 
             @Override
-            public void handleFrame(StompHeaders headers, Object payload) {
-                messages.add(type.cast(payload));
+            public void handleFrame(StompHeaders headers, @Nullable Object payload) {
+                messages.add(type.cast(Objects.requireNonNull(payload, "STOMP payload")));
             }
         });
         SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
         headers.setDestination(destination);
         var probe = MessageBuilder.createMessage(new byte[0], headers.getMessageHeaders());
-        long deadline = System.nanoTime() + TIMEOUT.toNanos();
-        while (System.nanoTime() < deadline) {
-            if (!broker.getSubscriptionRegistry().findSubscriptions(probe).isEmpty()) {
-                return messages;
-            }
-            Thread.sleep(10);
-        }
-        assertThat(broker.getSubscriptionRegistry().findSubscriptions(probe))
-                .as("STOMP subscription to %s", destination).isNotEmpty();
+        SubscriptionRegistry registry = ((SimpleBrokerMessageHandler) simpleBrokerMessageHandler)
+                .getSubscriptionRegistry();
+        await("STOMP subscription to " + destination).atMost(TIMEOUT)
+                .until(() -> !registry.findSubscriptions(probe).isEmpty());
         return messages;
     }
 
     private BlockingQueue<ErrorResponse> subscribeErrors(StompSession session, String username)
             throws InterruptedException {
         BlockingQueue<ErrorResponse> errors = new LinkedBlockingQueue<>();
-        session.subscribe("/user/queue/errors", new StompFrameHandler() {
+        session.subscribe("/user/topic/errors", new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
                 return ErrorResponse.class;
             }
 
             @Override
-            public void handleFrame(StompHeaders headers, Object payload) {
-                errors.add((ErrorResponse) payload);
+            public void handleFrame(StompHeaders headers, @Nullable Object payload) {
+                errors.add((ErrorResponse) Objects.requireNonNull(payload, "STOMP payload"));
             }
         });
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (System.nanoTime() < deadline) {
-            messagingTemplate.convertAndSendToUser(username, "/queue/errors", SUBSCRIPTION_PROBE);
+            messagingTemplate.convertAndSendToUser(username, "/topic/errors", SUBSCRIPTION_PROBE);
             ErrorResponse received = errors.poll(100, TimeUnit.MILLISECONDS);
             if (SUBSCRIPTION_PROBE.equals(received)) {
                 return errors;
@@ -281,14 +287,26 @@ class GameSocketStompIntegrationTest {
         return errors;
     }
 
-    private static <T> T take(BlockingQueue<T> messages) throws InterruptedException {
-        T message = messages.poll(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        assertThat(message).isNotNull();
-        return message;
-    }
+    @SpringBootConfiguration
+    @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
+    @Import({WebsocketConfig.class, GameSocketController.class, WebSocketExceptionHandler.class})
+    static class TestApplication {
+        @Bean
+        SecurityFilterChain testSecurity(HttpSecurity http) {
+            return http.csrf(AbstractHttpConfigurer::disable)
+                    .authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
+                    .httpBasic(Customizer.withDefaults())
+                    .build();
+        }
 
-    private static UserPrincipal principal(String id, String username) {
-        return new UserPrincipal(UUID.fromString(id), username, username + "@example.com",
-                "{noop}password", true, List.of());
+        @Bean
+        UserDetailsService testUsers() {
+            return username -> switch (username) {
+                case "white" -> principal(WHITE.getId().toString(), username);
+                case "black" -> principal(BLACK.getId().toString(), username);
+                case "spectator" -> principal(SPECTATOR.getId().toString(), username);
+                default -> throw new org.springframework.security.core.userdetails.UsernameNotFoundException(username);
+            };
+        }
     }
 }

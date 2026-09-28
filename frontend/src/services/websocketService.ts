@@ -27,20 +27,20 @@ export class WebSocketService {
       console.log('WebSocket connected');
       
       // Subscribe to game updates
-      client.subscribe(`/topic/game/${gameId}`, (message: IMessage) => {
+      client.subscribe(`/topic/game.${gameId}`, (message: IMessage) => {
         if (this.client !== client) return;
         const gameState: GameState = JSON.parse(message.body);
         onGameUpdate(gameState);
       });
 
       // Subscribe to chat messages
-      client.subscribe(`/topic/game/${gameId}/chat`, (message: IMessage) => {
+      client.subscribe(`/topic/game.${gameId}.chat`, (message: IMessage) => {
         if (this.client !== client) return;
         const chatMessage: ChatMessage = JSON.parse(message.body);
         onChatMessage(chatMessage);
       });
 
-      client.subscribe(`/user/queue/errors`, (message: IMessage) => {
+      client.subscribe(`/user/topic/errors`, (message: IMessage) => {
         if (this.client !== client) return;
         const { error }: { error: string } = JSON.parse(message.body);
         onChatMessage({

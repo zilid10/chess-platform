@@ -86,7 +86,7 @@ public class SanFormatter {
             sb.append(move.to().toNotation());
         }
 
-        if (move.isPromotion()) {
+        if (move.promotionType() != null) {
             sb.append("=").append(pieceTypeToSymbol(move.promotionType()));
         }
 

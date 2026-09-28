@@ -4,9 +4,7 @@ import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ChatMessage;
-import me.zilid.chessplatform.model.dto.ErrorResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
@@ -18,13 +16,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,23 +47,23 @@ class GameSocketControllerTest {
     @CsvSource({"q, QUEEN", "r, ROOK", "b, BISHOP", "n, KNIGHT"})
     void forwardsPromotionPieceAndBroadcastsUpdatedGame(String symbol, PieceType pieceType) {
         GameStateResponse response = response("a7", "a8");
-        when(matchService.makeMove(PLAYER, GAME_ID, "a7", "a8", pieceType)).thenReturn(response);
+        when(matchService.makeMove(PLAYER.toPlayer(), GAME_ID, "a7", "a8", pieceType)).thenReturn(response);
 
         controller.movePiece(GAME_ID, request("a7", "a8", symbol), authentication());
 
-        verify(matchService).makeMove(PLAYER, GAME_ID, "a7", "a8", pieceType);
-        verify(messagingTemplate).convertAndSend("/topic/game/" + GAME_ID, response);
+        verify(matchService).makeMove(PLAYER.toPlayer(), GAME_ID, "a7", "a8", pieceType);
+        verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, response);
     }
 
     @Test
     void ordinaryMoveHasNoPromotionPiece() {
         GameStateResponse response = response("e2", "e4");
-        when(matchService.makeMove(PLAYER, GAME_ID, "e2", "e4", null)).thenReturn(response);
+        when(matchService.makeMove(PLAYER.toPlayer(), GAME_ID, "e2", "e4", null)).thenReturn(response);
 
         controller.movePiece(GAME_ID, request("e2", "e4", null), authentication());
 
-        verify(matchService).makeMove(PLAYER, GAME_ID, "e2", "e4", null);
-        verify(messagingTemplate).convertAndSend("/topic/game/" + GAME_ID, response);
+        verify(matchService).makeMove(PLAYER.toPlayer(), GAME_ID, "e2", "e4", null);
+        verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, response);
     }
 
     @ParameterizedTest
@@ -88,7 +84,7 @@ class GameSocketControllerTest {
         controller.sendChatMessage(GAME_ID, new ChatMessage("forged", "hello"), authentication());
 
         ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSend(eq("/topic/game/" + GAME_ID + "/chat"), payload.capture());
+        verify(messagingTemplate).convertAndSend(eq("/topic/game." + GAME_ID + ".chat"), payload.capture());
         ChatMessage sent = (ChatMessage) payload.getValue();
         assertThat(sent.sender()).isEqualTo(PLAYER.getUsername());
         assertThat(sent.message()).isEqualTo("hello");
@@ -101,10 +97,10 @@ class GameSocketControllerTest {
                 "password", true, List.of());
         GameStateResponse resigned = new GameStateResponse(
                 GameStatus.RESIGNED_BLACK_WINS, "final-fen", "e2", "e4", "BLACK");
-        when(matchService.resign(PLAYER, GAME_ID)).thenReturn(resigned);
+        when(matchService.resign(PLAYER.toPlayer(), GAME_ID)).thenReturn(resigned);
         when(matchService.getGameOrThrow(GAME_ID)).thenReturn(game);
-        when(game.getWhitePlayer()).thenReturn(PLAYER);
-        when(game.getBlackPlayer()).thenReturn(opponent);
+        when(game.getWhitePlayer()).thenReturn(PLAYER.toPlayer());
+        when(game.getBlackPlayer()).thenReturn(opponent.toPlayer());
         when(game.getTimeControl()).thenReturn(TimeControl.BLITZ);
         when(matchService.archiveMatch(GAME_ID, game)).thenReturn(
                 new RatingChange(PLAYER.getId(), opponent.getId(), 1190, 1210, -10, 10));
@@ -112,7 +108,7 @@ class GameSocketControllerTest {
         controller.resign(GAME_ID, authentication());
 
         ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate, times(2)).convertAndSend(eq("/topic/game/" + GAME_ID + "/chat"), payload.capture());
+        verify(messagingTemplate, times(2)).convertAndSend(eq("/topic/game." + GAME_ID + ".chat"), payload.capture());
         assertThat(payload.getAllValues()).map(message -> ((ChatMessage) message).message()).containsExactly(
                 "Game Over: Black wins by resignation",
                 "BLITZ ratings: player 1190 (-10), opponent 1210 (+10)");
@@ -120,37 +116,15 @@ class GameSocketControllerTest {
     }
 
     @Test
-    void unauthenticatedChatIsRejected() {
+    void chatWithoutAnAuthenticatedUserIsRejected() {
+        Principal anonymous = () -> "anonymous";
+
         assertThatThrownBy(() -> controller.sendChatMessage(
-                GAME_ID, new ChatMessage("forged", "hello"), null))
+                GAME_ID, new ChatMessage("forged", "hello"), anonymous))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Authentication required");
 
         verifyNoInteractions(matchService, messagingTemplate);
-    }
-
-    @Test
-    void unexpectedSocketErrorDoesNotRevealInternalDetails() {
-        controller.handleException(new RuntimeException("private database detail"), sessionHeaders());
-
-        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSendToUser(eq("player"), eq("/queue/errors"), payload.capture());
-        assertThat(((ErrorResponse) payload.getValue()).error()).isEqualTo("An unexpected error occurred");
-    }
-
-    @Test
-    void missingGameSocketErrorHasOneClearMessage() {
-        controller.handleException(new GameNotFoundException("Game not found: " + GAME_ID), sessionHeaders());
-
-        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSendToUser(eq("player"), eq("/queue/errors"), payload.capture());
-        assertThat(((ErrorResponse) payload.getValue()).error()).isEqualTo("Game not found: " + GAME_ID);
-    }
-
-    private static SimpMessageHeaderAccessor sessionHeaders() {
-        SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
-        headers.setSessionAttributes(Map.of("username", "player"));
-        return headers;
     }
 
     private static MoveRequest request(String from, String to, @Nullable String promotion) {

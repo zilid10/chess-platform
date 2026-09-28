@@ -2,11 +2,15 @@ package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.Player;
+import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
+import me.zilid.chessplatform.model.converter.ActiveGameStateConverter;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
+import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -14,6 +18,7 @@ import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.model.entity.UserPrincipal;
 import me.zilid.chessplatform.rating.RatingChange;
+import me.zilid.chessplatform.repository.GameStateStore;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.jspecify.annotations.Nullable;
@@ -24,20 +29,26 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -47,18 +58,58 @@ class MatchServiceTest {
     private MatchRecordRepo matchRecordRepo;
     private UserRepo userRepo;
     private RatingService ratingService;
+    private GameStateStore gameStateStore;
+    private ActiveGameStateConverter activeGameStateConverter;
     private MatchService service;
 
-    private final UserPrincipal alice = principal("alice");
-    private final UserPrincipal bob = principal("bob");
-    private final UserPrincipal spectator = principal("spectator");
+    private final RegisteredPlayer alice = player("alice");
+    private final RegisteredPlayer bob = player("bob");
+    private final RegisteredPlayer spectator = player("spectator");
 
     @BeforeEach
     void setUp() {
         matchRecordRepo = mock(MatchRecordRepo.class);
         userRepo = mock(UserRepo.class);
         ratingService = mock(RatingService.class);
-        service = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo, ratingService);
+        gameStateStore = inMemoryGameStateStore();
+        UserPrincipalService userPrincipalService = mock(UserPrincipalService.class);
+        Map<UUID, UserPrincipal> users = Map.of(
+                alice.id(), principal(alice), bob.id(), principal(bob), spectator.id(), principal(spectator));
+        when(userPrincipalService.loadUserById(any())).thenAnswer(invocation -> users.get(invocation.<UUID>getArgument(0)));
+        activeGameStateConverter = new ActiveGameStateConverter(userPrincipalService);
+        service = newService();
+    }
+
+    @Test
+    void gamesAreStoredAndReloadedBetweenCalls() {
+        UUID gameId = gameWithBothPlayers();
+        service.makeMove(alice, gameId, "e2", "e4", null);
+
+        Game reloaded = service.getGameSession(gameId);
+        assertThat(reloaded.getMoves()).hasSize(1);
+        assertThat(reloaded.getWhitePlayer()).isEqualTo(alice);
+        assertThat(reloaded.getBlackPlayer()).isEqualTo(bob);
+        assertThat(reloaded.getTurnColor()).isEqualTo(Color.BLACK);
+    }
+
+    @Test
+    void rejectedActionsAreNotStored() {
+        UUID gameId = gameWithBothPlayers();
+        ActiveGameState before = gameStateStore.loadGame(gameId);
+
+        assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(gameStateStore.loadGame(gameId)).isEqualTo(before);
+    }
+
+    @Test
+    void finishedGamesExpireShortly() {
+        UUID gameId = gameWithBothPlayers();
+
+        service.scheduleGameCleanup(gameId);
+
+        verify(gameStateStore).expireGame(gameId, Duration.ofMinutes(1));
     }
 
     @Test
@@ -99,7 +150,7 @@ class MatchServiceTest {
             private final ThreadLocal<Integer> blackReads = ThreadLocal.withInitial(() -> 0);
 
             @Override
-            public @Nullable UserPrincipal getBlackPlayer() {
+            public @Nullable Player getBlackPlayer() {
                 int readCount = blackReads.get() + 1;
                 blackReads.set(readCount);
                 if (readCount == 2) {
@@ -117,7 +168,7 @@ class MatchServiceTest {
             }
         };
         MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService) {
+                ratingService, gameStateStore, activeGameStateConverter) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -188,7 +239,7 @@ class MatchServiceTest {
         CountDownLatch bothTurnChecksReached = new CountDownLatch(2);
         Game game = new Game(alice, bob) {
             @Override
-            public boolean isUserTurn(UserPrincipal user) {
+            public boolean isUserTurn(Player user) {
                 boolean isTurn = super.isUserTurn(user);
                 bothTurnChecksReached.countDown();
                 try {
@@ -202,7 +253,7 @@ class MatchServiceTest {
             }
         };
         MatchService raceService = new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService) {
+                ratingService, gameStateStore, activeGameStateConverter) {
             @Override
             public Game getGameOrThrow(UUID requestedGameId) {
                 assertThat(requestedGameId).isEqualTo(gameId);
@@ -287,7 +338,7 @@ class MatchServiceTest {
     void archiveStoresPlayersResultNotationTimesAndRatingChange() {
         User aliceEntity = new User("alice@example.com", "alice", "hash", "");
         User bobEntity = new User("bob@example.com", "bob", "hash", "");
-        Game game = new Game(principal(aliceEntity), principal(bobEntity), TimeControl.BLITZ);
+        Game game = new Game(player(aliceEntity), player(bobEntity), TimeControl.BLITZ);
         game.resign(Color.WHITE);
         when(userRepo.getReferenceById(aliceEntity.getId())).thenReturn(aliceEntity);
         when(userRepo.getReferenceById(bobEntity.getId())).thenReturn(bobEntity);
@@ -316,7 +367,7 @@ class MatchServiceTest {
 
     @Test
     void matchHistoryUsesOneDescendingEndTimeQuery() {
-        UUID userId = alice.getId();
+        UUID userId = alice.id();
         when(matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(eq(userId), eq(userId), any(Pageable.class)))
                 .thenReturn(Page.empty());
 
@@ -327,6 +378,33 @@ class MatchServiceTest {
         assertThat(page.getValue().getPageNumber()).isEqualTo(2);
         assertThat(page.getValue().getPageSize()).isEqualTo(5);
         assertThat(page.getValue().getSort().getOrderFor("endTime").isDescending()).isTrue();
+    }
+
+    private MatchService newService() {
+        return new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
+                ratingService, gameStateStore, activeGameStateConverter);
+    }
+
+    /**
+     * Stands in for Redis: a map for storage and a real lock, so races are still serialized per game.
+     */
+    @SuppressWarnings("unchecked")
+    private static GameStateStore inMemoryGameStateStore() {
+        GameStateStore store = mock(GameStateStore.class);
+        Map<UUID, ActiveGameState> games = new ConcurrentHashMap<>();
+        ReentrantLock lock = new ReentrantLock();
+        doAnswer(invocation -> games.put(invocation.getArgument(0), invocation.getArgument(1)))
+                .when(store).storeGame(any(), any());
+        when(store.loadGame(any())).thenAnswer(invocation -> games.get(invocation.<UUID>getArgument(0)));
+        when(store.withLock(any(), any())).thenAnswer(invocation -> {
+            lock.lock();
+            try {
+                return invocation.<Supplier<Object>>getArgument(1).get();
+            } finally {
+                lock.unlock();
+            }
+        });
+        return store;
     }
 
     private UUID gameWithBothPlayers() {
@@ -343,11 +421,16 @@ class MatchServiceTest {
         }
     }
 
-    private static UserPrincipal principal(String username) {
-        return new UserPrincipal(UUID.randomUUID(), username, username + "@example.com", "hash", true, List.of());
+    private static RegisteredPlayer player(String username) {
+        return new RegisteredPlayer(UUID.randomUUID(), username);
     }
 
-    private static UserPrincipal principal(User user) {
-        return new UserPrincipal(user.getId(), user.getUsername(), user.getEmail(), user.getPasswordHash(), true, List.of());
+    private static RegisteredPlayer player(User user) {
+        return new RegisteredPlayer(user.getId(), user.getUsername());
+    }
+
+    private static UserPrincipal principal(Player player) {
+        String username = player.displayName();
+        return new UserPrincipal(player.id(), username, username + "@example.com", "hash", true, List.of());
     }
 }

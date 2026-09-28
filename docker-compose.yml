@@ -56,16 +56,42 @@ services:
       db:
         condition: service_healthy
 
-  backend:
-    container_name: chess-backend
-    hostname: backend
-    build:
-      context: ./backend
+  rabbitmq:
+    container_name: chess-rabbitmq
+    hostname: rabbitmq
+    image: rabbitmq:4.1-management
     ports:
-      - "8080:8080"
+      - "61613:61613" # STOMP
+      - "15672:15672" # management UI
     networks:
       - backend
-      - frontend
+    environment:
+      RABBITMQ_DEFAULT_USER: chess
+      RABBITMQ_DEFAULT_PASS: password
+    configs:
+      - source: rabbitmq-plugins
+        target: /etc/rabbitmq/enabled_plugins
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # Several identical instances; logins live in Redis and WebSocket messages go through RabbitMQ,
+  # so any instance can serve any request
+  backend:
+    build:
+      context: ./backend
+    deploy:
+      replicas: 2
+    networks:
+      - backend
+    environment:
+      APP_WEBSOCKET_RELAY_ENABLED: "true"
+      APP_WEBSOCKET_RELAY_HOST: rabbitmq
+      APP_WEBSOCKET_RELAY_LOGIN: chess
+      APP_WEBSOCKET_RELAY_PASSCODE: password
     healthcheck:
       test: [ "CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health" ]
       interval: 10s
@@ -77,8 +103,26 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       flyway:
         condition: service_completed_successfully
+
+  backend-lb:
+    container_name: chess-backend-lb
+    hostname: backend-lb
+    image: nginx:1.29-alpine
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+      - frontend
+    configs:
+      - source: backend-lb
+        target: /etc/nginx/conf.d/default.conf
+    depends_on:
+      backend:
+        condition: service_healthy
 
   frontend:
     container_name: chess-frontend
@@ -90,11 +134,41 @@ services:
     networks:
       - frontend
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend-lb
 
 networks:
   backend:
     driver: bridge
   frontend:
     driver: bridge
+
+configs:
+  rabbitmq-plugins:
+    content: |
+      [rabbitmq_management,rabbitmq_stomp].
+  backend-lb:
+    content: |
+      # nginx resolves "backend" to every replica at startup and balances round-robin between them
+      upstream backend {
+          server backend:8080;
+      }
+
+      map $$http_upgrade $$connection_upgrade {
+          default upgrade;
+          ''      close;
+      }
+
+      server {
+          listen 8080;
+
+          location / {
+              proxy_pass http://backend;
+              proxy_http_version 1.1;
+              proxy_set_header Host $$host;
+              proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+              proxy_set_header Upgrade $$http_upgrade;
+              proxy_set_header Connection $$connection_upgrade;
+              # Keep idle game WebSockets open (STOMP heartbeats also keep them alive)
+              proxy_read_timeout 1h;
+          }
+      }

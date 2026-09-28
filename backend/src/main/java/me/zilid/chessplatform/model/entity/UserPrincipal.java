@@ -1,15 +1,21 @@
 package me.zilid.chessplatform.model.entity;
 
+import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.Serial;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
 
 public class UserPrincipal implements UserDetails, CredentialsContainer {
+    // Stored in Redis-backed sessions; keep stable so sessions survive redeploys
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private final UUID id;
     private final String username;
     private final String email;
@@ -39,6 +45,13 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
 
     public UUID getId() {
         return id;
+    }
+
+    /**
+     * This user as a {@link me.zilid.chessplatform.chess.game.Game} sees them.
+     */
+    public RegisteredPlayer toPlayer() {
+        return new RegisteredPlayer(id, username);
     }
 
     public String getEmail() {

@@ -48,7 +48,7 @@ public class GameController {
             @RequestParam("color") Color color,
             @RequestParam(value = "timeControl", defaultValue = "RAPID") TimeControl timeControl) {
         logger.info("User {} creating {} game with color {}", currentUser.getUsername(), timeControl, color);
-        return matchService.createGame(currentUser, color, timeControl);
+        return matchService.createGame(currentUser.toPlayer(), color, timeControl);
     }
 
     @PostMapping("/games/{gameId}/join")
@@ -56,7 +56,7 @@ public class GameController {
             @PathVariable UUID gameId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         logger.info("User {} joining game {}", currentUser.getUsername(), gameId);
-        return matchService.joinGame(gameId, currentUser);
+        return matchService.joinGame(gameId, currentUser.toPlayer());
     }
 
     @GetMapping("/games/{gameId}/state")

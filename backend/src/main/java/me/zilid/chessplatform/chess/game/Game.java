@@ -1,23 +1,12 @@
 package me.zilid.chessplatform.chess.game;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.Move;
-import me.zilid.chessplatform.chess.MoveGenerator;
-import me.zilid.chessplatform.chess.PieceType;
-import me.zilid.chessplatform.chess.Position;
-import me.zilid.chessplatform.chess.Square;
-import me.zilid.chessplatform.chess.UndoInfo;
+import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.jspecify.annotations.Nullable;
+
+import java.time.Instant;
+import java.util.*;
 
 /**
  * Represents a complete chess game with history and metadata
@@ -36,53 +25,53 @@ public class Game {
     private final TimeControl timeControl;
     private volatile @Nullable Instant endTime;
     private volatile GameStatus status;
-    private volatile @Nullable UserPrincipal whitePlayer;
-    private volatile @Nullable UserPrincipal blackPlayer;
+    private volatile @Nullable Player whitePlayer;
+    private volatile @Nullable Player blackPlayer;
     private volatile @Nullable Color drawOfferedBy;
 
     public Game() {
         this(null, null);
     }
 
-    public Game(UserPrincipal whitePlayer, UserPrincipal blackPlayer) {
+    public Game(@Nullable Player whitePlayer, @Nullable Player blackPlayer) {
         this(whitePlayer, blackPlayer, TimeControl.RAPID);
     }
 
-    public Game(@Nullable UserPrincipal whitePlayer, @Nullable UserPrincipal blackPlayer, TimeControl timeControl) {
+    public Game(@Nullable Player whitePlayer, @Nullable Player blackPlayer, TimeControl timeControl) {
+        this(whitePlayer, blackPlayer, timeControl, Instant.now());
+    }
+
+    private Game(@Nullable Player whitePlayer,
+                 @Nullable Player blackPlayer,
+                 TimeControl timeControl,
+                 Instant startTime) {
         position = Position.startingPosition();
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
         repetitions = new HashMap<>();
         repetitions.put(position.hashCode(), 1);
         status = GameStatus.ONGOING;
-        startTime = Instant.now();
+        this.startTime = startTime;
         this.timeControl = timeControl;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
     }
 
-    public Game(Position position,
-            List<Move> moves,
-            List<UndoInfo> undoes,
-            Map<Integer, Integer> repetitions,
-            Instant startTime,
-            Instant endTime,
-            TimeControl timeControl,
-            GameStatus status,
-            UserPrincipal whitePlayer,
-            UserPrincipal blackPlayer,
-            Color drawOfferedBy) {
-        this.position = position;
-        this.moves = moves;
-        this.undoes = undoes;
-        this.repetitions = repetitions;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.timeControl = timeControl;
-        this.status = status;
-        this.whitePlayer = whitePlayer;
-        this.blackPlayer = blackPlayer;
-        this.drawOfferedBy = drawOfferedBy;
+    /**
+     * Rebuild a game from a snapshot by replaying its moves from the starting position, so derived
+     * state (position, undo history, repetition counts) never has to be persisted.
+     */
+    public static Game fromSnapshot(GameSnapshot snapshot,
+                                    @Nullable Player whitePlayer,
+                                    @Nullable Player blackPlayer) {
+        Game game = new Game(whitePlayer, blackPlayer, snapshot.timeControl(), snapshot.startTime());
+        for (Move move : snapshot.history()) {
+            game.recordMove(move);
+        }
+        game.endTime = snapshot.endTime();
+        game.status = snapshot.status();
+        game.drawOfferedBy = snapshot.drawOfferedBy();
+        return game;
     }
 
     /**
@@ -100,12 +89,7 @@ public class Game {
             // Make moves
             Move move = MoveGenerator.findLegalMove(position, from, to, promotionType)
                     .orElseThrow(() -> new IllegalArgumentException("no such moves"));
-            position.applyMove(move);
-
-            // Record the move with special move flags
-            moves.add(move);
-            int positionHash = position.hashCode();
-            repetitions.merge(positionHash, 1, (a, b) -> a + b);
+            recordMove(move);
 
             // Update game status
             updateGameStatus();
@@ -124,17 +108,23 @@ public class Game {
         return MoveGenerator.legalDestinations(position, from);
     }
 
+    private void recordMove(Move move) {
+        undoes.add(position.applyMove(move));
+        moves.add(move);
+        repetitions.merge(position.hashCode(), 1, Integer::sum);
+    }
+
     public synchronized GameSnapshot getGameSnapshot() {
+        Player white = whitePlayer;
+        Player black = blackPlayer;
         return new GameSnapshot(
-                getFen(),
                 List.copyOf(moves),
-                Map.copyOf(repetitions),
                 startTime,
                 endTime,
                 timeControl,
                 status,
-                whitePlayer.getId(),
-                blackPlayer.getId(),
+                white == null ? null : white.id(),
+                black == null ? null : black.id(),
                 drawOfferedBy);
     }
 
@@ -145,11 +135,11 @@ public class Game {
         return Fen.format(position);
     }
 
-    public synchronized String getLastMoveFrom() {
+    public synchronized @Nullable String getLastMoveFrom() {
         return moves.isEmpty() ? null : moves.getLast().from().toNotation();
     }
 
-    public synchronized String getLastMoveTo() {
+    public synchronized @Nullable String getLastMoveTo() {
         return moves.isEmpty() ? null : moves.getLast().to().toNotation();
     }
 
@@ -225,8 +215,8 @@ public class Game {
         sb.append("[StartTime \"").append(startTime).append("\"]\n");
         sb.append("[EndTime \"").append(endTime).append("\"]\n");
         sb.append("[Round \"").append(getRound()).append("\"]\n");
-        sb.append("[White \"").append(whitePlayer.getUsername()).append("\"]\n");
-        sb.append("[Black \"").append(blackPlayer.getUsername()).append("\"]\n");
+        sb.append("[White \"").append(whitePlayer.displayName()).append("\"]\n");
+        sb.append("[Black \"").append(blackPlayer.displayName()).append("\"]\n");
         sb.append("[Result \"").append(status.getSymbol()).append("\"]\n");
         sb.append("[Termination \"").append(status.getDescription()).append("\"]\n");
         sb.append("\n");
@@ -236,12 +226,12 @@ public class Game {
     }
 
     /**
-     * Check if now is the turn of the given user
+     * Check if now is the turn of the given player
      */
-    public synchronized boolean isUserTurn(UserPrincipal currentUser) {
+    public synchronized boolean isUserTurn(Player player) {
         return switch (position.getTurnColor()) {
-            case WHITE -> currentUser.equals(whitePlayer);
-            case BLACK -> currentUser.equals(blackPlayer);
+            case WHITE -> player.equals(whitePlayer);
+            case BLACK -> player.equals(blackPlayer);
         };
     }
 
@@ -257,19 +247,19 @@ public class Game {
         return endTime;
     }
 
-    public @Nullable UserPrincipal getWhitePlayer() {
+    public @Nullable Player getWhitePlayer() {
         return whitePlayer;
     }
 
-    public void setWhitePlayer(UserPrincipal whitePlayer) {
+    public void setWhitePlayer(Player whitePlayer) {
         this.whitePlayer = whitePlayer;
     }
 
-    public @Nullable UserPrincipal getBlackPlayer() {
+    public @Nullable Player getBlackPlayer() {
         return blackPlayer;
     }
 
-    public void setBlackPlayer(UserPrincipal blackPlayer) {
+    public void setBlackPlayer(Player blackPlayer) {
         this.blackPlayer = blackPlayer;
     }
 
@@ -300,22 +290,22 @@ public class Game {
     }
 
     /**
-     * Get the color in this game of the given user, spectator will get a null
+     * Get the color in this game of the given player, spectator will get a null
      */
-    public @Nullable Color getPlayerColor(UserPrincipal currentUser) {
-        if (currentUser.equals(whitePlayer)) {
+    public @Nullable Color getPlayerColor(Player player) {
+        if (player.equals(whitePlayer)) {
             return Color.WHITE;
         }
-        if (currentUser.equals(blackPlayer)) {
+        if (player.equals(blackPlayer)) {
             return Color.BLACK;
         }
         return null;
     }
 
     /**
-     * Check if the given user is the player of the game
+     * Check if the given player is seated in the game
      */
-    public boolean isValidPlayer(UserPrincipal currentUser) {
-        return currentUser.equals(whitePlayer) || currentUser.equals(blackPlayer);
+    public boolean isValidPlayer(Player player) {
+        return player.equals(whitePlayer) || player.equals(blackPlayer);
     }
 }

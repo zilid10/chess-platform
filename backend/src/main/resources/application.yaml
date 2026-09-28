@@ -19,6 +19,19 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   address: ${SERVER_ADDRESS:0.0.0.0}
+  servlet:
+    session:
+      cookie:
+        # Spring Session would otherwise name it SESSION
+        name: JSESSIONID
 
 app:
   allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000,http://frontend:3000}
+  websocket:
+    relay:
+      # Required when running more than one backend instance
+      enabled: ${APP_WEBSOCKET_RELAY_ENABLED:false}
+      host: ${APP_WEBSOCKET_RELAY_HOST:rabbitmq}
+      port: ${APP_WEBSOCKET_RELAY_PORT:61613}
+      login: ${APP_WEBSOCKET_RELAY_LOGIN:guest}
+      passcode: ${APP_WEBSOCKET_RELAY_PASSCODE:guest}
