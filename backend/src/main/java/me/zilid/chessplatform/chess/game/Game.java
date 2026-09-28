@@ -11,8 +11,13 @@ import java.util.*;
 
 /**
  * Represents a complete chess game with history and metadata
+ * <p>
+ * Each side's first move has to come within {@link #FIRST_MOVE_TIMEOUT}: White's once both seats are taken, Black's
+ * after White's first move. A game whose first moves do not come in time is aborted, with no result.
  */
 public class Game {
+    public static final Duration FIRST_MOVE_TIMEOUT = Duration.ofSeconds(30);
+
     // chess engine (board information)
     private final Position position;
 
@@ -29,6 +34,8 @@ public class Game {
     private volatile @Nullable Player whitePlayer;
     private volatile @Nullable Player blackPlayer;
     private volatile @Nullable Color drawOfferedBy;
+    // While the chess clock has not started: when the side to move must have moved by, once both seats are taken
+    private volatile @Nullable Instant firstMoveDeadline;
 
     public Game(ClockSetting clockSetting) {
         this(null, null, new ChessClock(clockSetting), Instant.now());
@@ -56,6 +63,7 @@ public class Game {
         this.startTime = startTime;
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
+        this.firstMoveDeadline = whitePlayer != null && blackPlayer != null ? startTime.plus(FIRST_MOVE_TIMEOUT) : null;
     }
 
     public Game(@Nullable Player whitePlayer,
@@ -81,7 +89,8 @@ public class Game {
                                GameStatus status,
                                @Nullable Player whitePlayer,
                                @Nullable Player blackPlayer,
-                               @Nullable Color drawOfferedBy) {
+                               @Nullable Color drawOfferedBy,
+                               @Nullable Instant firstMoveDeadline) {
         ChessClock clock = ChessClock.restore(clockSetting, whiteRemaining,
                 blackRemaining, turnColor, turnStartAt, status.isGameOver());
         Game game = new Game(whitePlayer, blackPlayer, clock, startTime);
@@ -91,6 +100,7 @@ public class Game {
         game.endTime = endTime;
         game.status = status;
         game.drawOfferedBy = drawOfferedBy;
+        game.firstMoveDeadline = firstMoveDeadline;
         return game;
     }
 
@@ -128,6 +138,8 @@ public class Game {
             }
             clock.punch(now);
             recordMove(move);
+            // After White's first move Black gets its own window; Black's first move starts the chess clock
+            firstMoveDeadline = clock.isRunning() || !isFullySeated() ? null : now.plus(FIRST_MOVE_TIMEOUT);
             updateGameStatus(now);
             return true;
         } catch (IllegalArgumentException e) {
@@ -216,21 +228,32 @@ public class Game {
     }
 
     /**
-     * Whether the game is still on but the side to move has run out of time at {@code now}.
+     * Whether the game is still on but, at {@code now}, the side to move has run out of time or missed the deadline
+     * for its first move.
      */
     public synchronized boolean hasTimedOut(Instant now) {
-        return !status.isGameOver() && clock.hasFlagged(now);
+        return !status.isGameOver() && (clock.hasFlagged(now) || isFirstMoveOverdue(now));
+    }
+
+    private boolean isFirstMoveOverdue(Instant now) {
+        Instant deadline = firstMoveDeadline;
+        return !clock.isRunning() && deadline != null && !now.isBefore(deadline);
     }
 
     /**
-     * End the game if the side to move has run out of time. Their opponent wins, unless the opponent could not
-     * checkmate by any sequence of legal moves; then the game is drawn.
+     * End the game if a time limit has passed. A game whose first moves did not come in time is aborted. Otherwise
+     * the side to move has run out of time and their opponent wins, unless the opponent could not checkmate by any
+     * sequence of legal moves; then the game is drawn.
      *
      * @return {@code true} only if this call ended the game
      */
     public synchronized boolean checkTimeout(Instant now) {
         if (!hasTimedOut(now)) {
             return false;
+        }
+        if (isFirstMoveOverdue(now)) {
+            onGameEnd(GameStatus.ABORTED, now);
+            return true;
         }
         Color winner = getTurnColor().opposite();
         GameStatus result;
@@ -249,8 +272,11 @@ public class Game {
      */
     public synchronized @Nullable Instant timeoutDeadline() {
         Instant turnStartAt = clock.getTurnStartAt();
-        if (status.isGameOver() || turnStartAt == null) {
+        if (status.isGameOver()) {
             return null;
+        }
+        if (turnStartAt == null) {
+            return firstMoveDeadline;
         }
         return turnStartAt.plus(getTurnColor().isWhite() ? clock.getWhiteRemaining() : clock.getBlackRemaining());
     }
@@ -268,6 +294,7 @@ public class Game {
     }
 
     private synchronized void onGameEnd(GameStatus endStatus, Instant now) {
+        firstMoveDeadline = null;
         clock.stop(now);
         endTime = now;
         status = endStatus;
@@ -349,17 +376,37 @@ public class Game {
         return whitePlayer;
     }
 
-    public void setWhitePlayer(Player whitePlayer) {
-        this.whitePlayer = whitePlayer;
+    /**
+     * Seat {@code player} as {@code color}. Taking the last open seat before any move starts White's window for the
+     * first move.
+     */
+    public synchronized void seat(Color color, Player player, Instant now) {
+        if (color.isWhite()) {
+            whitePlayer = player;
+        } else {
+            blackPlayer = player;
+        }
+        if (isFullySeated() && !status.isGameOver() && !clock.isRunning() && firstMoveDeadline == null) {
+            firstMoveDeadline = now.plus(FIRST_MOVE_TIMEOUT);
+        }
+    }
+
+    private boolean isFullySeated() {
+        return whitePlayer != null && blackPlayer != null;
+    }
+
+    /**
+     * The time by which the side to move must make its first move, or {@code null} once the chess clock is running,
+     * while a seat is open, or after the game ended.
+     */
+    public synchronized @Nullable Instant getFirstMoveDeadline() {
+        return firstMoveDeadline;
     }
 
     public @Nullable Player getBlackPlayer() {
         return blackPlayer;
     }
 
-    public void setBlackPlayer(Player blackPlayer) {
-        this.blackPlayer = blackPlayer;
-    }
 
     public synchronized @Nullable Color getDrawOfferedBy() {
         return drawOfferedBy;

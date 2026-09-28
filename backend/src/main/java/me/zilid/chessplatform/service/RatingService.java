@@ -48,7 +48,8 @@ public class RatingService {
         if (status.isDraw()) {
             return GameOutcome.DRAW;
         }
-        throw new IllegalArgumentException("Game is not over");
+        // Still going, or aborted
+        throw new IllegalArgumentException("Game has no result");
     }
 
     private static PlayerRating toDto(UUID userId, Rating rating) {

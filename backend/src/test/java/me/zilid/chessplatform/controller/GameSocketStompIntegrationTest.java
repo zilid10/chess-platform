@@ -117,7 +117,7 @@ class GameSocketStompIntegrationTest {
         return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
                 game.getLastMoveTo(), game.getTurnColor().name(),
                 game.getRemaining(Color.WHITE, now).toMillis(), game.getRemaining(Color.BLACK, now).toMillis(),
-                game.isClockRunning());
+                game.isClockRunning(), null);
     }
 
     @BeforeEach
@@ -178,7 +178,7 @@ class GameSocketStompIntegrationTest {
     @Test
     void acceptedTimeoutClaimReachesTheGameTopic() throws Exception {
         GameStateResponse flagged = new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, game.getFen(), null, null,
-                "WHITE", 0, 600_000, false);
+                "WHITE", 0, 600_000, false, null);
         when(matchService.checkTimeout(GAME_ID)).thenReturn(Optional.of(flagged));
         StompSession session = connect("black");
         BlockingQueue<GameStateResponse> updates = subscribe(session, "/topic/game." + GAME_ID,

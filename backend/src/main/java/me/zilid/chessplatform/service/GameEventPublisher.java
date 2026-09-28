@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.rating.RatingChange;
@@ -63,6 +64,13 @@ public class GameEventPublisher {
     public void publishUpdate(UUID gameId, GameStateResponse state) {
         publishState(gameId, state);
         if (!state.gameStatus().isGameOver()) {
+            return;
+        }
+        if (state.gameStatus() == GameStatus.ABORTED) {
+            // Nothing to rate or archive
+            sendSystemMessage(gameId, "Game aborted: %s did not make a first move in time".formatted(
+                    state.turnColor().equals("WHITE") ? "White" : "Black"));
+            matchService.scheduleGameCleanup(gameId);
             return;
         }
         sendSystemMessage(gameId, "Game Over: " + state.gameStatus().getDescription());

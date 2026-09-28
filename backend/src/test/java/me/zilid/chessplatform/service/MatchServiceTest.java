@@ -540,6 +540,62 @@ class MatchServiceTest {
         }
     }
 
+    @Nested
+    class FirstMoveAbort {
+
+        @Test
+        void joiningTheLastSeatStartsWhitesWindow() {
+            UUID gameId = service.createGame(alice, Color.WHITE, TestGames.TEN_MINUTES).gameId();
+            assertThat(service.getGameState(gameId).firstMoveRemainingMillis()).isNull();
+            clock.advance(Duration.ofMinutes(2));
+
+            service.joinGame(gameId, bob);
+
+            assertThat(service.getGameSession(gameId).getFirstMoveDeadline())
+                    .isEqualTo(clock.instant().plus(Game.FIRST_MOVE_TIMEOUT));
+            clock.advance(Duration.ofSeconds(10));
+            assertThat(service.getGameState(gameId).firstMoveRemainingMillis()).isEqualTo(20_000);
+        }
+
+        @Test
+        void gameIsAbortedWhenWhiteDoesNotMove() {
+            UUID gameId = gameWithBothPlayers();
+            clock.advance(Game.FIRST_MOVE_TIMEOUT);
+
+            GameStateResponse state = service.checkTimeout(gameId).orElseThrow();
+
+            assertThat(state.gameStatus()).isEqualTo(GameStatus.ABORTED);
+            assertThat(state.firstMoveRemainingMillis()).isNull();
+            assertThat(service.getGameSession(gameId).getStatus()).isEqualTo(GameStatus.ABORTED);
+        }
+
+        @Test
+        void gameIsAbortedWhenBlackDoesNotAnswer() {
+            UUID gameId = gameWithBothPlayers();
+            clock.advance(Duration.ofSeconds(25));
+            service.makeMove(alice, gameId, "e2", "e4", null);
+            clock.advance(Duration.ofSeconds(25));
+
+            assertThat(service.checkTimeout(gameId)).isEmpty();
+            clock.advance(Duration.ofSeconds(5));
+            assertThat(service.checkTimeout(gameId).orElseThrow().gameStatus()).isEqualTo(GameStatus.ABORTED);
+        }
+
+        @Test
+        void abortedGamesAreNotArchived() {
+            UUID gameId = gameWithBothPlayers();
+            clock.advance(Game.FIRST_MOVE_TIMEOUT);
+            service.checkTimeout(gameId);
+            Game aborted = service.getGameSession(gameId);
+
+            assertThatThrownBy(() -> service.archiveMatch(gameId, aborted))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Aborted games are not archived");
+            verifyNoInteractions(ratingService);
+            verify(matchRecordRepo, never()).save(any());
+        }
+    }
+
     private MatchService newService() {
         return new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
                 ratingService, gameStateStore, clock);

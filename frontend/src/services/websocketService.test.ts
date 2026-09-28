@@ -90,6 +90,7 @@ describe('WebSocketService', () => {
       whiteRemainingMillis: 300_000,
       blackRemainingMillis: 300_000,
       clockRunning: false,
+      firstMoveRemainingMillis: 30_000,
     };
     const chat: ChatMessage = { sender: 'bob', message: 'Hi', timestamp: 'now', type: 'CHAT' };
     client.subscriptions.get('/topic/game.game-1')?.({ body: JSON.stringify(state) });

@@ -31,7 +31,8 @@ record ActiveGameState(
         GameStatus status,
         @Nullable StoredPlayer whitePlayer,
         @Nullable StoredPlayer blackPlayer,
-        @Nullable Color drawOfferedBy
+        @Nullable Color drawOfferedBy,
+        @Nullable Instant firstMoveDeadline
 ) {
     // JSON in an older format lacks some of these; fail while parsing instead of when the game is rebuilt
     ActiveGameState {

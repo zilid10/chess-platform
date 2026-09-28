@@ -203,15 +203,14 @@ class GameTest {
         }
 
         @Test
-        void noDeadlineBeforeBlacksFirstMove() {
+        void chessClockDoesNotRunBeforeBlacksFirstMove() {
             Game game = game();
-            assertThat(game.timeoutDeadline()).isNull();
-
             game.makeMove("e2", "e4", null, T0);
 
-            assertThat(game.timeoutDeadline()).isNull();
-            assertThat(game.checkTimeout(T0.plus(Duration.ofHours(1)))).isFalse();
-            assertThat(game.getStatus()).isEqualTo(GameStatus.ONGOING);
+            assertThat(game.isClockRunning()).isFalse();
+            assertThat(game.getRemaining(Color.BLACK, T0.plusSeconds(20))).isEqualTo(tenMinutes);
+            // Only the first-move window applies until then
+            assertThat(game.timeoutDeadline()).isEqualTo(T0.plus(Game.FIRST_MOVE_TIMEOUT));
         }
 
         @Test
@@ -309,6 +308,98 @@ class GameTest {
             assertThat(game.checkTimeout(game.timeoutDeadline())).isTrue();
 
             assertThat(game.getStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
+        }
+    }
+
+    @Nested
+    class FirstMoveAbort {
+        private final RegisteredPlayer white = player("white");
+        private final RegisteredPlayer black = player("black");
+        private final Instant firstMoveDeadline = T0.plus(Game.FIRST_MOVE_TIMEOUT);
+
+        private Game seatedAtT0() {
+            return new Game(white, black, TestGames.TEN_MINUTES, T0);
+        }
+
+        @Test
+        void noDeadlineWhileASeatIsOpen() {
+            Game game = new Game(white, null, TestGames.TEN_MINUTES, T0);
+
+            assertThat(game.getFirstMoveDeadline()).isNull();
+            assertThat(game.timeoutDeadline()).isNull();
+            assertThat(game.checkTimeout(T0.plus(Duration.ofHours(1)))).isFalse();
+        }
+
+        @Test
+        void takingTheLastSeatStartsWhitesWindow() {
+            Game game = new Game(white, null, TestGames.TEN_MINUTES, T0);
+
+            game.seat(Color.BLACK, black, T0.plusSeconds(90));
+
+            assertThat(game.getBlackPlayer()).isEqualTo(black);
+            assertThat(game.timeoutDeadline()).isEqualTo(T0.plusSeconds(90).plus(Game.FIRST_MOVE_TIMEOUT));
+        }
+
+        @Test
+        void gameCreatedWithBothPlayersStartsWhitesWindowAtOnce() {
+            assertThat(seatedAtT0().timeoutDeadline()).isEqualTo(firstMoveDeadline);
+        }
+
+        @Test
+        void whiteMissingTheWindowAbortsTheGame() {
+            Game game = seatedAtT0();
+
+            assertThat(game.checkTimeout(firstMoveDeadline.minusMillis(1))).isFalse();
+            assertThat(game.checkTimeout(firstMoveDeadline)).isTrue();
+
+            assertThat(game.getStatus()).isEqualTo(GameStatus.ABORTED);
+            assertThat(game.getStatus().isWhiteWin() || game.getStatus().isBlackWin() || game.getStatus().isDraw())
+                    .isFalse();
+            assertThat(game.getEndTime()).isEqualTo(firstMoveDeadline);
+            assertThat(game.timeoutDeadline()).isNull();
+            assertThat(game.getRemaining(Color.WHITE, firstMoveDeadline)).isEqualTo(Duration.ofMinutes(10));
+        }
+
+        @Test
+        void whitesFirstMoveStartsBlacksWindow() {
+            Game game = seatedAtT0();
+            game.makeMove("e2", "e4", null, T0.plusSeconds(20));
+
+            Instant blackDeadline = T0.plusSeconds(20).plus(Game.FIRST_MOVE_TIMEOUT);
+            assertThat(game.timeoutDeadline()).isEqualTo(blackDeadline);
+            assertThat(game.checkTimeout(firstMoveDeadline)).isFalse();
+            assertThat(game.checkTimeout(blackDeadline)).isTrue();
+            assertThat(game.getStatus()).isEqualTo(GameStatus.ABORTED);
+        }
+
+        @Test
+        void blacksFirstMoveEndsTheWindowAndStartsTheClock() {
+            Game game = seatedAtT0();
+            game.makeMove("e2", "e4", null, T0.plusSeconds(20));
+            game.makeMove("e7", "e5", null, T0.plusSeconds(40));
+
+            assertThat(game.getFirstMoveDeadline()).isNull();
+            assertThat(game.isClockRunning()).isTrue();
+            assertThat(game.timeoutDeadline()).isEqualTo(T0.plusSeconds(40).plus(Duration.ofMinutes(10)));
+            assertThat(game.checkTimeout(T0.plus(Duration.ofMinutes(5)))).isFalse();
+        }
+
+        @Test
+        void aFirstMoveAfterTheWindowAbortsInsteadOfPlaying() {
+            Game game = seatedAtT0();
+
+            assertThat(game.makeMove("e2", "e4", null, firstMoveDeadline.plusSeconds(1))).isTrue();
+
+            assertThat(game.getStatus()).isEqualTo(GameStatus.ABORTED);
+            assertThat(game.getMoves()).isEmpty();
+        }
+
+        @Test
+        void copiesKeepTheWindow() {
+            Game game = seatedAtT0();
+            game.makeMove("e2", "e4", null, T0.plusSeconds(20));
+
+            assertThat(TestGames.copy(game).getFirstMoveDeadline()).isEqualTo(game.getFirstMoveDeadline());
         }
     }
 }

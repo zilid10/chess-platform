@@ -4,6 +4,7 @@ import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -109,11 +110,11 @@ public class MatchService {
                 role = "BLACK"; // reconnect
                 logger.debug("User {} reconnecting as BLACK to game {}", currentUser.displayName(), gameId);
             } else if (game.getWhitePlayer() == null) {
-                game.setWhitePlayer(currentUser);
+                game.seat(Color.WHITE, currentUser, clock.instant());
                 role = "WHITE";
                 logger.info("User {} joined game {} as WHITE", currentUser.displayName(), gameId);
             } else if (game.getBlackPlayer() == null) {
-                game.setBlackPlayer(currentUser);
+                game.seat(Color.BLACK, currentUser, clock.instant());
                 role = "BLACK";
                 logger.info("User {} joined game {} as BLACK", currentUser.displayName(), gameId);
             } else {
@@ -242,9 +243,19 @@ public class MatchService {
                     game.getTurnColor().name(),
                     game.getRemaining(Color.WHITE, now).toMillis(),
                     game.getRemaining(Color.BLACK, now).toMillis(),
-                    game.isClockRunning()
+                    game.isClockRunning(),
+                    firstMoveRemainingMillis(game, now)
             );
         }
+    }
+
+    private static @Nullable Long firstMoveRemainingMillis(Game game, Instant now) {
+        Instant deadline = game.getFirstMoveDeadline();
+        if (deadline == null || game.isGameOver()) {
+            return null;
+        }
+        Duration left = Duration.between(now, deadline);
+        return left.isNegative() ? 0L : left.toMillis();
     }
 
     /**
@@ -254,6 +265,9 @@ public class MatchService {
     public RatingChange archiveMatch(UUID matchId, Game game) {
         if (!game.isGameOver()) {
             throw new IllegalStateException("Game is not over");
+        }
+        if (game.getStatus() == GameStatus.ABORTED) {
+            throw new IllegalStateException("Aborted games are not archived");
         }
         Player white = game.getWhitePlayer();
         Player black = game.getBlackPlayer();

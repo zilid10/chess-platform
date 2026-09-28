@@ -75,7 +75,7 @@ class GameControllerWebMvcTest {
     @Test
     void stateEndpointSerializesTheServiceResponse() throws Exception {
         when(matchService.getGameState(GAME_ID)).thenReturn(new GameStateResponse(
-                GameStatus.ONGOING, "starting-fen", "e2", "e4", "BLACK", 299_500, 300_000, true));
+                GameStatus.ONGOING, "starting-fen", "e2", "e4", "BLACK", 299_500, 300_000, true, null));
 
         mvc.perform(get("/api/games/{gameId}/state", GAME_ID)
                         .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))

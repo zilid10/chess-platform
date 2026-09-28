@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, remainingAt } from './gameClock';
+import { firstMoveLeftAt, formatClock, remainingAt } from './gameClock';
 import { GameState } from '../types';
 
 const state = (overrides: Partial<GameState> = {}): GameState => ({
@@ -9,6 +9,7 @@ const state = (overrides: Partial<GameState> = {}): GameState => ({
   whiteRemainingMillis: 60_000,
   blackRemainingMillis: 45_000,
   clockRunning: true,
+  firstMoveRemainingMillis: null,
   ...overrides,
 });
 
@@ -30,6 +31,19 @@ describe('remainingAt', () => {
 
   it('never adds time when the local clock is behind', () => {
     expect(remainingAt(state(), 5_000, 4_000).white).toBe(60_000);
+  });
+});
+
+describe('firstMoveLeftAt', () => {
+  it('counts down the first-move window', () => {
+    const waiting = state({ clockRunning: false, firstMoveRemainingMillis: 30_000 });
+    expect(firstMoveLeftAt(waiting, 1_000, 11_000)).toBe(20_000);
+    expect(firstMoveLeftAt(waiting, 1_000, 60_000)).toBe(0);
+  });
+
+  it('is null when no first move is pending or the game is over', () => {
+    expect(firstMoveLeftAt(state(), 0, 1_000)).toBeNull();
+    expect(firstMoveLeftAt(state({ gameStatus: 'ABORTED', firstMoveRemainingMillis: 5_000 }), 0, 1_000)).toBeNull();
   });
 });
 

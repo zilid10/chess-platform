@@ -25,7 +25,7 @@ public final class TestGames {
             return Game.restore(game.getMoves(), game.getClockSetting(), game.getWhiteRemaining(),
                     game.getBlackRemaining(), game.getTurnStartAt(), game.getTurnColor(), game.getStartTime(),
                     game.getEndTime(), game.getStatus(), game.getWhitePlayer(), game.getBlackPlayer(),
-                    game.getDrawOfferedBy());
+                    game.getDrawOfferedBy(), game.getFirstMoveDeadline());
         }
     }
 

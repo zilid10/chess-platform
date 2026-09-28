@@ -8,6 +8,9 @@ import org.jspecify.annotations.Nullable;
  * @param blackRemainingMillis Black's time left when this response was built
  * @param clockRunning         whether the side to move is losing time; false before Black's first move and once the
  *                             game is over
+ * @param firstMoveRemainingMillis    before the clock starts, how long the side to move has left to make its first
+ *                                    move before the game is aborted; null once the clock runs, while a seat is
+ *                                    open, and after the game ends
  */
 public record GameStateResponse(GameStatus gameStatus,
                                 String fen,
@@ -16,5 +19,6 @@ public record GameStateResponse(GameStatus gameStatus,
                                 String turnColor,
                                 long whiteRemainingMillis,
                                 long blackRemainingMillis,
-                                boolean clockRunning) {
+                                boolean clockRunning,
+                                @Nullable Long firstMoveRemainingMillis) {
 }

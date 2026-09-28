@@ -17,7 +17,9 @@ public enum GameStatus {
     FLAGGED_WHITE_WINS("White wins by flag"),
     FLAGGED_BLACK_WINS("Black wins by flag"),
     // A player ran out of time, but their opponent had no way to checkmate
-    DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL("Draw by timeout vs insufficient material");
+    DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL("Draw by timeout vs insufficient material"),
+    // A first move did not come in time; the game has no result and is not rated or archived
+    ABORTED("Game aborted");
 
     private final String description;
 
@@ -53,6 +55,7 @@ public enum GameStatus {
             case DRAW_BY_FIFTY_MOVE_RULE -> "FIFTY_MOVE_RULE";
             case DRAW_BY_INSUFFICIENT_MATERIAL -> "INSUFFICIENT_MATERIAL";
             case DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL -> "FLAGGED_INSUFFICIENT_MATERIAL";
+            case ABORTED -> "ABORTED";
             case ONGOING -> "";
         };
     }

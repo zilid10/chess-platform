@@ -69,7 +69,8 @@ class GameStateStoreTest {
                 GameStatus.ONGOING,
                 new StoredPlayer(UUID.randomUUID(), "white"),
                 null,
-                Color.WHITE);
+                Color.WHITE,
+                null);
 
         JsonMapper mapper = JsonMapper.builder().build();
         assertThat(mapper.readValue(mapper.writeValueAsString(state), ActiveGameState.class)).isEqualTo(state);
@@ -137,6 +138,18 @@ class GameStateStoreTest {
         verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(),
                 game.timeoutDeadline().toEpochMilli());
         verify(sortedSets, never()).remove(any(), any());
+    }
+
+    @Test
+    void firstMoveDeadlineSurvivesReloadingAndIsIndexed() {
+        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2), T0);
+
+        Game restored = storeAndLoad(game);
+
+        assertThat(restored.getFirstMoveDeadline()).isEqualTo(T0.plus(Game.FIRST_MOVE_TIMEOUT));
+        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(),
+                T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
     }
 
     @Test

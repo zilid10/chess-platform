@@ -17,6 +17,14 @@ export function remainingAt(state: GameState, receivedAt: number, now: number): 
   };
 }
 
+/** Time the side to move has left for its first move at `now`, or null if no first move is pending. */
+export function firstMoveLeftAt(state: GameState, receivedAt: number, now: number): number | null {
+  if (state.gameStatus !== 'ONGOING' || state.firstMoveRemainingMillis == null) {
+    return null;
+  }
+  return Math.max(0, state.firstMoveRemainingMillis - Math.max(0, now - receivedAt));
+}
+
 /** m:ss, h:mm:ss from an hour up, and tenths of a second under ten seconds. */
 export function formatClock(millis: number): string {
   const ms = Math.max(0, millis);

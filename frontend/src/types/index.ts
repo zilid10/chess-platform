@@ -84,6 +84,8 @@ export interface GameState {
   blackRemainingMillis: number;
   // Whether the side to move is losing time: false before Black's first move and after the game ends
   clockRunning: boolean;
+  // Before the clock starts: how long the side to move has left to make its first move before the game is aborted
+  firstMoveRemainingMillis: number | null;
 }
 
 export type GameStatus = 
@@ -99,7 +101,8 @@ export type GameStatus =
   | 'DRAW_BY_AGREEMENT'
   | 'FLAGGED_WHITE_WINS'
   | 'FLAGGED_BLACK_WINS'
-  | 'DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL';
+  | 'DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL'
+  | 'ABORTED';
 
 export interface MoveRequest {
   gameId: string;

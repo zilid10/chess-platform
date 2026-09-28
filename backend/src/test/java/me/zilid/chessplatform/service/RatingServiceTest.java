@@ -113,11 +113,12 @@ class RatingServiceTest {
         assertThat(change.blackAfter()).isEqualTo(1220);
     }
 
-    @Test
-    void unfinishedGameIsNotRated() {
-        assertThatThrownBy(() -> service.applyResult(LOW_ID, HIGH_ID, TimeControl.RAPID, GameStatus.ONGOING))
+    @ParameterizedTest
+    @EnumSource(value = GameStatus.class, names = {"ONGOING", "ABORTED"})
+    void gameWithoutAResultIsNotRated(GameStatus status) {
+        assertThatThrownBy(() -> service.applyResult(LOW_ID, HIGH_ID, TimeControl.RAPID, status))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Game is not over");
+                .hasMessage("Game has no result");
         verifyNoInteractions(ratingRepo);
     }
 
@@ -129,8 +130,8 @@ class RatingServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = GameStatus.class, names = "ONGOING", mode = EnumSource.Mode.EXCLUDE)
-    void everyFinishedStatusMapsToTheMatchingOutcome(GameStatus status) {
+    @EnumSource(value = GameStatus.class, names = {"ONGOING", "ABORTED"}, mode = EnumSource.Mode.EXCLUDE)
+    void everyResultMapsToTheMatchingOutcome(GameStatus status) {
         GameOutcome expected = status.isWhiteWin() ? GameOutcome.WHITE_WINS
                 : status.isBlackWin() ? GameOutcome.BLACK_WINS
                 : GameOutcome.DRAW;

@@ -26,7 +26,7 @@ class GameTimeoutSweeperTest {
     private final GameTimeoutSweeper sweeper = new GameTimeoutSweeper(store, matchService, publisher, clock);
 
     private static GameStateResponse flagged() {
-        return new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, "fen", "e7", "e5", "WHITE", 0, 60_000, false);
+        return new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, "fen", "e7", "e5", "WHITE", 0, 60_000, false, null);
     }
 
     private Game ongoingGame() {

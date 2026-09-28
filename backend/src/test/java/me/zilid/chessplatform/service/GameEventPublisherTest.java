@@ -29,7 +29,7 @@ class GameEventPublisherTest {
     private final GameEventPublisher publisher = new GameEventPublisher(messagingTemplate, matchService);
 
     private static GameStateResponse state(GameStatus status) {
-        return new GameStateResponse(status, "fen", "e2", "e4", "BLACK", 0, 60_000, false);
+        return new GameStateResponse(status, "fen", "e2", "e4", "BLACK", 0, 60_000, false, null);
     }
 
     @Test
@@ -62,6 +62,22 @@ class GameEventPublisherTest {
                 "Game Over: Black wins by flag",
                 "BLITZ ratings: white 1190 (-10), black 1210 (+10)");
         verify(matchService).scheduleGameCleanup(GAME_ID);
+    }
+
+    @Test
+    void abortedGameIsAnnouncedAndCleanedUpButNotArchived() {
+        GameStateResponse aborted = new GameStateResponse(GameStatus.ABORTED, "fen", null, null, "WHITE",
+                60_000, 60_000, false, null);
+
+        publisher.publishUpdate(GAME_ID, aborted);
+
+        verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, aborted);
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/game." + GAME_ID + ".chat"), payload.capture());
+        assertThat(((ChatMessage) payload.getValue()).message())
+                .isEqualTo("Game aborted: White did not make a first move in time");
+        verify(matchService).scheduleGameCleanup(GAME_ID);
+        verify(matchService, never()).archiveMatch(any(), any());
     }
 
     @Test

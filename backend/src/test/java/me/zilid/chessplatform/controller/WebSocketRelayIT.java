@@ -162,7 +162,7 @@ class WebSocketRelayIT {
         return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
                 game.getLastMoveTo(), game.getTurnColor().name(),
                 game.getRemaining(Color.WHITE, now).toMillis(), game.getRemaining(Color.BLACK, now).toMillis(),
-                game.isClockRunning());
+                game.isClockRunning(), null);
     }
 
     private static UserPrincipal principal(String username) {

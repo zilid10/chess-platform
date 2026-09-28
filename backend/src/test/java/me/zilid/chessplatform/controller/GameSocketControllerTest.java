@@ -47,7 +47,7 @@ class GameSocketControllerTest {
     }
 
     private static GameStateResponse response(String from, String to) {
-        return new GameStateResponse(GameStatus.ONGOING, "updated-fen", from, to, "BLACK", 60_000, 60_000, true);
+        return new GameStateResponse(GameStatus.ONGOING, "updated-fen", from, to, "BLACK", 60_000, 60_000, true, null);
     }
 
     @ParameterizedTest
@@ -101,7 +101,7 @@ class GameSocketControllerTest {
     @Test
     void resignationIsPublishedAsAnUpdate() {
         GameStateResponse resigned = new GameStateResponse(
-                GameStatus.RESIGNED_BLACK_WINS, "final-fen", "e2", "e4", "BLACK", 60_000, 60_000, false);
+                GameStatus.RESIGNED_BLACK_WINS, "final-fen", "e2", "e4", "BLACK", 60_000, 60_000, false, null);
         when(matchService.resign(PLAYER.toPlayer(), GAME_ID)).thenReturn(resigned);
 
         controller.resign(GAME_ID, authentication());
@@ -112,7 +112,7 @@ class GameSocketControllerTest {
     @Test
     void acceptedTimeoutClaimIsPublishedAsAnUpdate() {
         GameStateResponse flagged = new GameStateResponse(
-                GameStatus.FLAGGED_BLACK_WINS, "final-fen", "e7", "e5", "WHITE", 0, 60_000, false);
+                GameStatus.FLAGGED_BLACK_WINS, "final-fen", "e7", "e5", "WHITE", 0, 60_000, false, null);
         when(matchService.checkTimeout(GAME_ID)).thenReturn(Optional.of(flagged));
 
         controller.claimTimeout(GAME_ID, authentication());

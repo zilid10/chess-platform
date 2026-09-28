@@ -7,7 +7,7 @@ import { websocketService } from '../services/websocketService';
 import { gameService } from '../services/gameService';
 import { useAuth } from '../context/AuthContext';
 import { GameState, ChatMessage as ChatMessageType, TIME_CONTROL_LABELS, TimeControl } from '../types';
-import { formatClock, remainingAt } from '../components/gameClock';
+import { firstMoveLeftAt, formatClock, remainingAt } from '../components/gameClock';
 import { Copy, Flag, Scale, Send } from 'lucide-react';
 
 const Game = () => {
@@ -113,7 +113,8 @@ const Game = () => {
     };
   }, [gameId, user]);
 
-  const clockTicking = gameState?.gameStatus === 'ONGOING' && gameState.clockRunning;
+  const clockTicking = gameState?.gameStatus === 'ONGOING'
+    && (gameState.clockRunning || gameState.firstMoveRemainingMillis != null);
 
   useEffect(() => {
     if (!clockTicking) return;
@@ -122,12 +123,15 @@ const Game = () => {
   }, [clockTicking]);
 
   const clocks = gameState ? remainingAt(gameState, stateReceivedAt, now) : null;
-  const sideToMoveLeft = clocks && gameState ? (gameState.turnColor === 'WHITE' ? clocks.white : clocks.black) : null;
+  const sideToMoveLeft = clocks && gameState?.clockRunning
+    ? (gameState.turnColor === 'WHITE' ? clocks.white : clocks.black)
+    : null;
+  const firstMoveLeft = gameState ? firstMoveLeftAt(gameState, stateReceivedAt, now) : null;
 
   useEffect(() => {
     // The server ends games on time by itself; claiming the flag only makes the result show up sooner.
     // Keep claiming once a second in case this browser's clock runs ahead of the server's.
-    if (!gameId || !isPlayer || !clockTicking || sideToMoveLeft === null || sideToMoveLeft > 0) return;
+    if (!gameId || !isPlayer || sideToMoveLeft === null || sideToMoveLeft > 0) return;
     if (now - lastTimeoutClaimRef.current < 1000) return;
     lastTimeoutClaimRef.current = now;
     try {
@@ -135,7 +139,7 @@ const Game = () => {
     } catch (err) {
       console.warn('Could not claim timeout:', err);
     }
-  }, [gameId, isPlayer, clockTicking, sideToMoveLeft, now]);
+  }, [gameId, isPlayer, sideToMoveLeft, now]);
 
   useEffect(() => {
     // Scroll chat to bottom
@@ -225,6 +229,10 @@ const Game = () => {
       return status.includes('WHITE') ? 'White wins by resignation!' : 'Black wins by resignation!';
     }
     
+    if (status === 'ABORTED') {
+      return 'Game aborted - a first move did not come in time';
+    }
+
     if (status.includes('FLAGGED')) {
       return status.includes('WHITE') ? 'White wins on time!' : 'Black wins on time!';
     }
@@ -247,7 +255,7 @@ const Game = () => {
   const renderClock = (color: 'WHITE' | 'BLACK') => {
     if (!clocks || !gameState) return null;
     const millis = color === 'WHITE' ? clocks.white : clocks.black;
-    const active = clockTicking && gameState.turnColor === color;
+    const active = gameState.gameStatus === 'ONGOING' && gameState.clockRunning && gameState.turnColor === color;
     return (
       <div className="flex justify-end my-2">
         <span
@@ -338,6 +346,12 @@ const Game = () => {
                   )}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">{getStatusMessage()}</p>
+                {firstMoveLeft !== null && gameState && (
+                  <p className="text-sm text-amber-700 mt-1">
+                    {gameState.turnColor === 'WHITE' ? 'White' : 'Black'} must move within{' '}
+                    {Math.ceil(firstMoveLeft / 1000)}s or the game is aborted
+                  </p>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <button

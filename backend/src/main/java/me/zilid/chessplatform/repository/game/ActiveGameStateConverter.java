@@ -32,7 +32,8 @@ class ActiveGameStateConverter {
                     game.getStatus(),
                     store(game.getWhitePlayer()),
                     store(game.getBlackPlayer()),
-                    game.getDrawOfferedBy()
+                    game.getDrawOfferedBy(),
+                    game.getFirstMoveDeadline()
             );
         }
     }
@@ -40,6 +41,6 @@ class ActiveGameStateConverter {
     Game toGame(ActiveGameState state) {
         return Game.restore(state.moves(), state.clockSetting(), state.whiteRemaining(), state.blackRemaining(),
                 state.turnStartAt(), state.turnColor(), state.startTime(), state.endTime(), state.status(),
-                load(state.whitePlayer()), load(state.blackPlayer()), state.drawOfferedBy());
+                load(state.whitePlayer()), load(state.blackPlayer()), state.drawOfferedBy(), state.firstMoveDeadline());
     }
 }
