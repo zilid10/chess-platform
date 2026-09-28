@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.entity.PlayerRating;
@@ -26,10 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class RatingServiceTest {
     // UUIDs compare by their signed high bits, so LOW sorts before HIGH.
@@ -39,6 +36,10 @@ class RatingServiceTest {
     private PlayerRatingRepo playerRatingRepo;
     private UserRepo userRepo;
     private RatingService service;
+
+    private static PlayerRating rating(TimeControl timeControl) {
+        return new PlayerRating(new User("p@example.com", "p", "hash", null), timeControl);
+    }
 
     @BeforeEach
     void setUp() {
@@ -158,9 +159,5 @@ class RatingServiceTest {
         when(userRepo.existsById(LOW_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> service.getRatings(LOW_ID)).isInstanceOf(UserNotFoundException.class);
-    }
-
-    private static PlayerRating rating(TimeControl timeControl) {
-        return new PlayerRating(new User("p@example.com", "p", "hash", null), timeControl);
     }
 }

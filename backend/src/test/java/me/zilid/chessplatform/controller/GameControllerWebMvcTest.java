@@ -2,10 +2,10 @@ package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.config.SecurityConfig;
-import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.exception.GameIsOverException;
+import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.exception.GlobalExceptionHandler;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
@@ -20,42 +20,30 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 // The production application enables JPA repositories, so keep this MVC slice isolated.
 @WebMvcTest(GameController.class)
 @ContextConfiguration(classes = GameControllerWebMvcTest.TestConfiguration.class)
 class GameControllerWebMvcTest {
 
-    @SpringBootConfiguration
-    @Import({GameController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {
-    }
-
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
     private static final UserPrincipal PLAYER = new UserPrincipal(
             UUID.fromString("02410898-174c-4cb5-b8c5-55fe3cc535b9"),
             "player", "player@example.com", "password", true, List.of());
-
     @Autowired
     private MockMvc mvc;
-
     @MockitoBean
     private MatchService matchService;
 
@@ -261,5 +249,10 @@ class GameControllerWebMvcTest {
                         .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Game is already over"));
+    }
+
+    @SpringBootConfiguration
+    @Import({GameController.class, SecurityConfig.class, GlobalExceptionHandler.class})
+    static class TestConfiguration {
     }
 }

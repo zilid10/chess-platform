@@ -5,7 +5,7 @@ import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.Square;
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,13 +24,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class GameStateStoreTest {
     private static final UUID GAME_ID = UUID.randomUUID();

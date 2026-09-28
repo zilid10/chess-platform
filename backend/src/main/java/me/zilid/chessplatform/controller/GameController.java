@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;

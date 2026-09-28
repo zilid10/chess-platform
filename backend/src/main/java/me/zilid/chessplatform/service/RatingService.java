@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.entity.PlayerRating;
@@ -36,6 +36,23 @@ public class RatingService {
         this.playerRatingRepo = playerRatingRepo;
         this.userRepo = userRepo;
         this.ratingSystem = ratingSystem;
+    }
+
+    static GameOutcome outcomeOf(GameStatus status) {
+        if (status.isWhiteWin()) {
+            return GameOutcome.WHITE_WINS;
+        }
+        if (status.isBlackWin()) {
+            return GameOutcome.BLACK_WINS;
+        }
+        if (status.isDraw()) {
+            return GameOutcome.DRAW;
+        }
+        throw new IllegalArgumentException("Game is not over");
+    }
+
+    private static PlayerRatingDto toDto(UUID userId, PlayerRating rating) {
+        return new PlayerRatingDto(userId, rating.getRating(), rating.getGamesPlayed(), rating.getPeakRating());
     }
 
     /**
@@ -91,27 +108,10 @@ public class RatingService {
                 .toList();
     }
 
-    static GameOutcome outcomeOf(GameStatus status) {
-        if (status.isWhiteWin()) {
-            return GameOutcome.WHITE_WINS;
-        }
-        if (status.isBlackWin()) {
-            return GameOutcome.BLACK_WINS;
-        }
-        if (status.isDraw()) {
-            return GameOutcome.DRAW;
-        }
-        throw new IllegalArgumentException("Game is not over");
-    }
-
     private PlayerRating lockRating(UUID userId, TimeControl timeControl) {
         // Every user gets their rating rows at registration; this covers accounts that predate them.
         return playerRatingRepo.findForUpdate(userId, timeControl)
                 .orElseGet(() -> playerRatingRepo.save(
                         new PlayerRating(userRepo.getReferenceById(userId), timeControl)));
-    }
-
-    private static PlayerRatingDto toDto(UUID userId, PlayerRating rating) {
-        return new PlayerRatingDto(userId, rating.getRating(), rating.getGamesPlayed(), rating.getPeakRating());
     }
 }

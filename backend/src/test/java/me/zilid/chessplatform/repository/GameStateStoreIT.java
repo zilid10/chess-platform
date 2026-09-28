@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.repository;
 
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.model.dto.ActiveGameState;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -15,16 +15,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Runs against the Redis provisioned by the backend CI job. */
+/**
+ * Runs against the Redis provisioned by the backend CI job.
+ */
 @EnabledIfEnvironmentVariable(named = "SPRING_DATA_REDIS_HOST", matches = ".+")
 class GameStateStoreIT {
 
@@ -46,6 +44,15 @@ class GameStateStoreIT {
     @AfterAll
     static void disconnect() {
         connectionFactory.destroy();
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(e);
+        }
     }
 
     @Test
@@ -114,15 +121,6 @@ class GameStateStoreIT {
                     .hasMessage("Game is busy, please try again");
         } finally {
             redisTemplate.delete("game:" + gameId + ":lock");
-        }
-    }
-
-    private static void await(CountDownLatch latch) {
-        try {
-            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AssertionError(e);
         }
     }
 }

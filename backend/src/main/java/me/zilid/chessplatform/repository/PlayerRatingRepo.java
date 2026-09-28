@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.repository;
 
 import jakarta.persistence.LockModeType;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.model.entity.PlayerRating;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;

@@ -2,6 +2,7 @@ package me.zilid.chessplatform.chess.game;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Square;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

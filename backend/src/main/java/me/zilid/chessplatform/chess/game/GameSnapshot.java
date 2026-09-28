@@ -2,6 +2,7 @@ package me.zilid.chessplatform.chess.game;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Move;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;

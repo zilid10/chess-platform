@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.repository;
 
 import jakarta.persistence.EntityManager;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.PlayerRating;
 import me.zilid.chessplatform.model.entity.User;

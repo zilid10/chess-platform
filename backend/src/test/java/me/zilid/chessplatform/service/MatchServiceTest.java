@@ -2,10 +2,10 @@ package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
-import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.converter.ActiveGameStateConverter;
@@ -33,13 +33,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
@@ -47,14 +41,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class MatchServiceTest {
+    private final RegisteredPlayer alice = player("alice");
+    private final RegisteredPlayer bob = player("bob");
+    private final RegisteredPlayer spectator = player("spectator");
     private MatchRecordRepo matchRecordRepo;
     private UserRepo userRepo;
     private RatingService ratingService;
@@ -62,9 +54,40 @@ class MatchServiceTest {
     private ActiveGameStateConverter activeGameStateConverter;
     private MatchService service;
 
-    private final RegisteredPlayer alice = player("alice");
-    private final RegisteredPlayer bob = player("bob");
-    private final RegisteredPlayer spectator = player("spectator");
+    /**
+     * Stands in for Redis: a map for storage and a real lock, so races are still serialized per game.
+     */
+    @SuppressWarnings("unchecked")
+    private static GameStateStore inMemoryGameStateStore() {
+        GameStateStore store = mock(GameStateStore.class);
+        Map<UUID, ActiveGameState> games = new ConcurrentHashMap<>();
+        ReentrantLock lock = new ReentrantLock();
+        doAnswer(invocation -> games.put(invocation.getArgument(0), invocation.getArgument(1)))
+                .when(store).storeGame(any(), any());
+        when(store.loadGame(any())).thenAnswer(invocation -> games.get(invocation.<UUID>getArgument(0)));
+        when(store.withLock(any(), any())).thenAnswer(invocation -> {
+            lock.lock();
+            try {
+                return invocation.<Supplier<Object>>getArgument(1).get();
+            } finally {
+                lock.unlock();
+            }
+        });
+        return store;
+    }
+
+    private static RegisteredPlayer player(String username) {
+        return new RegisteredPlayer(UUID.randomUUID(), username);
+    }
+
+    private static RegisteredPlayer player(User user) {
+        return new RegisteredPlayer(user.getId(), user.getUsername());
+    }
+
+    private static UserPrincipal principal(Player player) {
+        String username = player.displayName();
+        return new UserPrincipal(player.id(), username, username + "@example.com", "hash", true, List.of());
+    }
 
     @BeforeEach
     void setUp() {
@@ -385,28 +408,6 @@ class MatchServiceTest {
                 ratingService, gameStateStore, activeGameStateConverter);
     }
 
-    /**
-     * Stands in for Redis: a map for storage and a real lock, so races are still serialized per game.
-     */
-    @SuppressWarnings("unchecked")
-    private static GameStateStore inMemoryGameStateStore() {
-        GameStateStore store = mock(GameStateStore.class);
-        Map<UUID, ActiveGameState> games = new ConcurrentHashMap<>();
-        ReentrantLock lock = new ReentrantLock();
-        doAnswer(invocation -> games.put(invocation.getArgument(0), invocation.getArgument(1)))
-                .when(store).storeGame(any(), any());
-        when(store.loadGame(any())).thenAnswer(invocation -> games.get(invocation.<UUID>getArgument(0)));
-        when(store.withLock(any(), any())).thenAnswer(invocation -> {
-            lock.lock();
-            try {
-                return invocation.<Supplier<Object>>getArgument(1).get();
-            } finally {
-                lock.unlock();
-            }
-        });
-        return store;
-    }
-
     private UUID gameWithBothPlayers() {
         UUID gameId = service.createGame(alice, Color.WHITE, TimeControl.RAPID).gameId();
         service.joinGame(gameId, bob);
@@ -419,18 +420,5 @@ class MatchServiceTest {
         } catch (RuntimeException e) {
             return e;
         }
-    }
-
-    private static RegisteredPlayer player(String username) {
-        return new RegisteredPlayer(UUID.randomUUID(), username);
-    }
-
-    private static RegisteredPlayer player(User user) {
-        return new RegisteredPlayer(user.getId(), user.getUsername());
-    }
-
-    private static UserPrincipal principal(Player player) {
-        String username = player.displayName();
-        return new UserPrincipal(player.id(), username, username + "@example.com", "hash", true, List.of());
     }
 }

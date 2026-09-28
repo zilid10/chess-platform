@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.chess.game;
+package me.zilid.chessplatform.chess.game.clock;
 
 public enum TimeControl {
     BULLET,

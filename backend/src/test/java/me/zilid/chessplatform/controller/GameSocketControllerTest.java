@@ -3,7 +3,7 @@ package me.zilid.chessplatform.controller;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
-import me.zilid.chessplatform.chess.game.TimeControl;
+import me.zilid.chessplatform.chess.game.clock.TimeControl;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
@@ -26,11 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class GameSocketControllerTest {
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
@@ -42,6 +38,18 @@ class GameSocketControllerTest {
     private final MatchService matchService = mock(MatchService.class);
     private final Game game = mock(Game.class);
     private final GameSocketController controller = new GameSocketController(messagingTemplate, matchService);
+
+    private static MoveRequest request(String from, String to, @Nullable String promotion) {
+        return new MoveRequest(GAME_ID.toString(), from, to, promotion);
+    }
+
+    private static UsernamePasswordAuthenticationToken authentication() {
+        return UsernamePasswordAuthenticationToken.authenticated(PLAYER, null, PLAYER.getAuthorities());
+    }
+
+    private static GameStateResponse response(String from, String to) {
+        return new GameStateResponse(GameStatus.ONGOING, "updated-fen", from, to, "BLACK");
+    }
 
     @ParameterizedTest
     @CsvSource({"q, QUEEN", "r, ROOK", "b, BISHOP", "n, KNIGHT"})
@@ -125,17 +133,5 @@ class GameSocketControllerTest {
                 .hasMessage("Authentication required");
 
         verifyNoInteractions(matchService, messagingTemplate);
-    }
-
-    private static MoveRequest request(String from, String to, @Nullable String promotion) {
-        return new MoveRequest(GAME_ID.toString(), from, to, promotion);
-    }
-
-    private static UsernamePasswordAuthenticationToken authentication() {
-        return UsernamePasswordAuthenticationToken.authenticated(PLAYER, null, PLAYER.getAuthorities());
-    }
-
-    private static GameStateResponse response(String from, String to) {
-        return new GameStateResponse(GameStatus.ONGOING, "updated-fen", from, to, "BLACK");
     }
 }
