@@ -74,14 +74,14 @@ describe('HTTP services', () => {
     responseData = { gameId: 'game-1' };
 
     await gameService.createGame('BLACK');
-    await gameService.createGame('WHITE', 'BLITZ');
+    await gameService.createGame('WHITE', '3+2');
     await gameService.joinGame('game-1');
     await gameService.getGameState('game-1');
     await gameService.getGamePGN('game-1');
 
     expect(requests.map(({ method, url, params }) => ({ method, url, params }))).toEqual([
-      { method: 'post', url: '/games', params: { color: 'BLACK', timeControl: 'RAPID' } },
-      { method: 'post', url: '/games', params: { color: 'WHITE', timeControl: 'BLITZ' } },
+      { method: 'post', url: '/games', params: { color: 'BLACK', timeControl: '5+3' } },
+      { method: 'post', url: '/games', params: { color: 'WHITE', timeControl: '3+2' } },
       { method: 'post', url: '/games/game-1/join', params: undefined },
       { method: 'get', url: '/games/game-1/state', params: undefined },
       { method: 'get', url: '/games/game-1/pgn', params: undefined },

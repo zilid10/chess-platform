@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.rating.elo;
 
-import me.zilid.chessplatform.rating.PlayerRatingDto;
+import me.zilid.chessplatform.rating.PlayerRating;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -24,7 +24,7 @@ public class EloKFactorPolicyTest {
     })
     void testEloKFactoryPolicy(int rating, int gamesPlayed, int peakRating, int expectedK) {
         KFactorPolicy kFactorPolicy = new EloKFactorPolicy();
-        PlayerRatingDto playerRating = new PlayerRatingDto(UUID.randomUUID(), rating, gamesPlayed, peakRating);
+        PlayerRating playerRating = new PlayerRating(UUID.randomUUID(), rating, gamesPlayed, peakRating);
         int k = kFactorPolicy.kFor(playerRating);
         assertThat(k).isEqualTo(expectedK);
     }

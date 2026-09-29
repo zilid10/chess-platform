@@ -6,10 +6,51 @@ import java.util.List;
 
 
 public class SanFormatter {
+    public static String format(Position preMovePosition, Move move) {
+        StringBuilder sb = new StringBuilder();
+        if (move.type() == MoveType.CASTLE_KINGSIDE) {
+            sb.append("O-O");
+        } else if (move.type() == MoveType.CASTLE_QUEENSIDE) {
+            sb.append("O-O-O");
+        } else {
+            // piece symbol (pawn symbol is empty string)
+            sb.append(pieceTypeToSymbol(move.moved()));
+            // add ambiguation
+            String disambiguation = getDisambiguation(preMovePosition, move.to(), move.from());
+            sb.append(disambiguation); // disambiguation for pawn and king is empty string
+
+            // add 'x' for captures (including en-passant)
+            boolean isCapture = move.isEnPassant() || preMovePosition.getPieceAt(move.to()) != null;
+            if (isCapture) {
+                if (move.moved() == PieceType.PAWN || move.isEnPassant()) {
+                    sb.append(move.from().toNotation().charAt(0));
+                }
+                sb.append('x');
+            }
+
+            // add destination square notation
+            sb.append(move.to().toNotation());
+        }
+
+        if (move.promotionType() != null) {
+            sb.append("=").append(pieceTypeToSymbol(move.promotionType()));
+        }
+
+        UndoInfo undo = preMovePosition.applyMove(move);
+        if (preMovePosition.isCheckmate(preMovePosition.getTurnColor())) {
+            sb.append("#");
+        } else if (preMovePosition.getBoard().isInCheck(preMovePosition.getTurnColor())) {
+            sb.append("+");
+        }
+        preMovePosition.undoMove(move, undo);
+
+        return sb.toString();
+    }
+
     /**
      * calculate the disambiguation string (when multiple same pieces can move to the same square, requires disambiguation)
      */
-    public static String getDisambiguation(Position position, Square to, Square square) {
+    private static String getDisambiguation(Position position, Square to, Square square) {
         Piece movingPiece = position.getBoard().pieceAt(square);
         if (movingPiece == null || movingPiece.type() == PieceType.PAWN || movingPiece.type() == PieceType.KING) {
             return "";
@@ -60,48 +101,7 @@ public class SanFormatter {
         return String.valueOf(square.toNotation().charAt(0));
     }
 
-    public String format(Position preMovePosition, Move move) {
-        StringBuilder sb = new StringBuilder();
-        if (move.type() == MoveType.CASTLE_KINGSIDE) {
-            sb.append("O-O");
-        } else if (move.type() == MoveType.CASTLE_QUEENSIDE) {
-            sb.append("O-O-O");
-        } else {
-            // piece symbol (pawn symbol is empty string)
-            sb.append(pieceTypeToSymbol(move.moved()));
-            // add ambiguation
-            String disambiguation = getDisambiguation(preMovePosition, move.to(), move.from());
-            sb.append(disambiguation); // disambiguation for pawn and king is empty string
-
-            // add 'x' for captures (including en-passant)
-            boolean isCapture = move.isEnPassant() || preMovePosition.getPieceAt(move.to()) != null;
-            if (isCapture) {
-                if (move.moved() == PieceType.PAWN || move.isEnPassant()) {
-                    sb.append(move.from().toNotation().charAt(0));
-                }
-                sb.append('x');
-            }
-
-            // add destination square notation
-            sb.append(move.to().toNotation());
-        }
-
-        if (move.promotionType() != null) {
-            sb.append("=").append(pieceTypeToSymbol(move.promotionType()));
-        }
-
-        UndoInfo undo = preMovePosition.applyMove(move);
-        if (preMovePosition.isCheckmate(preMovePosition.getTurnColor())) {
-            sb.append("#");
-        } else if (preMovePosition.getBoard().isInCheck(preMovePosition.getTurnColor())) {
-            sb.append("+");
-        }
-        preMovePosition.undoMove(move, undo);
-
-        return sb.toString();
-    }
-
-    public String pieceTypeToSymbol(PieceType pieceType) {
+    private static String pieceTypeToSymbol(PieceType pieceType) {
         return switch (pieceType) {
             case PAWN -> "";
             case KNIGHT -> "N";

@@ -1,6 +1,6 @@
-package me.zilid.chessplatform.repository;
+package me.zilid.chessplatform.repository.game;
 
-import me.zilid.chessplatform.model.dto.ActiveGameState;
+import me.zilid.chessplatform.chess.game.Game;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -9,7 +9,9 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -25,6 +27,8 @@ public class GameStateStore {
 
     static final Duration GAME_TTL = Duration.ofHours(1);
     static final Duration LOCK_TTL = Duration.ofSeconds(10);
+    // Sorted set of game ids scored by the epoch millis at which each game's time limit passes
+    static final String TIMEOUT_DEADLINES_KEY = "game-timeouts";
     private static final Duration LOCK_WAIT = Duration.ofSeconds(3);
     private static final Duration LOCK_RETRY_INTERVAL = Duration.ofMillis(10);
 
@@ -38,32 +42,61 @@ public class GameStateStore {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ActiveGameStateConverter converter;
 
-    public GameStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    GameStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper,
+                   ActiveGameStateConverter converter) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.converter = converter;
     }
 
     /**
-     * Save the game and reset its expiry to {@link #GAME_TTL}.
+     * Save the game, reset its expiry to {@link #GAME_TTL}, and record or clear its timeout deadline.
      */
-    public void storeGame(UUID gameId, ActiveGameState game) {
+    public void storeGame(UUID gameId, Game game) {
+        String json;
         try {
-            String json = objectMapper.writeValueAsString(game);
-            redisTemplate.opsForValue().set(key(gameId), json, GAME_TTL);
+            json = objectMapper.writeValueAsString(converter.toState(game));
         } catch (JacksonException e) {
             throw new IllegalArgumentException("failed to serialize game state for gameId=" + gameId, e);
         }
+        redisTemplate.opsForValue().set(key(gameId), json, GAME_TTL);
+        Instant deadline = game.timeoutDeadline();
+        if (deadline == null) {
+            clearTimeoutDeadline(gameId);
+        } else {
+            redisTemplate.opsForZSet().add(TIMEOUT_DEADLINES_KEY, gameId.toString(), deadline.toEpochMilli());
+        }
     }
 
-    public @Nullable ActiveGameState loadGame(UUID gameId) {
+    /**
+     * Ids of games whose timeout deadline is at or before {@code now}, earliest first.
+     */
+    public List<UUID> findTimeoutsDue(Instant now, int limit) {
+        Set<String> ids = redisTemplate.opsForZSet()
+                .rangeByScore(TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, now.toEpochMilli(), 0, limit);
+        if (ids == null) {
+            return List.of();
+        }
+        return ids.stream().map(UUID::fromString).toList();
+    }
+
+    /**
+     * Stop tracking the game's timeout, for example after the game itself has disappeared.
+     */
+    public void clearTimeoutDeadline(UUID gameId) {
+        redisTemplate.opsForZSet().remove(TIMEOUT_DEADLINES_KEY, gameId.toString());
+    }
+
+    public @Nullable Game loadGame(UUID gameId) {
         String json = redisTemplate.opsForValue().get(key(gameId));
         if (json == null) {
             return null;
         }
 
         try {
-            return objectMapper.readValue(json, ActiveGameState.class);
+            return converter.toGame(objectMapper.readValue(json, ActiveGameState.class));
         } catch (JacksonException e) {
             throw new IllegalArgumentException("failed to parse game state for gameId=" + gameId, e);
         }

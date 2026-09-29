@@ -14,8 +14,6 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SanPgnFormatterTest {
-    private final SanFormatter san = new SanFormatter();
-
     private static Stream<Arguments> sanCases() {
         return Stream.of(
                 Arguments.of("pawn push", "7k/8/8/8/8/8/4P3/K7 w - - 0 1", "e2", "e4", null, "e4"),
@@ -42,7 +40,7 @@ class SanPgnFormatterTest {
         Position position = Fen.parse(fen);
         Move move = legalMove(position, from, to, promotion);
 
-        assertThat(san.format(position, move)).as(name).isEqualTo(expected);
+        assertThat(SanFormatter.format(position, move)).as(name).isEqualTo(expected);
         assertThat(Fen.format(position)).as(name + " leaves the position intact").isEqualTo(fen);
     }
 
@@ -57,7 +55,7 @@ class SanPgnFormatterTest {
             replay.applyMove(move);
         }
 
-        assertThat(new PgnFormatter().format(Position.startingPosition(), moves))
+        assertThat(PgnFormatter.format(Position.startingPosition(), moves))
                 .isEqualTo("1. f3 e5 2. g4 Qh4#");
     }
 }

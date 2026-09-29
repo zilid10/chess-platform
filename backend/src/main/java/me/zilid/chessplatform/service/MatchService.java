@@ -2,14 +2,13 @@ package me.zilid.chessplatform.service;
 
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
+import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.Game;
+import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.Player;
-import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
-import me.zilid.chessplatform.model.converter.ActiveGameStateConverter;
 import me.zilid.chessplatform.model.converter.MatchRecordConverter;
-import me.zilid.chessplatform.model.dto.ActiveGameState;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
 import me.zilid.chessplatform.model.dto.GameJoinResponse;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
@@ -17,9 +16,9 @@ import me.zilid.chessplatform.model.dto.MatchRecordResponse;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.rating.RatingChange;
-import me.zilid.chessplatform.repository.GameStateStore;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
+import me.zilid.chessplatform.repository.game.GameStateStore;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +29,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -46,17 +47,16 @@ public class MatchService {
     private final UserRepo userRepo;
     private final RatingService ratingService;
     private final GameStateStore gameStateStore;
-    private final ActiveGameStateConverter activeGameStateConverter;
+    private final Clock clock;
 
     public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo,
-                        RatingService ratingService, GameStateStore gameStateStore,
-                        ActiveGameStateConverter activeGameStateConverter) {
+                        RatingService ratingService, GameStateStore gameStateStore, Clock clock) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
         this.userRepo = userRepo;
         this.ratingService = ratingService;
         this.gameStateStore = gameStateStore;
-        this.activeGameStateConverter = activeGameStateConverter;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -80,19 +80,20 @@ public class MatchService {
         return matchRecord.getPgn();
     }
 
-    public GameCreatedResponse createGame(Player currentUser, Color color, TimeControl timeControl) {
+    public GameCreatedResponse createGame(Player currentUser, Color color, ClockSetting clockSetting) {
         UUID gameId = UUID.randomUUID();
         logger.info("Creating new {} game {} for user {} with color {}",
-                timeControl, gameId, currentUser.displayName(), color);
+                clockSetting, gameId, currentUser.displayName(), color);
         Game game = color.isWhite()
-                ? new Game(currentUser, null, timeControl)
-                : new Game(null, currentUser, timeControl);
+                ? new Game(currentUser, null, clockSetting, clock.instant())
+                : new Game(null, currentUser, clockSetting, clock.instant());
         saveGame(gameId, game);
 
         return new GameCreatedResponse(
                 gameId,
                 color,
-                timeControl,
+                clockSetting.toString(),
+                clockSetting.category(),
                 game.getFen(),
                 "/game/" + gameId
         );
@@ -109,11 +110,11 @@ public class MatchService {
                 role = "BLACK"; // reconnect
                 logger.debug("User {} reconnecting as BLACK to game {}", currentUser.displayName(), gameId);
             } else if (game.getWhitePlayer() == null) {
-                game.setWhitePlayer(currentUser);
+                game.seat(Color.WHITE, currentUser, clock.instant());
                 role = "WHITE";
                 logger.info("User {} joined game {} as WHITE", currentUser.displayName(), gameId);
             } else if (game.getBlackPlayer() == null) {
-                game.setBlackPlayer(currentUser);
+                game.seat(Color.BLACK, currentUser, clock.instant());
                 role = "BLACK";
                 logger.info("User {} joined game {} as BLACK", currentUser.displayName(), gameId);
             } else {
@@ -124,6 +125,7 @@ public class MatchService {
             return new GameJoinResponse(
                     gameId,
                     role,
+                    game.getClockSetting().toString(),
                     game.getTimeControl(),
                     game.getFen(),
                     game.getStatus(),
@@ -135,14 +137,19 @@ public class MatchService {
     public GameStateResponse makeMove(Player currentUser, UUID gameId,
                                       String moveFrom, String moveTo, @Nullable PieceType promotion) {
         return updateGame(gameId, game -> {
+            Instant now = clock.instant();
             requirePlayer(game, currentUser);
             if (game.isGameOver()) {
                 throw new IllegalStateException("Game is already over");
             }
+            if (game.checkTimeout(now)) {
+                logger.info("Game {} ended on time before the move {} to {}", gameId, moveFrom, moveTo);
+                return buildGameStateResponse(game);
+            }
             if (!game.isUserTurn(currentUser)) {
                 throw new IllegalStateException("It is not your turn");
             }
-            if (!game.makeMove(moveFrom, moveTo, promotion)) {
+            if (!game.makeMove(moveFrom, moveTo, promotion, now)) {
                 throw new IllegalArgumentException("Invalid move: " + moveFrom + " to " + moveTo);
             }
             logger.info("Move executed in game {}: {} to {}", gameId, moveFrom, moveTo);
@@ -154,7 +161,7 @@ public class MatchService {
         logger.info("User {} offering draw in game {}", currentUser.displayName(), gameId);
         updateGame(gameId, game -> {
             Color color = playerColor(game, currentUser);
-            if (game.isGameOver()) {
+            if (game.isGameOver() || game.hasTimedOut(clock.instant())) {
                 throw new IllegalStateException("Game is over");
             }
             game.offerDraw(color);
@@ -170,7 +177,11 @@ public class MatchService {
                 logger.warn("Attempted draw acceptance on completed game {}", gameId);
                 throw new GameIsOverException("Game is already over");
             }
-            game.acceptDraw(color);
+            Instant now = clock.instant();
+            if (game.checkTimeout(now)) {
+                return buildGameStateResponse(game);
+            }
+            game.acceptDraw(color, now);
             return buildGameStateResponse(game);
         });
     }
@@ -182,9 +193,33 @@ public class MatchService {
                 logger.warn("Attempted resignation on completed game {}", gameId);
                 throw new GameIsOverException("Game is already over");
             }
-            game.resign(color);
+            Instant now = clock.instant();
+            if (game.checkTimeout(now)) {
+                return buildGameStateResponse(game);
+            }
+            game.resign(color, now);
             logger.info("Player {} resigned in game {}", color, gameId);
             return buildGameStateResponse(game);
+        });
+    }
+
+    /**
+     * End the game if its time limit has passed, as one load-check-store step under the game's lock. Safe to call
+     * from any number of instances at once: only the call that actually ends the game gets a state back, so only
+     * that caller should publish the result and archive the match.
+     *
+     * @return the final state if this call ended the game; empty if the game is missing, already over, or still
+     * within its time limit
+     */
+    public Optional<GameStateResponse> checkTimeout(UUID gameId) {
+        return gameStateStore.withLock(gameId, () -> {
+            Game game = getGameSession(gameId);
+            if (game == null || !game.checkTimeout(clock.instant())) {
+                return Optional.empty();
+            }
+            saveGame(gameId, game);
+            logger.info("Game {} ended on time: {}", gameId, game.getStatus());
+            return Optional.of(buildGameStateResponse(game));
         });
     }
 
@@ -198,15 +233,29 @@ public class MatchService {
      * Build a GameStateResponse from the current game state
      */
     public GameStateResponse buildGameStateResponse(Game game) {
+        Instant now = clock.instant();
         synchronized (game) {
             return new GameStateResponse(
                     game.getStatus(),
                     game.getFen(),
                     game.getLastMoveFrom(),
                     game.getLastMoveTo(),
-                    game.getTurnColor().name()
+                    game.getTurnColor().name(),
+                    game.getRemaining(Color.WHITE, now).toMillis(),
+                    game.getRemaining(Color.BLACK, now).toMillis(),
+                    game.isClockRunning(),
+                    firstMoveRemainingMillis(game, now)
             );
         }
+    }
+
+    private static @Nullable Long firstMoveRemainingMillis(Game game, Instant now) {
+        Instant deadline = game.getFirstMoveDeadline();
+        if (deadline == null || game.isGameOver()) {
+            return null;
+        }
+        Duration left = Duration.between(now, deadline);
+        return left.isNegative() ? 0L : left.toMillis();
     }
 
     /**
@@ -216,6 +265,9 @@ public class MatchService {
     public RatingChange archiveMatch(UUID matchId, Game game) {
         if (!game.isGameOver()) {
             throw new IllegalStateException("Game is not over");
+        }
+        if (game.getStatus() == GameStatus.ABORTED) {
+            throw new IllegalStateException("Aborted games are not archived");
         }
         Player white = game.getWhitePlayer();
         Player black = game.getBlackPlayer();
@@ -252,8 +304,7 @@ public class MatchService {
      * Load a game session (useful for testing or administrative purposes)
      */
     public @Nullable Game getGameSession(UUID gameId) {
-        ActiveGameState state = gameStateStore.loadGame(gameId);
-        return state == null ? null : activeGameStateConverter.toGame(state);
+        return gameStateStore.loadGame(gameId);
     }
 
     public Game getGameOrThrow(UUID gameId) {
@@ -278,7 +329,7 @@ public class MatchService {
     }
 
     private void saveGame(UUID gameId, Game game) {
-        gameStateStore.storeGame(gameId, activeGameStateConverter.toState(game));
+        gameStateStore.storeGame(gameId, game);
     }
 
     public void requirePlayer(Game game, Player user) {

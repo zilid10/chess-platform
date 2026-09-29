@@ -1,4 +1,4 @@
-package me.zilid.chessplatform.model.entity;
+package me.zilid.chessplatform.security;
 
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.jspecify.annotations.Nullable;
@@ -11,6 +11,10 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Authenticated identity stored in Java-serialized Redis sessions. Its qualified class name, serialized fields,
+ * and serialVersionUID are part of the session format; changing any of them invalidates existing sessions.
+ */
 public class UserPrincipal implements UserDetails, CredentialsContainer {
     // Stored in Redis-backed sessions; keep stable so sessions survive redeploys
     @Serial

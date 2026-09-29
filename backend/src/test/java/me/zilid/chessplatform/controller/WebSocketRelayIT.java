@@ -1,12 +1,15 @@
 package me.zilid.chessplatform.controller;
 
+import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.Player;
+import me.zilid.chessplatform.chess.game.TestGames;
 import me.zilid.chessplatform.config.WebsocketConfig;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.UserPrincipal;
+import me.zilid.chessplatform.service.GameEventPublisher;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
@@ -36,6 +39,7 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -154,8 +158,11 @@ class WebSocketRelayIT {
     }
 
     private static GameStateResponse state(Game game) {
+        Instant now = Instant.now();
         return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
-                game.getLastMoveTo(), game.getTurnColor().name());
+                game.getLastMoveTo(), game.getTurnColor().name(),
+                game.getRemaining(Color.WHITE, now).toMillis(), game.getRemaining(Color.BLACK, now).toMillis(),
+                game.isClockRunning(), null);
     }
 
     private static UserPrincipal principal(String username) {
@@ -168,7 +175,7 @@ class WebSocketRelayIT {
 
     @BeforeEach
     void setUp() {
-        game = new Game(WHITE.toPlayer(), BLACK.toPlayer());
+        game = TestGames.game(WHITE.toPlayer(), BLACK.toPlayer());
         reset(MATCH_SERVICE);
         when(MATCH_SERVICE.getGameOrThrow(GAME_ID)).thenReturn(game);
         when(MATCH_SERVICE.buildGameStateResponse(game)).thenAnswer(invocation -> state(game));
@@ -235,7 +242,7 @@ class WebSocketRelayIT {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-    @Import({WebsocketConfig.class, GameSocketController.class})
+    @Import({WebsocketConfig.class, GameSocketController.class, GameEventPublisher.class})
     static class TestApplication {
         @Bean
         MatchService matchService() {

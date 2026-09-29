@@ -113,6 +113,18 @@ export class WebSocketService {
     });
   }
 
+  // Ask the server to end the game because the side to move has run out of time; it checks its own clock
+  claimTimeout(gameId: string) {
+    if (!this.client || !this.client.connected) {
+      throw new Error('WebSocket not connected');
+    }
+
+    this.client.publish({
+      destination: `/app/game/${gameId}/flag`,
+      body: '',
+    });
+  }
+
   offerDraw(gameId: string) {
     if (!this.client || !this.client.connected) {
       throw new Error('WebSocket not connected');

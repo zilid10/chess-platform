@@ -3,7 +3,7 @@ package me.zilid.chessplatform.repository;
 import jakarta.persistence.EntityManager;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.model.entity.MatchRecord;
-import me.zilid.chessplatform.model.entity.PlayerRating;
+import me.zilid.chessplatform.model.entity.Rating;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.rating.RatingChange;
 import org.junit.jupiter.api.Test;
@@ -20,10 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @EnabledIfEnvironmentVariable(named = "SPRING_DATASOURCE_URL", matches = "jdbc:postgresql:.*")
-class PlayerRatingRepoIntegrationTest {
+class RatingRepoIntegrationTest {
 
     @Autowired
-    private PlayerRatingRepo playerRatingRepo;
+    private RatingRepo ratingRepo;
 
     @Autowired
     private UserRepo userRepo;
@@ -40,12 +40,12 @@ class PlayerRatingRepoIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(playerRatingRepo.findByUser_Id(user.getId()))
-                .extracting(PlayerRating::getTimeControl)
+        assertThat(ratingRepo.findByUser_Id(user.getId()))
+                .extracting(Rating::getTimeControl)
                 .containsExactlyInAnyOrder(TimeControl.values());
-        assertThat(playerRatingRepo.findByUser_Id(user.getId()))
+        assertThat(ratingRepo.findByUser_Id(user.getId()))
                 .allSatisfy(rating -> {
-                    assertThat(rating.getRating()).isEqualTo(PlayerRating.DEFAULT_RATING);
+                    assertThat(rating.getRating()).isEqualTo(Rating.DEFAULT_RATING);
                     assertThat(rating.getGamesPlayed()).isZero();
                 });
     }
@@ -56,16 +56,16 @@ class PlayerRatingRepoIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        PlayerRating blitz = playerRatingRepo.findForUpdate(user.getId(), TimeControl.BLITZ).orElseThrow();
+        Rating blitz = ratingRepo.findForUpdate(user.getId(), TimeControl.BLITZ).orElseThrow();
         blitz.applyChanges(1234);
         entityManager.flush();
         entityManager.clear();
 
-        PlayerRating reloaded = playerRatingRepo.findForUpdate(user.getId(), TimeControl.BLITZ).orElseThrow();
+        Rating reloaded = ratingRepo.findForUpdate(user.getId(), TimeControl.BLITZ).orElseThrow();
         assertThat(reloaded.getRating()).isEqualTo(1234);
         assertThat(reloaded.getPeakRating()).isEqualTo(1234);
         assertThat(reloaded.getGamesPlayed()).isEqualTo(1);
-        assertThat(playerRatingRepo.findForUpdate(UUID.randomUUID(), TimeControl.BLITZ)).isEmpty();
+        assertThat(ratingRepo.findForUpdate(UUID.randomUUID(), TimeControl.BLITZ)).isEmpty();
     }
 
     @Test

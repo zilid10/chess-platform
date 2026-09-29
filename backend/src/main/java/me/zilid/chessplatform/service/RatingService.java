@@ -4,12 +4,12 @@ import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
-import me.zilid.chessplatform.model.entity.PlayerRating;
+import me.zilid.chessplatform.model.entity.Rating;
 import me.zilid.chessplatform.rating.GameOutcome;
-import me.zilid.chessplatform.rating.PlayerRatingDto;
+import me.zilid.chessplatform.rating.PlayerRating;
 import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.rating.RatingSystem;
-import me.zilid.chessplatform.repository.PlayerRatingRepo;
+import me.zilid.chessplatform.repository.RatingRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,14 +28,32 @@ import java.util.stream.Collectors;
 public class RatingService {
     private static final Logger logger = LoggerFactory.getLogger(RatingService.class);
 
-    private final PlayerRatingRepo playerRatingRepo;
+    private final RatingRepo ratingRepo;
     private final UserRepo userRepo;
     private final RatingSystem ratingSystem;
 
-    public RatingService(PlayerRatingRepo playerRatingRepo, UserRepo userRepo, RatingSystem ratingSystem) {
-        this.playerRatingRepo = playerRatingRepo;
+    public RatingService(RatingRepo ratingRepo, UserRepo userRepo, RatingSystem ratingSystem) {
+        this.ratingRepo = ratingRepo;
         this.userRepo = userRepo;
         this.ratingSystem = ratingSystem;
+    }
+
+    static GameOutcome outcomeOf(GameStatus status) {
+        if (status.isWhiteWin()) {
+            return GameOutcome.WHITE_WINS;
+        }
+        if (status.isBlackWin()) {
+            return GameOutcome.BLACK_WINS;
+        }
+        if (status.isDraw()) {
+            return GameOutcome.DRAW;
+        }
+        // Still going, or aborted
+        throw new IllegalArgumentException("Game has no result");
+    }
+
+    private static PlayerRating toDto(UUID userId, Rating rating) {
+        return new PlayerRating(userId, rating.getRating(), rating.getGamesPlayed(), rating.getPeakRating());
     }
 
     /**
@@ -50,8 +68,8 @@ public class RatingService {
         GameOutcome outcome = outcomeOf(status);
 
         // Lock rows in a fixed order so two games sharing both players cannot deadlock.
-        PlayerRating white;
-        PlayerRating black;
+        Rating white;
+        Rating black;
         if (whiteId.compareTo(blackId) < 0) {
             white = lockRating(whiteId, timeControl);
             black = lockRating(blackId, timeControl);
@@ -76,14 +94,14 @@ public class RatingService {
         if (!userRepo.existsById(userId)) {
             throw new UserNotFoundException("User not found!");
         }
-        Map<TimeControl, PlayerRating> ratings = playerRatingRepo.findByUser_Id(userId).stream()
-                .collect(Collectors.toMap(PlayerRating::getTimeControl, Function.identity()));
+        Map<TimeControl, Rating> ratings = ratingRepo.findByUser_Id(userId).stream()
+                .collect(Collectors.toMap(Rating::getTimeControl, Function.identity()));
         return Arrays.stream(TimeControl.values())
                 .map(timeControl -> {
-                    PlayerRating rating = ratings.get(timeControl);
+                    Rating rating = ratings.get(timeControl);
                     if (rating == null) {
-                        return new PlayerRatingResponse(timeControl, PlayerRating.DEFAULT_RATING, 0,
-                                PlayerRating.DEFAULT_RATING);
+                        return new PlayerRatingResponse(timeControl, Rating.DEFAULT_RATING, 0,
+                                Rating.DEFAULT_RATING);
                     }
                     return new PlayerRatingResponse(timeControl, rating.getRating(), rating.getGamesPlayed(),
                             rating.getPeakRating());
@@ -91,27 +109,10 @@ public class RatingService {
                 .toList();
     }
 
-    static GameOutcome outcomeOf(GameStatus status) {
-        if (status.isWhiteWin()) {
-            return GameOutcome.WHITE_WINS;
-        }
-        if (status.isBlackWin()) {
-            return GameOutcome.BLACK_WINS;
-        }
-        if (status.isDraw()) {
-            return GameOutcome.DRAW;
-        }
-        throw new IllegalArgumentException("Game is not over");
-    }
-
-    private PlayerRating lockRating(UUID userId, TimeControl timeControl) {
+    private Rating lockRating(UUID userId, TimeControl timeControl) {
         // Every user gets their rating rows at registration; this covers accounts that predate them.
-        return playerRatingRepo.findForUpdate(userId, timeControl)
-                .orElseGet(() -> playerRatingRepo.save(
-                        new PlayerRating(userRepo.getReferenceById(userId), timeControl)));
-    }
-
-    private static PlayerRatingDto toDto(UUID userId, PlayerRating rating) {
-        return new PlayerRatingDto(userId, rating.getRating(), rating.getGamesPlayed(), rating.getPeakRating());
+        return ratingRepo.findForUpdate(userId, timeControl)
+                .orElseGet(() -> ratingRepo.save(
+                        new Rating(userRepo.getReferenceById(userId), timeControl)));
     }
 }

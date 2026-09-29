@@ -63,18 +63,49 @@ Migrations are applied externally; Spring Boot does not run Flyway automatically
 
 The backend uses a layered architecture under `backend/src/main/java/me/zilid/chessplatform/`:
 
-- `chess/` - Board state, move rules, game lifecycle, and notation
-- `controller/` - API endpoints and WebSocket handlers
-- `service/` - Business logic layer
-- `repository/` - Data access layer
-- `model/` - Data models
-    - `entity/` - JPA entities
-    - `dto/` - Data Transfer Objects
-    - `converter/` - Entity-DTO converters
-- `config/` - Configuration classes
-    - `SecurityConfig.java` - Security configuration
-    - `WebsocketConfig.java` - WebSocket configuration
-- `exception/` - Custom exceptions and global exception handler
+| Package | Responsibility |
+| --- | --- |
+| `chess/` | Board state and legal moves; no Spring, account entities, or storage dependencies |
+| `chess/game/` | Game lifecycle, player contracts, and reconstruction snapshots, time controls, and clocks |
+| `chess/format/` | FEN and UCI; `pgn/` formats SAN and PGN from engine positions and moves |
+| `rating/` | Framework-independent rating contracts and values; `elo/` implements Elo calculations |
+| `controller/` | HTTP/STOMP entry points, authenticated identity conversion, and response publication |
+| `controller/advice/` | Translate application failures into HTTP and STOMP error responses |
+| `service/` | Application use cases and transaction boundaries; coordinate engines, persistence, and API mapping |
+| `repository/` | Spring Data access to PostgreSQL |
+| `repository/game/` | Redis game persistence, reconstruction, expiry, and distributed locking |
+| `model/entity/` | JPA entities and persistence base classes |
+| `model/dto/` | HTTP/STOMP request and response contracts |
+| `model/converter/` | Map API contracts to/from JPA entities, including password encoding for account writes |
+| `security/` | Spring Security configuration, the session-stored `UserPrincipal`, and its credential loader |
+| `config/` | Spring and infrastructure wiring |
+| `exception/` | Application exception types, independent of transport handlers |
+
+The main dependency direction is `controller -> service -> repository`, with application code using the
+`chess` and `rating` engines. These engines must not import controllers, services, persistence, or security.
+Controllers pass `Player` or user IDs into services instead of passing Spring Security principals.
+Repositories must not call application services or authentication loaders. Each Java package documents
+its responsibility in `package-info.java` and retains its JSpecify `@NullMarked` default.
+
+For active games, `MatchService` works with `GameStateStore` and engine `Game` objects. The store owns
+the package-private `ActiveGameState` JSON record and `ActiveGameStateConverter`; it resolves player IDs
+through `UserRepo` and reconstructs `RegisteredPlayer` values without loading credentials into a principal.
+`GameSnapshot` remains the engine's reconstruction contract. Redis JSON field names and keys are unchanged.
+
+`security.UserPrincipal` is stored in Redis-backed login sessions with Java serialization, so its qualified
+class name, serialized fields, and `serialVersionUID` are part of the session format. Changing any of them
+invalidates existing sessions: flush the Spring Session keys in Redis when deploying such a change.
+
+This is a pragmatic layered application, not a set of independently deployable feature modules. Services
+share API DTOs, DTOs reuse some domain/entity enums, and entities use chess/rating value types. Those are
+explicit shared contracts; new use-case orchestration belongs in services, not in DTOs or converters.
+
+### Frontend Boundaries
+
+`pages/` owns routed screens, `components/` owns reused UI, and `context/` owns shared authentication state.
+`services/` owns HTTP and STOMP access and error extraction; it must not import screens or React context.
+`types/` owns shared API types and time-control constants. `App.tsx` composes routing and providers.
+The current frontend is small enough that these folders remain useful without additional feature nesting.
 
 ---
 

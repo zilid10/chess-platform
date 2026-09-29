@@ -5,6 +5,10 @@ import me.zilid.chessplatform.chess.game.TimeControl;
 
 import java.util.UUID;
 
-public record GameJoinResponse(UUID gameId, String role, TimeControl timeControl, String fen, GameStatus status,
-                               String currentTurn) {
+/**
+ * @param clockSetting initial minutes and increment seconds, such as "5+3"
+ * @param timeControl  the rating category of {@code clockSetting}
+ */
+public record GameJoinResponse(UUID gameId, String role, String clockSetting, TimeControl timeControl, String fen,
+                               GameStatus status, String currentTurn) {
 }

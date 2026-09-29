@@ -1,14 +1,14 @@
 package me.zilid.chessplatform.controller;
 
 import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.config.SecurityConfig;
-import me.zilid.chessplatform.exception.GlobalExceptionHandler;
+import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
+import me.zilid.chessplatform.security.SecurityConfig;
+import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.RatingService;
 import me.zilid.chessplatform.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -40,17 +40,9 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 // The production application enables JPA repositories, so keep this MVC slice isolated.
 @WebMvcTest(UserController.class)
@@ -63,23 +55,28 @@ class UserControllerWebMvcTest {
             Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"));
     private static final UserPrincipal PRINCIPAL = new UserPrincipal(
             USER_ID, "player", "player@example.com", "password123", true, List.of());
-
-    @SpringBootConfiguration
-    @Import({UserController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {
-    }
-
     @Autowired
     private MockMvc mvc;
-
     @MockitoBean
     private UserService userService;
-
     @MockitoBean
     private RatingService ratingService;
-
     @MockitoBean
     private AuthenticationManager authenticationManager;
+
+    private static Stream<Arguments> invalidRegistrations() {
+        return Stream.of(
+                Arguments.of("short username", """
+                        {"username":"ab","email":"player@example.com","rawPassword":"password123"}
+                        """, "username"),
+                Arguments.of("malformed email", """
+                        {"username":"player","email":"invalid","rawPassword":"password123"}
+                        """, "email"),
+                Arguments.of("short password", """
+                        {"username":"player","email":"player@example.com","rawPassword":"x"}
+                        """, "rawPassword")
+        );
+    }
 
     @Test
     void ratingsAreListedPerTimeControl() throws Exception {
@@ -148,20 +145,6 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.errors." + field + "[0]").isNotEmpty());
 
         verifyNoInteractions(userService);
-    }
-
-    private static Stream<Arguments> invalidRegistrations() {
-        return Stream.of(
-                Arguments.of("short username", """
-                        {"username":"ab","email":"player@example.com","rawPassword":"password123"}
-                        """, "username"),
-                Arguments.of("malformed email", """
-                        {"username":"player","email":"invalid","rawPassword":"password123"}
-                        """, "email"),
-                Arguments.of("short password", """
-                        {"username":"player","email":"player@example.com","rawPassword":"x"}
-                        """, "rawPassword")
-        );
     }
 
     @Test
@@ -313,5 +296,10 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.errors.rawPassword[0]").isNotEmpty())
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("pw"))));
         verifyNoInteractions(userService);
+    }
+
+    @SpringBootConfiguration
+    @Import({UserController.class, SecurityConfig.class, GlobalExceptionHandler.class})
+    static class TestConfiguration {
     }
 }

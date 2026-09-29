@@ -2,7 +2,7 @@ package me.zilid.chessplatform.rating;
 
 import java.util.UUID;
 
-public record PlayerRatingDto(
+public record PlayerRating(
         UUID playerId,
         int rating,
         int gamesPlayed,

@@ -1,7 +1,7 @@
 package me.zilid.chessplatform.rating.elo;
 
 import me.zilid.chessplatform.rating.GameOutcome;
-import me.zilid.chessplatform.rating.PlayerRatingDto;
+import me.zilid.chessplatform.rating.PlayerRating;
 import me.zilid.chessplatform.rating.RatingChange;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,8 +17,8 @@ class EloRatingSystemTest {
     private final EloRatingSystem elo = new EloRatingSystem(player -> 20);
 
     // gamesPlayed and peakRating don't matter here; only rating feeds the formula.
-    private static PlayerRatingDto player(int rating) {
-        return new PlayerRatingDto(UUID.randomUUID(), rating, 100, rating);
+    private static PlayerRating player(int rating) {
+        return new PlayerRating(UUID.randomUUID(), rating, 100, rating);
     }
 
     @ParameterizedTest
@@ -58,8 +58,8 @@ class EloRatingSystemTest {
         // New players (few games) get K=40, established ones K=20.
         EloRatingSystem eloWithPerPlayerK =
                 new EloRatingSystem(p -> p.gamesPlayed() < 20 ? 40 : 20);
-        PlayerRatingDto newPlayer = new PlayerRatingDto(UUID.randomUUID(), 1500, 5, 1500);
-        PlayerRatingDto establishedPlayer = new PlayerRatingDto(UUID.randomUUID(), 1500, 300, 1600);
+        PlayerRating newPlayer = new PlayerRating(UUID.randomUUID(), 1500, 5, 1500);
+        PlayerRating establishedPlayer = new PlayerRating(UUID.randomUUID(), 1500, 300, 1600);
 
         RatingChange change =
                 eloWithPerPlayerK.apply(newPlayer, establishedPlayer, GameOutcome.WHITE_WINS);

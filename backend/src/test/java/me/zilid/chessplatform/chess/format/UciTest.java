@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UciTest {
 
@@ -14,7 +15,7 @@ class UciTest {
     void parsesAndFormatsOrdinaryMove() {
         UciMove move = new UciMove(Square.fromNotation("e2"), Square.fromNotation("e4"), null);
 
-        assertThat(Uci.parse("e2e4")).contains(move);
+        assertThat(Uci.parse("e2e4")).isEqualTo(move);
         assertThat(Uci.format(move)).isEqualTo("e2e4");
         assertThat(Uci.format(Move.doublePush(move.from(), move.to()))).isEqualTo("e2e4");
     }
@@ -23,7 +24,7 @@ class UciTest {
     @ValueSource(strings = {"q", "r", "b", "n"})
     void parsesAndFormatsEveryPromotionChoice(String suffix) {
         String notation = "a7a8" + suffix;
-        UciMove parsed = Uci.parse(notation).orElseThrow();
+        UciMove parsed = Uci.parse(notation);
 
         assertThat(parsed.promotion()).isIn(Move.PROMOTION_CHOICES);
         assertThat(Uci.format(parsed)).isEqualTo(notation);
@@ -34,6 +35,6 @@ class UciTest {
     @ParameterizedTest
     @ValueSource(strings = {"", "e2e", "e2e4qz", "i2e4", "e2e9", "e7e8k", "E2E4"})
     void rejectsMalformedMove(String notation) {
-        assertThat(Uci.parse(notation)).isEmpty();
+        assertThatThrownBy(() -> Uci.parse(notation)).isInstanceOf(IllegalArgumentException.class);
     }
 }

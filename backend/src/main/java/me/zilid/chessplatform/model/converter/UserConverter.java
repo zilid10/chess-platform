@@ -4,11 +4,8 @@ import me.zilid.chessplatform.model.dto.UserCreateRequest;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.model.dto.UserUpdateRequest;
 import me.zilid.chessplatform.model.entity.User;
-import me.zilid.chessplatform.model.entity.UserPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-
-import java.util.Collections;
 
 @Component
 public class UserConverter {
@@ -42,16 +39,5 @@ public class UserConverter {
         if (request.about() != null) {
             user.setAbout(request.about());
         }
-    }
-
-    public UserPrincipal toPrincipal(User user) {
-        return new UserPrincipal(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getPasswordHash(),
-                true,
-                Collections.emptyList()
-        );
     }
 }
