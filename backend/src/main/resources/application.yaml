@@ -25,6 +25,9 @@ server:
         # Spring Session would otherwise name it SESSION
         name: JSESSIONID
 
+logging:
+  exception-conversion-word: "%wEx{10}"
+
 app:
   allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000,http://frontend:3000}
   websocket:

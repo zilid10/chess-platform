@@ -23,58 +23,9 @@ jobs:
       run:
         working-directory: backend
 
-    services:
-      postgres:
-        image: postgres:17.5
-        env:
-          POSTGRES_USER: root
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: chessdb
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U root -d chessdb"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:8.6
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/chessdb
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: password
-      SPRING_DATA_REDIS_HOST: localhost
-      APP_WEBSOCKET_RELAY_HOST: localhost
-      APP_WEBSOCKET_RELAY_LOGIN: chess
-      APP_WEBSOCKET_RELAY_PASSCODE: password
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
-
-      # Started here rather than as a service because services cannot enable the STOMP plugin
-      - name: Start RabbitMQ
-        run: |
-          docker run --detach --name rabbitmq --publish 61613:61613 \
-            --env RABBITMQ_DEFAULT_USER=chess --env RABBITMQ_DEFAULT_PASS=password \
-            rabbitmq:4.1-management \
-            sh -c 'rabbitmq-plugins enable --offline rabbitmq_stomp && exec docker-entrypoint.sh rabbitmq-server'
-          for attempt in $(seq 1 30); do
-            if docker exec rabbitmq rabbitmq-diagnostics -q check_port_connectivity; then
-              exit 0
-            fi
-            sleep 2
-          done
-          docker logs rabbitmq
-          exit 1
 
       - name: Set up Java
         uses: actions/setup-java@v6
@@ -83,15 +34,6 @@ jobs:
           java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
-
-      - name: Apply database migrations
-        env:
-          PGPASSWORD: password
-        run: |
-          for migration in src/main/resources/db/migrations/*.sql; do
-            psql --host localhost --username root --dbname chessdb \
-              --set ON_ERROR_STOP=1 --file "$migration"
-          done
 
       - name: Test backend
         run: ./mvnw --batch-mode --no-transfer-progress verify
@@ -118,14 +60,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Lint
         run: npm run lint
 
       - name: Test
         run: npm test
-
-      - name: Typecheck
-        run: npm run typecheck
 
       - name: Build
         run: npm run build

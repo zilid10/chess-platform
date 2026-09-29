@@ -1,6 +1,5 @@
 package me.zilid.chessplatform.service;
 
-import me.zilid.chessplatform.MutableClock;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.*;
 import me.zilid.chessplatform.exception.GameIsOverException;
@@ -15,6 +14,7 @@ import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.repository.MatchRecordRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import me.zilid.chessplatform.repository.game.GameStateStore;
+import me.zilid.chessplatform.util.MutableClock;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -26,11 +26,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -45,11 +41,11 @@ class MatchServiceTest {
     private final RegisteredPlayer alice = player("alice");
     private final RegisteredPlayer bob = player("bob");
     private final RegisteredPlayer spectator = player("spectator");
+    private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
     private MatchRecordRepo matchRecordRepo;
     private UserRepo userRepo;
     private RatingService ratingService;
     private GameStateStore gameStateStore;
-    private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
     private MatchService service;
 
     /**
@@ -408,6 +404,25 @@ class MatchServiceTest {
         assertThat(service.getGameSession(gameId).getStartTime()).isEqualTo(clock.instant());
     }
 
+    private MatchService newService() {
+        return new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
+                ratingService, gameStateStore, clock);
+    }
+
+    private UUID gameWithBothPlayers() {
+        UUID gameId = service.createGame(alice, Color.WHITE, TestGames.TEN_MINUTES).gameId();
+        service.joinGame(gameId, bob);
+        return gameId;
+    }
+
+    private Object moveOrFailure(MatchService raceService, UUID gameId, String from, String to) {
+        try {
+            return raceService.makeMove(alice, gameId, from, to, null);
+        } catch (RuntimeException e) {
+            return e;
+        }
+    }
+
     @Nested
     class Timeout {
         private final Duration tenMinutes = Duration.ofMinutes(10);
@@ -593,25 +608,6 @@ class MatchServiceTest {
                     .hasMessage("Aborted games are not archived");
             verifyNoInteractions(ratingService);
             verify(matchRecordRepo, never()).save(any());
-        }
-    }
-
-    private MatchService newService() {
-        return new MatchService(matchRecordRepo, mock(MatchRecordConverter.class), userRepo,
-                ratingService, gameStateStore, clock);
-    }
-
-    private UUID gameWithBothPlayers() {
-        UUID gameId = service.createGame(alice, Color.WHITE, TestGames.TEN_MINUTES).gameId();
-        service.joinGame(gameId, bob);
-        return gameId;
-    }
-
-    private Object moveOrFailure(MatchService raceService, UUID gameId, String from, String to) {
-        try {
-            return raceService.makeMove(alice, gameId, from, to, null);
-        } catch (RuntimeException e) {
-            return e;
         }
     }
 }

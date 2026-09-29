@@ -3,13 +3,10 @@ package me.zilid.chessplatform.repository.game;
 import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import me.zilid.chessplatform.util.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -22,28 +19,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Runs against the Redis provisioned by the backend CI job.
  */
-@EnabledIfEnvironmentVariable(named = "SPRING_DATA_REDIS_HOST", matches = ".+")
+@IntegrationTest
 class GameStateStoreIT {
 
-    private static LettuceConnectionFactory connectionFactory;
-    private static StringRedisTemplate redisTemplate;
-    private static GameStateStore store;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
-    @BeforeAll
-    static void connect() {
-        String host = System.getenv("SPRING_DATA_REDIS_HOST");
-        String port = System.getenv().getOrDefault("SPRING_DATA_REDIS_PORT", "6379");
-        connectionFactory = new LettuceConnectionFactory(host, Integer.parseInt(port));
-        connectionFactory.afterPropertiesSet();
-        connectionFactory.start();
-        redisTemplate = new StringRedisTemplate(connectionFactory);
-        store = new GameStateStore(redisTemplate, JsonMapper.builder().build(), new ActiveGameStateConverter());
-    }
-
-    @AfterAll
-    static void disconnect() {
-        connectionFactory.destroy();
-    }
+    @Autowired
+    private GameStateStore store;
 
     private static void await(CountDownLatch latch) {
         try {

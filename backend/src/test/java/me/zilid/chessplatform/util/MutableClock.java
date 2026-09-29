@@ -1,32 +1,29 @@
-package me.zilid.chessplatform;
+package me.zilid.chessplatform.util;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A clock that stands still until a test moves it.
  */
 public final class MutableClock extends Clock {
-    private volatile Instant now;
+    private AtomicReference<Instant> now;
 
     public MutableClock(Instant now) {
-        this.now = now;
+        this.now = new AtomicReference<>(now);
     }
 
     public void advance(Duration duration) {
-        now = now.plus(duration);
+        now.getAndUpdate(now -> now.plus(duration));
     }
 
     public void set(Instant instant) {
-        now = instant;
+        now.set(instant);
     }
 
     @Override
     public Instant instant() {
-        return now;
+        return now.get();
     }
 
     @Override

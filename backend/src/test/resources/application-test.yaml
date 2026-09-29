@@ -1,0 +1,11 @@
+spring:
+  flyway:
+    # Flyway would otherwise look in db/migration
+    locations: classpath:db/migrations
+
+logging:
+  level:
+    root: warn
+    me.zilid.chessplatform: warn
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
