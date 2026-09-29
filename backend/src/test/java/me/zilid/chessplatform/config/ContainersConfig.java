@@ -28,11 +28,7 @@ public class ContainersConfig {
 
     @Bean
     public GenericContainer<?> rabbitMQContainer() {
-        return new GenericContainer<>(DockerImageName.parse("rabbitmq:4.1-management"))
-                .withEnv("RABBITMQ_DEFAULT_USER", "chess")
-                .withEnv("RABBITMQ_DEFAULT_PASS", "password")
-                .withCopyToContainer(Transferable.of("[rabbitmq_management,rabbitmq_stomp]."), "/etc/rabbitmq/enabled_plugins")
-                .withExposedPorts(61613);
+        return rabbitMqContainer();
     }
 
     @Bean
