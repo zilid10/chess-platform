@@ -1,290 +1,275 @@
 # Chess Platform
 
-## Overview
+[![CI](https://github.com/zilid10/chess-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/zilid10/chess-platform/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Java 21](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f)
+![React 18](https://img.shields.io/badge/React-18-61dafb)
 
-Chess Platform is a web-based chess application that allows users to:
+A real-time multiplayer chess platform with a chess engine written from scratch, live clocks, Elo ratings, and a
+backend that scales horizontally: any number of instances can serve the same game.
 
-- Play chess in real-time against other players
-- Create accounts and manage profiles
-- Send and manage friend requests
-- View game history with full PGN notation
-- Spectate ongoing games
-- Chat during matches
+Players create a game on a clock such as `5+3`, share its ID, and play over WebSockets. Others who open the same game
+watch it live and can chat. Finished games are rated, archived with their PGN, and listed in each player's history.
 
 ---
 
-## Project Architecture
+## Features
 
-### Repository Layout
+**Play**
 
-```text
-chess-platform/
-├── backend/
-│   ├── .mvn/                  # Maven wrapper configuration
-│   ├── src/main/java/         # Application and chess logic
-│   ├── src/main/resources/    # Spring configuration and db/migrations/
-│   ├── src/test/              # Backend tests
-│   ├── Dockerfile
-│   ├── flyway.conf            # Local Flyway CLI configuration
-│   ├── mvnw / mvnw.cmd
-│   └── pom.xml
-├── frontend/                  # React application, npm config, and Dockerfile
-├── docker/volumes/            # Local runtime data (Git-ignored)
-├── .github/                   # CI and dependency updates
-└── docker-compose.yml         # Shared application stack
+- Real-time games over STOMP WebSockets, with spectators and in-game chat
+- Eleven clock settings, from `1+0` bullet to `30+20` classical, with increments
+- Games end on time even if a player disconnects: the server runs the clocks, not the browser
+- Unstarted games are aborted: White has 30 seconds to make a first move, then Black has 30 seconds to reply
+- Resignation, draw offers, and every standard ending: checkmate, stalemate, threefold repetition, the fifty-move rule,
+  insufficient material, and a draw when time runs out but the opponent could never checkmate
+
+**Compete**
+
+- Separate Elo ratings for bullet, blitz, rapid, and classical, starting at 1200
+- A K-factor that settles as players gain experience: 40 for a player's first 20 games, then 20 up to a 2100 rating,
+  then 10
+- Game history with rating changes, and PGN you can download or copy
+
+**Connect**
+
+- Accounts with profiles, and friend requests you can send, accept, or reject
+- Session login shared across every backend instance
+
+---
+
+## Highlights
+
+### A chess engine built from scratch
+
+The rules engine in `backend/.../chess/` has no framework dependencies. It includes:
+
+- legal move generation, with check detection, castling through unattacked squares, en passant, and promotion to any
+  piece;
+- move application with full undo;
+- FEN and UCI parsing, and SAN and PGN output with file, rank, and square disambiguation.
+
+A perft suite counts every legal move sequence from standard test positions and compares the totals with published
+references, such as 197,281 positions at depth 4 from the starting position. That catches bugs in how castling,
+en passant, promotion, and check interact.
+
+### Clocks the server can enforce
+
+Each player's clock deadline is indexed in a Redis sorted set. A sweeper checks it every 250 ms and ends overdue games,
+so a player who disconnects still loses on time. Each game is updated under a per-game Redis lock, so when several
+instances notice the same timeout, only one ends the game, publishes the result, and archives the match. Clients can
+also claim a flag the moment a clock hits zero, but the server decides using its own clock.
+
+### Horizontal scaling
+
+Nothing about a game lives in one instance's memory:
+
+- **Active games** are stored in Redis and changed under per-game locks, so concurrent moves are serialized across
+  instances.
+- **Login sessions** are stored in Redis with Spring Session.
+- **WebSocket subscriptions** live in RabbitMQ through Spring's STOMP broker relay. A move handled by one instance
+  reaches players connected to another, including private `/user/...` messages.
+
+Docker Compose runs two backend instances behind nginx by default.
+
+```mermaid
+flowchart LR
+    Browser["Browser<br/>React + STOMP"] --> LB["nginx<br/>load balancer"]
+    LB --> B1["Backend<br/>instance 1"]
+    LB --> B2["Backend<br/>instance 2"]
+    B1 & B2 --> PG[("PostgreSQL<br/>accounts, ratings,<br/>match records")]
+    B1 & B2 --> R[("Redis<br/>active games, clocks,<br/>locks, sessions")]
+    B1 & B2 <--> MQ["RabbitMQ<br/>STOMP broker"]
 ```
 
-Run Docker Compose from the repository root, Maven and Flyway commands from
-`backend/`, and npm commands from `frontend/`. Compose, CI, and the local Flyway
-configuration all use `backend/src/main/resources/db/migrations/` as the migration source.
-Migrations are applied externally; Spring Boot does not run Flyway automatically.
+---
 
-### Backend
+## Tech Stack
 
-- Java 21: with Virtual Threads
-- Spring Boot 4.1.1: Core framework
-- Spring Security: Session-based authentication
-- Spring Session + Redis: Login sessions shared by every backend instance
-- Spring WebSocket: Real-time bidirectional communication (STOMP over WebSocket)
-- RabbitMQ 4.1: External STOMP broker, so WebSocket messages reach clients on any backend instance
-- nginx: Load balancer in front of the backend instances (Docker Compose)
-- Spring Data JPA: Data persistence layer
-- PostgreSQL 17.5: Primary database
-- Flyway: Database migration management
-- Maven: Build and dependency management
-
-### Frontend
-
-- React + TypeScript
-- Vite: Build tool
-- TailwindCSS: Styling
-
-### Backend Architecture
-
-The backend uses a layered architecture under `backend/src/main/java/me/zilid/chessplatform/`:
-
-| Package | Responsibility |
-| --- | --- |
-| `chess/` | Board state and legal moves; no Spring, account entities, or storage dependencies |
-| `chess/game/` | Game lifecycle, player contracts, and reconstruction snapshots, time controls, and clocks |
-| `chess/format/` | FEN and UCI; `pgn/` formats SAN and PGN from engine positions and moves |
-| `rating/` | Framework-independent rating contracts and values; `elo/` implements Elo calculations |
-| `controller/` | HTTP/STOMP entry points, authenticated identity conversion, and response publication |
-| `controller/advice/` | Translate application failures into HTTP and STOMP error responses |
-| `service/` | Application use cases and transaction boundaries; coordinate engines, persistence, and API mapping |
-| `repository/` | Spring Data access to PostgreSQL |
-| `repository/game/` | Redis game persistence, reconstruction, expiry, and distributed locking |
-| `model/entity/` | JPA entities and persistence base classes |
-| `model/dto/` | HTTP/STOMP request and response contracts |
-| `model/converter/` | Map API contracts to/from JPA entities, including password encoding for account writes |
-| `security/` | Spring Security configuration, the session-stored `UserPrincipal`, and its credential loader |
-| `config/` | Spring and infrastructure wiring |
-| `exception/` | Application exception types, independent of transport handlers |
-
-The main dependency direction is `controller -> service -> repository`, with application code using the
-`chess` and `rating` engines. These engines must not import controllers, services, persistence, or security.
-Controllers pass `Player` or user IDs into services instead of passing Spring Security principals.
-Repositories must not call application services or authentication loaders. Each Java package documents
-its responsibility in `package-info.java` and retains its JSpecify `@NullMarked` default.
-
-For active games, `MatchService` works with `GameStateStore` and engine `Game` objects. The store owns
-the package-private `ActiveGameState` JSON record and `ActiveGameStateConverter`; it resolves player IDs
-through `UserRepo` and reconstructs `RegisteredPlayer` values without loading credentials into a principal.
-`GameSnapshot` remains the engine's reconstruction contract. Redis JSON field names and keys are unchanged.
-
-`security.UserPrincipal` is stored in Redis-backed login sessions with Java serialization, so its qualified
-class name, serialized fields, and `serialVersionUID` are part of the session format. Changing any of them
-invalidates existing sessions: flush the Spring Session keys in Redis when deploying such a change.
-
-This is a pragmatic layered application, not a set of independently deployable feature modules. Services
-share API DTOs, DTOs reuse some domain/entity enums, and entities use chess/rating value types. Those are
-explicit shared contracts; new use-case orchestration belongs in services, not in DTOs or converters.
-
-### Frontend Boundaries
-
-`pages/` owns routed screens, `components/` owns reused UI, and `context/` owns shared authentication state.
-`services/` owns HTTP and STOMP access and error extraction; it must not import screens or React context.
-`types/` owns shared API types and time-control constants. `App.tsx` composes routing and providers.
-The current frontend is small enough that these folders remain useful without additional feature nesting.
+| Area           | Technologies                                                                                           |
+|----------------|--------------------------------------------------------------------------------------------------------|
+| Backend        | Java 21 (virtual threads), Spring Boot 4.1, Spring Security, Spring WebSocket (STOMP), Spring Data JPA |
+| Data           | PostgreSQL 17.5 with Flyway migrations, Redis 8.6 with Spring Session                                  |
+| Messaging      | RabbitMQ 4.1 as an external STOMP broker                                                               |
+| Frontend       | React 18, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |
+| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint                                 |
+| Infrastructure | Docker Compose, nginx, GitHub Actions                                                                  |
 
 ---
 
-## Advanced Features
+## Getting Started
 
-### 1. Custom Chess Engine Implementation
+### Run with Docker Compose
 
-Core Engine Components:
-
-- `chess/game/Game.java` - Game lifecycle and move history
-- `chess/MoveGenerator.java` - Legal move generation and validation
-- `chess/Board.java` - Piece placement and attack detection
-- `chess/Position.java` - Position state, move application, and undo
-- `chess/Move.java` and `chess/UndoInfo.java` - Move representation and undo data
-- `chess/format/` - FEN, UCI, SAN, and PGN notation
-
-Chess Piece Implementation:
-
-- Valid move calculation
-- Attack pattern detection
-
-Advanced Chess Rules Implemented:
-
-1. Castling (kingside and queenside)
-    - Validates king and rook haven't moved
-    - Checks squares between are empty
-    - Ensures king doesn't cross attacked squares
-2. En Passant capture
-    - Tracks double pawn moves
-    - Validates en passant moves
-3. Pawn Promotion (auto-promotes to Queen)
-4. Check, Checkmate Detection
-5. Draw Conditions:
-    - Threefold Repetition
-    - Fifty-Move Rule
-    - Insufficient Material
-    - Stalemate detection
-6. FEN (Forsyth-Edwards Notation) generation for position state
-7. PGN (Portable Game Notation) export for game history
-8. File/Rank/Square Disambiguation for move notation
-
-### 2. Real-Time WebSocket Communication
-
-The platform uses Spring WebSocket with STOMP protocol for real-time gameplay:
-
-WebSocket Features:
-
-- Game Session Management (`MatchService.java`)
-    - Active games are stored in Redis (`GameStateStore.java`), so they survive restarts and can be shared by
-      several backend instances; each game expires after 1 hour without activity
-    - Every change runs under a per-game Redis lock, so concurrent moves and joins are serialized across instances
-    - Player connection/disconnection handling
-    - Spectator support
-    - Automatic cleanup after game completion (the Redis entry expires after 1 minute)
-    - Games are persisted to database when completed
-- Publishing:
-    - `/app/game/{gameId}/join` - Player joins game
-    - `/app/game/{gameId}/move` - Chess move execution
-    - `/app/game/{gameId}/resign` - Player resignation
-    - `/app/game/{gameId}/draw/offer` - Draw offer
-    - `/app/game/{gameId}/draw/accept` - Draw acceptance
-- Broadcasting (dot-separated, as RabbitMQ topic names cannot contain `/`):
-    - `/topic/game.{gameId}` - Game state updates to all participants
-    - `/topic/game.{gameId}.chat` - Chat messages
-- Error Handling:
-    - `/user/topic/errors` - User-specific error messages
-    - `@MessageExceptionHandler` - Handle WebSocket exceptions
-    - Custom exceptions (`GameNotFoundException`, `GameIsOverException`)
-- Horizontal scaling (`WebsocketConfig.java`):
-    - With `APP_WEBSOCKET_RELAY_ENABLED=true`, subscriptions live in RabbitMQ through Spring's STOMP broker relay
-      instead of each instance's memory, so a move handled by one instance reaches players connected to another
-    - User destinations are broadcast through the broker, so `/user/...` messages find users on any instance
-    - Without the relay, each instance uses Spring's in-memory broker, which only works for a single instance
-    - `WebSocketRelayIT` starts two instances against RabbitMQ and checks delivery between them
-
-### 3. Security & Authentication
-
-Spring Security configuration with:
-
-- Session-based authentication (JSESSIONID cookie), with sessions stored in Redis by Spring Session so any backend
-  instance can serve any request
-- Password encryption with BCrypt (`DelegatingPasswordEncoder`)
-- Custom `UserDetailsService` and `UserDetails` implementation
-- CORS configuration for frontend
-- Set `APP_ALLOWED_ORIGINS` to a comma-separated list of frontend origins when deploying outside the local defaults; it
-  applies to both HTTP and WebSocket requests.
-
-### 4. Database Schema with Flyway Migrations
-
-Flyway manages database versioning with migration scripts:
-
-- `V1__create_user_entity.sql` - User accounts
-- `V2__create_match_record.sql` - Match history with PGN
-- `V3__create_friendship_relationship.sql` - Friends
-- `V4__create_friendship_request.sql` - Friend request system
-
----
-
-## How to Run
-
-### Quick Start (Recommended)
-
-Prerequisites
-
-- Docker and Docker Compose installed
-- Ports available: 3000 (frontend), 8080 (backend load balancer), 5432 (database), 6379 (Redis),
-  61613 and 15672 (RabbitMQ STOMP and management UI)
+You need Docker and Docker Compose. These ports must be free: 3000, 8080, 5432, 6379, 61613, and 15672.
 
 ```bash
 docker compose up --build
 ```
 
-Compose starts two backend instances behind an nginx load balancer (`backend-lb`). Change `deploy.replicas` under
-`backend` in `docker-compose.yml` to run more or fewer, then restart `backend-lb` so it picks up the new instances.
+Compose starts PostgreSQL, Redis, and RabbitMQ, applies the database migrations, then starts two backend instances
+behind nginx and the frontend. To run more or fewer instances, change `deploy.replicas` under `backend` in
+`docker-compose.yml`, then restart `backend-lb` so nginx sees them.
 
-### Manual Setup (Without Docker Compose, Not Recommended)
+| Service                         | URL                                           |
+|---------------------------------|-----------------------------------------------|
+| Frontend                        | http://localhost:3000                         |
+| REST API                        | http://localhost:8080/api                     |
+| API documentation (dev profile) | http://localhost:8080/swagger-ui.html         |
+| Health check                    | http://localhost:8080/actuator/health         |
+| RabbitMQ management UI          | http://localhost:15672 (`chess` / `password`) |
 
-Manual setup can be very error-prone, docker compose setup is recommended.
+To try a game, register two accounts and sign in from two browsers, or from a normal and a private window. Create a
+game on one, then join it from the other with the game ID.
 
-1. Ensure PostgreSQL is running locally on port 5432 and Redis on port 6379. Create the database and user. A single
-   backend instance does not need RabbitMQ; it uses the in-memory broker unless `APP_WEBSOCKET_RELAY_ENABLED=true`.
-2. From the repository root, enter `backend/`, configure `flyway.conf`, and migrate the database:
+The credentials in `docker-compose.yml` are for local development only.
 
-```shell
-cd backend
-vim flyway.conf # Set flyway.url, flyway.user, and flyway.password for your local database
-flyway -configFiles=flyway.conf migrate
-```
+### Run without Docker Compose
 
-3. Start the backend from the same `backend/` directory using JDK 21:
+1. Start PostgreSQL on port 5432 and Redis on port 6379, and create a database and user. A single backend instance
+   doesn't need RabbitMQ: it uses Spring's in-memory broker unless `APP_WEBSOCKET_RELAY_ENABLED=true`.
+2. From `backend/`, set `flyway.url`, `flyway.user`, and `flyway.password` in `flyway.conf`, then apply the migrations:
 
-```shell
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/your_db
-export SPRING_DATASOURCE_USERNAME=your_db_user
-export SPRING_DATASOURCE_PASSWORD=your_db_password
-export SPRING_DATA_REDIS_HOST=localhost
-./mvnw spring-boot:run
-```
+   ```bash
+   flyway -configFiles=flyway.conf migrate
+   ```
 
-4. In a separate terminal at the repository root, configure and run the frontend:
+3. From `backend/`, start the backend with JDK 21:
 
-```bash
-cd frontend
-vim vite.config.ts # Change both proxy targets from 'http://backend-lb:8080' to 'http://localhost:8080'
-npm ci
-npm run dev
-```
+   ```bash
+   export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/your_db
+   export SPRING_DATASOURCE_USERNAME=your_db_user
+   export SPRING_DATASOURCE_PASSWORD=your_db_password
+   export SPRING_DATA_REDIS_HOST=localhost
+   ./mvnw spring-boot:run
+   ```
 
-### Validation
+4. In `frontend/vite.config.ts`, change both proxy targets from `http://backend-lb:8080` to `http://localhost:8080`.
+   Then, from `frontend/`:
 
-- From `backend/`: `./mvnw test` for the quick suite. Run `./mvnw verify` with
-  PostgreSQL, Redis, applied migrations, and the environment variables above for
-  database-backed tests and integration tests. `WebSocketRelayIT` also needs RabbitMQ with the STOMP plugin and
-  `APP_WEBSOCKET_RELAY_HOST`, `APP_WEBSOCKET_RELAY_LOGIN`, and `APP_WEBSOCKET_RELAY_PASSCODE` (Compose uses
-  `chess` / `password`).
-- From `frontend/`: `npm ci`, `npm run lint`, `npm test`, and `npm run build`.
+   ```bash
+   npm ci
+   npm run dev
+   ```
 
-### Access the Application
+### Configuration
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8080/api
-    - Health Check: http://localhost:8080/actuator/health
-- RabbitMQ management UI: http://localhost:15672 (`chess` / `password`)
-
-Testing: To test the chess game, use two different browsers (or incognito/private windows) to log in with these test
-accounts (or create new accounts):
-
-- Username: `anyu`, Password: `anyu`
-- Username: `zili`, Password: `zili`
+| Variable                                                   | Purpose                                                                                    |
+|------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| `SPRING_PROFILES_ACTIVE`                                   | `dev` (default) or `prod`. `prod` hides the API documentation and most actuator endpoints. |
+| `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD`          | PostgreSQL connection                                                                      |
+| `SPRING_DATA_REDIS_HOST`, `_PORT`                          | Redis connection                                                                           |
+| `APP_ALLOWED_ORIGINS`                                      | Comma-separated frontend origins allowed for HTTP and WebSocket requests                   |
+| `APP_WEBSOCKET_RELAY_ENABLED`                              | Route WebSocket messages through RabbitMQ. Required when running more than one instance.   |
+| `APP_WEBSOCKET_RELAY_HOST`, `_PORT`, `_LOGIN`, `_PASSCODE` | RabbitMQ STOMP connection                                                                  |
 
 ---
 
-## Future Enhancements
+## Testing
 
-Potential areas for expansion:
+From `backend/`:
 
-- ELO rating system and matching system
-- Timed control with clocks
-- Game analysis engine
-- AI opponent (Stockfish integration)
-- Opening book integration
-- Tournament system
+```bash
+./mvnw test     # unit tests, no Docker needed
+./mvnw verify   # also runs the integration tests
+```
+
+Integration tests (`*IT`) start PostgreSQL, Redis, and RabbitMQ with Testcontainers and apply the migrations with
+Flyway, so they only need a running Docker daemon. `WebSocketRelayIT` starts two backend instances against one RabbitMQ
+and checks that a move made on one reaches a player connected to the other.
+
+```properties
+docker.host=unix:///Users/<you>/.orbstack/run/docker.sock
+```
+
+From `frontend/`:
+
+```bash
+npm ci
+npm run lint
+npm test
+npm run build   # includes the TypeScript check
+```
+
+GitHub Actions runs all of these on every push and pull request.
+
+---
+
+## API Overview
+
+REST endpoints live under `/api`. With the dev profile, the full reference is at `/swagger-ui.html`.
+
+| Area                | Endpoints                                                                                                                                                                                                  |
+|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Accounts            | `POST /users` (register), `POST /login`, `GET /me`, `GET` / `PUT` / `DELETE /users`                                                                                                                        |
+| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`, `GET /games/{gameId}/pgn`                                                                                                         |
+| History and ratings | `GET /games/users/{userId}`, `GET /users/{userId}/ratings`                                                                                                                                                 |
+| Friends             | `GET /friends`, `GET /friends/received`, `GET /friends/sent`, `POST /friends/send/{userId}`, `POST /friends/accept/{friendRequestId}`, `PUT /friends/reject/{friendRequestId}`, `DELETE /friends/{userId}` |
+
+The STOMP endpoint is `/ws`. Topic names use dots because RabbitMQ topic names cannot contain `/`.
+
+| Direction | Destination                                     | Purpose                                       |
+|-----------|-------------------------------------------------|-----------------------------------------------|
+| Send      | `/app/game/{gameId}/join`                       | Join as a player or spectator                 |
+| Send      | `/app/game/{gameId}/move`                       | Make a move, with an optional promotion piece |
+| Send      | `/app/game/{gameId}/flag`                       | Claim that the opponent's clock has run out   |
+| Send      | `/app/game/{gameId}/resign`                     | Resign                                        |
+| Send      | `/app/game/{gameId}/draw/offer`, `/draw/accept` | Offer or accept a draw                        |
+| Send      | `/app/game/{gameId}/chat`                       | Send a chat message                           |
+| Subscribe | `/topic/game.{gameId}`                          | Game state, including both clocks             |
+| Subscribe | `/topic/game.{gameId}.chat`                     | Chat messages                                 |
+| Subscribe | `/user/topic/errors`                            | Errors for your own actions                   |
+
+---
+
+## Project Structure
+
+```text
+chess-platform/
+├── backend/                    # Spring Boot application (Maven wrapper, Dockerfile, flyway.conf)
+│   └── src/main/
+│       ├── java/me/zilid/chessplatform/
+│       │   ├── chess/          # Rules engine: board, move generation, game lifecycle, clocks, FEN/UCI/PGN
+│       │   ├── rating/         # Rating contracts and the Elo implementation
+│       │   ├── controller/     # REST and STOMP entry points, and error translation
+│       │   ├── service/        # Use cases and transaction boundaries
+│       │   ├── repository/     # PostgreSQL access, and Redis game state, deadlines, and locks
+│       │   ├── model/          # JPA entities, API DTOs, and converters
+│       │   ├── security/       # Spring Security setup and the session principal
+│       │   └── config/         # Infrastructure wiring, including the WebSocket broker
+│       └── resources/db/migrations/   # Flyway migrations
+├── frontend/                   # React app: pages/, components/, services/, types/
+├── .github/                    # CI workflow, Dependabot, and issue and PR templates
+└── docker-compose.yml          # Full local stack
+```
+
+### Architecture notes
+
+- Dependencies point one way: `controller -> service -> repository`. The `chess` and `rating` packages are
+  independent of Spring, persistence, and security. Controllers pass `Player` values or user IDs into services, not
+  Spring Security principals.
+- Each backend package documents its responsibility in `package-info.java` and is `@NullMarked`. NullAway checks
+  nullness at compile time.
+- Spring Boot does not run Flyway at startup. Docker Compose applies migrations with the Flyway container, and tests
+  apply them with Flyway.
+- `security.UserPrincipal` is stored in Redis sessions with Java serialization. Changing its class name, fields, or
+  `serialVersionUID` invalidates existing sessions, so flush the Spring Session keys in Redis when deploying such a
+  change.
+
+---
+
+## Roadmap
+
+- Choose the promotion piece in the UI. The engine and API already support any piece; the board promotes to a queen.
+- Matchmaking by rating
+- Glicko-2 ratings
+- Game analysis and an AI opponent with Stockfish
+- Opening book
+- Tournaments
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 zilid10
