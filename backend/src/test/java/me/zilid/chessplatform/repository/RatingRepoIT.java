@@ -6,21 +6,17 @@ import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.Rating;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.rating.RatingChange;
+import me.zilid.chessplatform.util.RepositoryTest;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 
 import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@EnabledIfEnvironmentVariable(named = "SPRING_DATASOURCE_URL", matches = "jdbc:postgresql:.*")
-class RatingRepoIntegrationTest {
+@RepositoryTest
+class RatingRepoIT {
 
     @Autowired
     private RatingRepo ratingRepo;

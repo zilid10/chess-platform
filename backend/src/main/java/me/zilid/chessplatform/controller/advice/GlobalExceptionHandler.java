@@ -53,7 +53,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         // Generic exceptions may come from libraries; their messages are not a public API.
-        logger.debug("Invalid request argument", ex);
+        logger.debug("Invalid request argument: {}", ex.getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid request");
     }
 
@@ -79,7 +79,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        logger.error("Data integrity violation", ex);
+        logger.warn("Data Integrity Violation", ex.getMostSpecificCause().getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Request conflicts with existing data");
     }
 

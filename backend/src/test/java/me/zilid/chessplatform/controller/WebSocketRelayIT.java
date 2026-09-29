@@ -5,6 +5,7 @@ import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.chess.game.TestGames;
+import me.zilid.chessplatform.config.ContainersConfig;
 import me.zilid.chessplatform.config.WebsocketConfig;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.model.dto.MoveRequest;
@@ -13,7 +14,6 @@ import me.zilid.chessplatform.service.GameEventPublisher;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -34,6 +34,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
+import org.testcontainers.containers.GenericContainer;
 
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -55,7 +56,6 @@ import static org.mockito.Mockito.*;
  * Starts two backend instances that share the RabbitMQ broker relay and checks that messages sent by one instance
  * reach clients connected to the other. Runs with the RabbitMQ provisioned by the backend CI job.
  */
-@EnabledIfEnvironmentVariable(named = "APP_WEBSOCKET_RELAY_HOST", matches = ".+")
 class WebSocketRelayIT {
     private static final UUID GAME_ID = UUID.randomUUID();
     private static final UserPrincipal WHITE = principal("relay-white");
@@ -66,6 +66,7 @@ class WebSocketRelayIT {
 
     // Stands in for the Redis-backed game state both instances share
     private static final MatchService MATCH_SERVICE = mock(MatchService.class);
+    private static final GenericContainer<?> RABBITMQ = ContainersConfig.rabbitMqContainer();
 
     // Instance A first, then B; a list so a failed start still closes whatever did start
     private static final List<ConfigurableApplicationContext> instances = new ArrayList<>();
@@ -75,6 +76,7 @@ class WebSocketRelayIT {
 
     @BeforeAll
     static void startInstances() {
+        RABBITMQ.start();
         instances.add(startInstance());
         instances.add(startInstance());
         instances.forEach(WebSocketRelayIT::awaitBrokerAvailable);
@@ -84,6 +86,7 @@ class WebSocketRelayIT {
     static void stopInstances() {
         instances.forEach(ConfigurableApplicationContext::close);
         instances.clear();
+        RABBITMQ.stop();
     }
 
     private static ConfigurableApplicationContext startInstance() {
@@ -92,7 +95,11 @@ class WebSocketRelayIT {
                 "--server.port=0",
                 "--management.server.port=-1",
                 "--app.allowed-origins=" + ORIGIN,
-                "--app.websocket.relay.enabled=true");
+                "--app.websocket.relay.enabled=true",
+                "--app.websocket.relay.host=" + RABBITMQ.getHost(),
+                "--app.websocket.relay.port=" + RABBITMQ.getMappedPort(61613),
+                "--app.websocket.relay.login=chess",
+                "--app.websocket.relay.passcode=password");
     }
 
     private static void awaitBrokerAvailable(ConfigurableApplicationContext instance) {

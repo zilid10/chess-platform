@@ -1,10 +1,10 @@
 package me.zilid.chessplatform.service;
 
-import me.zilid.chessplatform.MutableClock;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.repository.game.GameStateStore;
+import me.zilid.chessplatform.util.MutableClock;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
