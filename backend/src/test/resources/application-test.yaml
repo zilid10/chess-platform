@@ -4,6 +4,7 @@ spring:
     locations: classpath:db/migrations
 
 logging:
+  exception-conversion-word: "%wEx{10}"
   level:
     root: warn
     me.zilid.chessplatform: warn
