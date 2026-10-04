@@ -1,4 +1,4 @@
-FROM maven:3.9.11-amazoncorretto-21-alpine AS build
+FROM maven:3-amazoncorretto-24-alpine AS build
 WORKDIR /app
 COPY pom.xml .
 # JVM flags Error Prone needs to run inside javac
