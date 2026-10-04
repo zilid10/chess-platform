@@ -41,8 +41,8 @@
         <revision>0.0.1-SNAPSHOT</revision>
         <springdoc.version>3.1.1</springdoc.version>
         <uuid.generator.version>5.2.0</uuid.generator.version>
-        <error-prone.version>2.49.0</error-prone.version>
-        <nullaway.version>0.13.8</nullaway.version>
+        <error-prone.version>2.50.0</error-prone.version>
+        <nullaway.version>0.14.2</nullaway.version>
     </properties>
 
     <dependencies>
