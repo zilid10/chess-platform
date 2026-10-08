@@ -83,8 +83,8 @@ class FriendControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(FRIEND_ID.toString()))
                 .andExpect(jsonPath("$.content[0].username").value("friend"))
-                .andExpect(jsonPath("$.totalElements").value(3))
-                .andExpect(jsonPath("$.number").value(1));
+                .andExpect(jsonPath("$.page.totalElements").value(3))
+                .andExpect(jsonPath("$.page.number").value(1));
 
         verify(friendService).getFriends(USER_ID, page);
     }
