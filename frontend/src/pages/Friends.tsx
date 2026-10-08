@@ -31,18 +31,18 @@ const Friends = () => {
       if (tab === 'friends') {
         const response = await friendService.getFriends(page, pageSize);
         setFriends(response.content);
-        setTotalPages(response.totalPages);
-        setTotalElements(response.totalElements);
+        setTotalPages(response.page.totalPages);
+        setTotalElements(response.page.totalElements);
       } else if (tab === 'received') {
         const response = await friendService.getReceivedRequests(page, pageSize);
         setReceivedRequests(response.content);
-        setTotalPages(response.totalPages);
-        setTotalElements(response.totalElements);
+        setTotalPages(response.page.totalPages);
+        setTotalElements(response.page.totalElements);
       } else if (tab === 'sent') {
         const response = await friendService.getSentRequests(page, pageSize);
         setSentRequests(response.content);
-        setTotalPages(response.totalPages);
-        setTotalElements(response.totalElements);
+        setTotalPages(response.page.totalPages);
+        setTotalElements(response.page.totalElements);
       }
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to load data'));

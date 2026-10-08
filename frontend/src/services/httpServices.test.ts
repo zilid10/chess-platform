@@ -56,7 +56,7 @@ describe('HTTP services', () => {
   });
 
   it('passes search and pagination parameters through to user and game endpoints', async () => {
-    const page = { content: [user], totalElements: 1, totalPages: 1, size: 5, number: 2 };
+    const page = { content: [user], page: { size: 5, number: 2, totalElements: 1, totalPages: 1 } };
     responseData = page;
 
     await expect(userService.searchUsers('ali', 2, 5)).resolves.toEqual(page);

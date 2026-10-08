@@ -26,7 +26,7 @@ const History = () => {
       setError('');
       const response = await gameService.getGames(user.id, page, pageSize);
       setGames(response.content || []);
-      setTotalPages(response.totalPages || 0);
+      setTotalPages(response.page.totalPages || 0);
     } catch (err) {
       console.error('Error loading games:', err);
       setError(apiErrorMessage(err, 'Failed to load game history'));
