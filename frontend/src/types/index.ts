@@ -118,12 +118,15 @@ export interface ChatMessage {
   type: 'CHAT' | 'JOIN' | 'LEAVE' | 'SYSTEM';
 }
 
+// Spring Data's PagedModel (VIA_DTO serialization)
 export interface PageResponse<T> {
   content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
+  page: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
 }
 
 export interface GameCreatedResponse {
