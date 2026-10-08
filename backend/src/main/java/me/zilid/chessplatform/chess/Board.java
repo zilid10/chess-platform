@@ -1,11 +1,10 @@
 package me.zilid.chessplatform.chess;
 
+import java.util.*;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
-
 public class Board {
-    private final static int BOARD_SIZE = 64;
+    private static final int BOARD_SIZE = 64;
     private static final int[][] KNIGHT = {{1, 2}, {2, 1}, {2, -1}, {1, -2}, {-1, -2}, {-2, -1}, {-2, 1}, {-1, 2}};
     private static final int[][] KING = {{0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}};
     private static final int[][] ORTHO = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
@@ -84,13 +83,17 @@ public class Board {
         }
         for (int[] dir : ORTHO) {
             Piece piece = firstPieceOnRay(square, dir);
-            if (piece != null && piece.color() == attacker && (piece.type() == PieceType.QUEEN || piece.type() == PieceType.ROOK)) {
+            if (piece != null
+                    && piece.color() == attacker
+                    && (piece.type() == PieceType.QUEEN || piece.type() == PieceType.ROOK)) {
                 return true;
             }
         }
         for (int[] dir : DIAG) {
             Piece piece = firstPieceOnRay(square, dir);
-            if (piece != null && piece.color() == attacker && (piece.type() == PieceType.QUEEN || piece.type() == PieceType.BISHOP)) {
+            if (piece != null
+                    && piece.color() == attacker
+                    && (piece.type() == PieceType.QUEEN || piece.type() == PieceType.BISHOP)) {
                 return true;
             }
         }
@@ -179,17 +182,15 @@ public class Board {
         return Arrays.hashCode(pieces);
     }
 
-    /**
-     * Neither side can checkmate by any sequence of legal moves.
-     */
+    /** Neither side can checkmate by any sequence of legal moves. */
     public boolean isInsufficientMaterial() {
         return !hasMatingMaterial(Color.WHITE) && !hasMatingMaterial(Color.BLACK);
     }
 
     /**
-     * Whether {@code color} could checkmate by some sequence of legal moves, even with the opponent's help. A lone
-     * king never can. A king and knight needs an opponent piece other than a queen to hem the other king in, and
-     * bishops that all stand on one square color need an opponent knight, pawn, or bishop on the other color.
+     * Whether {@code color} could checkmate by some sequence of legal moves, even with the opponent's help. A lone king
+     * never can. A king and knight needs an opponent piece other than a queen to hem the other king in, and bishops
+     * that all stand on one square color need an opponent knight, pawn, or bishop on the other color.
      */
     public boolean hasMatingMaterial(Color color) {
         int knights = 0;
@@ -205,8 +206,7 @@ public class Board {
                 }
                 case KNIGHT -> knights++;
                 case BISHOP -> bishopSquareColors[squareColor(new Square(i))] = true;
-                case KING -> {
-                }
+                case KING -> {}
             }
         }
         boolean hasBishops = bishopSquareColors[0] || bishopSquareColors[1];

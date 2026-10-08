@@ -1,8 +1,6 @@
 package me.zilid.chessplatform.chess.game;
 
-/**
- * Represents the current status of a chess game
- */
+/** Represents the current status of a chess game */
 public enum GameStatus {
     ONGOING("GameService in progress"),
     CHECKMATE_WHITE_WINS("White wins by checkmate"),
@@ -73,11 +71,11 @@ public enum GameStatus {
     }
 
     public boolean isDraw() {
-        return this == STALEMATE ||
-                this == DRAW_BY_REPETITION ||
-                this == DRAW_BY_FIFTY_MOVE_RULE ||
-                this == DRAW_BY_INSUFFICIENT_MATERIAL ||
-                this == DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL ||
-                this == DRAW_BY_AGREEMENT;
+        return this == STALEMATE
+                || this == DRAW_BY_REPETITION
+                || this == DRAW_BY_FIFTY_MOVE_RULE
+                || this == DRAW_BY_INSUFFICIENT_MATERIAL
+                || this == DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL
+                || this == DRAW_BY_AGREEMENT;
     }
 }

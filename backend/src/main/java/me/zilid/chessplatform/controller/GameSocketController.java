@@ -1,5 +1,9 @@
 package me.zilid.chessplatform.controller;
 
+import java.security.Principal;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.Player;
@@ -20,11 +24,6 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
-
-import java.security.Principal;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 
 @Controller
 public class GameSocketController {
@@ -59,9 +58,7 @@ public class GameSocketController {
         throw new IllegalStateException("Authentication required");
     }
 
-    /**
-     * Handle WebSocket disconnection events
-     */
+    /** Handle WebSocket disconnection events */
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
         SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.wrap(event.getMessage());
@@ -76,25 +73,17 @@ public class GameSocketController {
                 logger.info("User {} disconnected from game {}", username, gameId);
 
                 // Send disconnect notification
-                ChatMessage disconnectMessage = new ChatMessage(
-                        "System",
-                        username + " disconnected",
-                        ChatMessage.MessageType.LEAVE
-                );
+                ChatMessage disconnectMessage =
+                        new ChatMessage("System", username + " disconnected", ChatMessage.MessageType.LEAVE);
                 publisher.publishChat(gameId, disconnectMessage);
             }
         }
     }
 
-    /**
-     * Handle player joining a game session
-     * Maps to: /app/game/{gameId}/join
-     * Response sent to: /topic/game.{gameId}
-     */
+    /** Handle player joining a game session Maps to: /app/game/{gameId}/join Response sent to: /topic/game.{gameId} */
     @MessageMapping("/game/{gameId}/join")
-    public void joinGame(@DestinationVariable UUID gameId,
-                         Principal principal,
-                         SimpMessageHeaderAccessor headerAccessor) {
+    public void joinGame(
+            @DestinationVariable UUID gameId, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         Player currentUser = currentPlayer(principal);
         var attributes = Objects.requireNonNull(headerAccessor.getSessionAttributes());
         attributes.put("gameId", gameId);
@@ -116,64 +105,47 @@ public class GameSocketController {
         ChatMessage notification = new ChatMessage(
                 "System",
                 currentUser.displayName() + (isPlayer ? " (Player)" : " (Spectator)") + " connected",
-                ChatMessage.MessageType.JOIN
-        );
+                ChatMessage.MessageType.JOIN);
         publisher.publishChat(gameId, notification);
     }
 
-    /**
-     * Handle chess piece moves
-     * Maps to: /app/game/{gameId}/move
-     * Response sent to: /topic/game.{gameId}
-     */
+    /** Handle chess piece moves Maps to: /app/game/{gameId}/move Response sent to: /topic/game.{gameId} */
     @MessageMapping("/game/{gameId}/move")
-    public void movePiece(@DestinationVariable UUID gameId,
-                          @Payload MoveRequest moveRequest,
-                          Principal principal) {
+    public void movePiece(@DestinationVariable UUID gameId, @Payload MoveRequest moveRequest, Principal principal) {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.makeMove(
-                currentUser, gameId, moveRequest.moveFrom(), moveRequest.moveTo(),
+                currentUser,
+                gameId,
+                moveRequest.moveFrom(),
+                moveRequest.moveTo(),
                 parsePromotion(moveRequest.promotion()));
         publisher.publishUpdate(gameId, response);
     }
 
     /**
-     * A client's claim that the side to move has run out of time. The server decides from its own clock; a claim
-     * made too early is ignored, and the client may repeat it.
-     * Maps to: /app/game/{gameId}/flag
-     * Response sent to: /topic/game.{gameId}
+     * A client's claim that the side to move has run out of time. The server decides from its own clock; a claim made
+     * too early is ignored, and the client may repeat it. Maps to: /app/game/{gameId}/flag Response sent to:
+     * /topic/game.{gameId}
      */
     @MessageMapping("/game/{gameId}/flag")
     public void claimTimeout(@DestinationVariable UUID gameId, Principal principal) {
         Player currentUser = currentPlayer(principal);
         logger.debug("User {} claims a timeout in game {}", currentUser.displayName(), gameId);
-        matchService.checkTimeout(gameId)
-                .ifPresent(response -> publisher.publishUpdate(gameId, response));
+        matchService.checkTimeout(gameId).ifPresent(response -> publisher.publishUpdate(gameId, response));
     }
 
-    /**
-     * Handle player resignation
-     * Maps to: /app/game/{gameId}/resign
-     * Response sent to: /topic/game.{gameId}
-     */
+    /** Handle player resignation Maps to: /app/game/{gameId}/resign Response sent to: /topic/game.{gameId} */
     @MessageMapping("/game/{gameId}/resign")
-    public void resign(@DestinationVariable UUID gameId,
-                       Principal principal) {
+    public void resign(@DestinationVariable UUID gameId, Principal principal) {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.resign(currentUser, gameId);
         logger.info("Resign handled in game {}: {}", gameId, response.gameStatus());
         publisher.publishUpdate(gameId, response);
     }
 
-    /**
-     * Handle draw offer/acceptance
-     * Maps to: /app/game/{gameId}/draw
-     * Response sent to: /topic/game.{gameId}
-     */
+    /** Handle draw offer/acceptance Maps to: /app/game/{gameId}/draw Response sent to: /topic/game.{gameId} */
     @MessageMapping("/game/{gameId}/draw/accept")
-    public void acceptDraw(
-            @DestinationVariable UUID gameId,
-            Principal principal) {
+    public void acceptDraw(@DestinationVariable UUID gameId, Principal principal) {
         Player currentUser = currentPlayer(principal);
         GameStateResponse response = matchService.acceptDraw(currentUser, gameId);
         logger.info("Draw acceptance handled in game {}", gameId);
@@ -181,9 +153,7 @@ public class GameSocketController {
     }
 
     @MessageMapping("/game/{gameId}/draw/offer")
-    public void offerDraw(
-            @DestinationVariable UUID gameId,
-            Principal principal) {
+    public void offerDraw(@DestinationVariable UUID gameId, Principal principal) {
         Player currentUser = currentPlayer(principal);
         matchService.offerDraw(currentUser, gameId);
         logger.info("Draw offered in game {}", gameId);
@@ -192,25 +162,17 @@ public class GameSocketController {
         publisher.sendSystemMessage(gameId, "Draw offered");
     }
 
-    /**
-     * Handle chat messages in a game
-     * Maps to: /app/game/{gameId}/chat
-     * Response sent to: /topic/game.{gameId}.chat
-     */
+    /** Handle chat messages in a game Maps to: /app/game/{gameId}/chat Response sent to: /topic/game.{gameId}.chat */
     @MessageMapping("/game/{gameId}/chat")
-    public void sendChatMessage(@DestinationVariable UUID gameId,
-                                @Payload ChatMessage chatMessage,
-                                Principal principal) {
+    public void sendChatMessage(
+            @DestinationVariable UUID gameId, @Payload ChatMessage chatMessage, Principal principal) {
         Player currentUser = currentPlayer(principal);
         matchService.getGameOrThrow(gameId);
 
         logger.info("Chat message in game {} from {}", gameId, currentUser.displayName());
 
-        ChatMessage timestampedMessage = new ChatMessage(
-                currentUser.displayName(),
-                chatMessage.message(),
-                ChatMessage.MessageType.CHAT
-        );
+        ChatMessage timestampedMessage =
+                new ChatMessage(currentUser.displayName(), chatMessage.message(), ChatMessage.MessageType.CHAT);
 
         publisher.publishChat(gameId, timestampedMessage);
     }

@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.service;
 
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.dto.ChatMessage;
@@ -10,11 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 /**
- * Sends game updates to a game's subscribers and wraps up finished games, for player actions and server-side
- * timeouts alike.
+ * Sends game updates to a game's subscribers and wraps up finished games, for player actions and server-side timeouts
+ * alike.
  */
 @Component
 public class GameEventPublisher {
@@ -38,11 +37,19 @@ public class GameEventPublisher {
     }
 
     private static String ratingSummary(Game game, RatingChange change) {
-        String white = game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
-        String black = game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
-        return "%s ratings: %s %d (%+d), %s %d (%+d)".formatted(
-                game.getTimeControl(), white, change.whiteAfter(), change.whiteDelta(),
-                black, change.blackAfter(), change.blackDelta());
+        String white =
+                game.getWhitePlayer() == null ? "White" : game.getWhitePlayer().displayName();
+        String black =
+                game.getBlackPlayer() == null ? "Black" : game.getBlackPlayer().displayName();
+        return "%s ratings: %s %d (%+d), %s %d (%+d)"
+                .formatted(
+                        game.getTimeControl(),
+                        white,
+                        change.whiteAfter(),
+                        change.whiteDelta(),
+                        black,
+                        change.blackAfter(),
+                        change.blackDelta());
     }
 
     public void publishState(UUID gameId, GameStateResponse state) {
@@ -68,8 +75,10 @@ public class GameEventPublisher {
         }
         if (state.gameStatus() == GameStatus.ABORTED) {
             // Nothing to rate or archive
-            sendSystemMessage(gameId, "Game aborted: %s did not make a first move in time".formatted(
-                    state.turnColor().equals("WHITE") ? "White" : "Black"));
+            sendSystemMessage(
+                    gameId,
+                    "Game aborted: %s did not make a first move in time"
+                            .formatted(state.turnColor().equals("WHITE") ? "White" : "Black"));
             matchService.scheduleGameCleanup(gameId);
             return;
         }

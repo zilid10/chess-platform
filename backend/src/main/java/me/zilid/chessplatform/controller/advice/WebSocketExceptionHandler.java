@@ -1,5 +1,7 @@
 package me.zilid.chessplatform.controller.advice;
 
+import java.util.Map;
+import java.util.Objects;
 import me.zilid.chessplatform.controller.GameSocketController;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -11,13 +13,10 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
-import java.util.Map;
-import java.util.Objects;
-
 /**
  * Sends STOMP handler failures to the user's private {@code /user/topic/errors} queue.
- * <p>
- * Keep every {@code @MessageExceptionHandler} here: Spring prefers handlers declared on the controller itself, so a
+ *
+ * <p>Keep every {@code @MessageExceptionHandler} here: Spring prefers handlers declared on the controller itself, so a
  * catch-all left there would shadow the specific handlers below.
  */
 @ControllerAdvice(assignableTypes = GameSocketController.class)

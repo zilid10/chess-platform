@@ -1,19 +1,18 @@
 package me.zilid.chessplatform.service;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.repository.game.GameStateStore;
 import me.zilid.chessplatform.util.MutableClock;
 import org.junit.jupiter.api.Test;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 class GameTimeoutSweeperTest {
     private static final UUID EXPIRED = UUID.randomUUID();
@@ -92,8 +91,7 @@ class GameTimeoutSweeperTest {
         Game second = ongoingGame();
         when(matchService.getGameSession(EXPIRED)).thenReturn(first);
         when(matchService.getGameSession(OTHER)).thenReturn(second);
-        when(matchService.checkTimeout(EXPIRED))
-                .thenThrow(new IllegalStateException("Game is busy, please try again"));
+        when(matchService.checkTimeout(EXPIRED)).thenThrow(new IllegalStateException("Game is busy, please try again"));
         GameStateResponse state = flagged();
         when(matchService.checkTimeout(OTHER)).thenReturn(Optional.of(state));
 

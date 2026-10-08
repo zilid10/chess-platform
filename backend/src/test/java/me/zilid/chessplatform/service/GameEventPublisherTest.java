@@ -1,5 +1,11 @@
 package me.zilid.chessplatform.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
@@ -10,13 +16,6 @@ import me.zilid.chessplatform.rating.RatingChange;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
 class GameEventPublisherTest {
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
@@ -50,24 +49,24 @@ class GameEventPublisherTest {
         when(game.getWhitePlayer()).thenReturn(WHITE);
         when(game.getBlackPlayer()).thenReturn(BLACK);
         when(game.getTimeControl()).thenReturn(TimeControl.BLITZ);
-        when(matchService.archiveMatch(GAME_ID, game)).thenReturn(
-                new RatingChange(WHITE.id(), BLACK.id(), 1190, 1210, -10, 10));
+        when(matchService.archiveMatch(GAME_ID, game))
+                .thenReturn(new RatingChange(WHITE.id(), BLACK.id(), 1190, 1210, -10, 10));
 
         publisher.publishUpdate(GAME_ID, flagged);
 
         verify(messagingTemplate).convertAndSend("/topic/game." + GAME_ID, flagged);
         ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
         verify(messagingTemplate, times(2)).convertAndSend(eq("/topic/game." + GAME_ID + ".chat"), payload.capture());
-        assertThat(payload.getAllValues()).map(message -> ((ChatMessage) message).message()).containsExactly(
-                "Game Over: Black wins by flag",
-                "BLITZ ratings: white 1190 (-10), black 1210 (+10)");
+        assertThat(payload.getAllValues())
+                .map(message -> ((ChatMessage) message).message())
+                .containsExactly("Game Over: Black wins by flag", "BLITZ ratings: white 1190 (-10), black 1210 (+10)");
         verify(matchService).scheduleGameCleanup(GAME_ID);
     }
 
     @Test
     void abortedGameIsAnnouncedAndCleanedUpButNotArchived() {
-        GameStateResponse aborted = new GameStateResponse(GameStatus.ABORTED, "fen", null, null, "WHITE",
-                60_000, 60_000, false, null);
+        GameStateResponse aborted =
+                new GameStateResponse(GameStatus.ABORTED, "fen", null, null, "WHITE", 60_000, 60_000, false, null);
 
         publisher.publishUpdate(GAME_ID, aborted);
 

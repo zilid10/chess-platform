@@ -1,5 +1,19 @@
 package me.zilid.chessplatform.service;
 
+import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.ACCEPTED;
+import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.PENDING;
+import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.REJECTED;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+import java.util.UUID;
 import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.FriendRequestConverter;
@@ -13,21 +27,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Optional;
-import java.util.UUID;
-
-import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.ACCEPTED;
-import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.PENDING;
-import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.REJECTED;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 class FriendServiceTest {
     private FriendRequestRepo requestRepo;

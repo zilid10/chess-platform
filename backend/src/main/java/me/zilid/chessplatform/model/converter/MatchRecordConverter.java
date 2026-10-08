@@ -25,7 +25,6 @@ public class MatchRecordConverter {
                 matchRecord.getWhiteRating(),
                 matchRecord.getBlackRating(),
                 matchRecord.getWhiteRatingChange(),
-                matchRecord.getBlackRatingChange()
-        );
+                matchRecord.getBlackRatingChange());
     }
 }

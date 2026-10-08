@@ -1,5 +1,16 @@
 package me.zilid.chessplatform.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+import java.util.UUID;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
@@ -11,18 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 class UserServiceTest {
     private UserRepo userRepo;
@@ -41,8 +40,8 @@ class UserServiceTest {
         when(passwordEncoder.encode("secret123")).thenReturn("encoded-password");
         when(userRepo.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        UserResponse response = service.createUser(
-                new UserCreateRequest("alice", "alice@example.com", "secret123", "Chess fan"));
+        UserResponse response =
+                service.createUser(new UserCreateRequest("alice", "alice@example.com", "secret123", "Chess fan"));
 
         ArgumentCaptor<User> user = ArgumentCaptor.forClass(User.class);
         verify(userRepo).save(user.capture());

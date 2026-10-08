@@ -1,18 +1,17 @@
 package me.zilid.chessplatform.chess.game;
 
-import me.zilid.chessplatform.chess.Color;
-import org.jspecify.annotations.Nullable;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Objects;
+import me.zilid.chessplatform.chess.Color;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Both players' remaining time. Nothing ticks: the side to move's remaining time is its stored time minus the time
  * since its turn started, worked out whenever it is read. Callers pass the current time in.
- * <p>
- * The clock starts when Black makes the first move, so each side's first move is free. Every move, including those,
+ *
+ * <p>The clock starts when Black makes the first move, so each side's first move is free. Every move, including those,
  * earns the increment. A player whose remaining time reaches zero has flagged.
  */
 public class ChessClock {
@@ -30,17 +29,14 @@ public class ChessClock {
         turnColor = Color.WHITE;
     }
 
-    /**
-     * Rebuild a clock from values read with its getters.
-     */
+    /** Rebuild a clock from values read with its getters. */
     public static ChessClock restore(
             ClockSetting clockSetting,
             Duration whiteRemaining,
             Duration blackRemaining,
             Color turnColor,
             @Nullable Instant turnStartAt,
-            boolean stopped
-    ) {
+            boolean stopped) {
         ChessClock chessClock = new ChessClock(clockSetting);
         chessClock.remainings.put(Color.WHITE, whiteRemaining);
         chessClock.remainings.put(Color.BLACK, blackRemaining);
@@ -92,8 +88,8 @@ public class ChessClock {
     }
 
     /**
-     * Freeze both players' time when the game ends. A flagged player is left with zero. Stopping twice has no
-     * further effect.
+     * Freeze both players' time when the game ends. A flagged player is left with zero. Stopping twice has no further
+     * effect.
      */
     public void stop(Instant now) {
         if (stopped) {
@@ -133,16 +129,12 @@ public class ChessClock {
         return turnStartAt;
     }
 
-    /**
-     * White's time as of White's last move or the clock stopping. Use {@link #remaining} for the live value.
-     */
+    /** White's time as of White's last move or the clock stopping. Use {@link #remaining} for the live value. */
     public Duration getWhiteRemaining() {
         return Objects.requireNonNull(remainings.get(Color.WHITE));
     }
 
-    /**
-     * Black's time as of Black's last move or the clock stopping. Use {@link #remaining} for the live value.
-     */
+    /** Black's time as of Black's last move or the clock stopping. Use {@link #remaining} for the live value. */
     public Duration getBlackRemaining() {
         return Objects.requireNonNull(remainings.get(Color.BLACK));
     }

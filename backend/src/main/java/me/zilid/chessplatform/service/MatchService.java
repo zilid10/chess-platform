@@ -1,5 +1,11 @@
 package me.zilid.chessplatform.service;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.ClockSetting;
@@ -29,13 +35,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.function.Function;
-
 @Service
 public class MatchService {
 
@@ -49,8 +48,13 @@ public class MatchService {
     private final GameStateStore gameStateStore;
     private final Clock clock;
 
-    public MatchService(MatchRecordRepo matchRecordRepo, MatchRecordConverter matchRecordConverter, UserRepo userRepo,
-                        RatingService ratingService, GameStateStore gameStateStore, Clock clock) {
+    public MatchService(
+            MatchRecordRepo matchRecordRepo,
+            MatchRecordConverter matchRecordConverter,
+            UserRepo userRepo,
+            RatingService ratingService,
+            GameStateStore gameStateStore,
+            Clock clock) {
         this.matchRecordRepo = matchRecordRepo;
         this.matchRecordConverter = matchRecordConverter;
         this.userRepo = userRepo;
@@ -63,10 +67,7 @@ public class MatchService {
     public Page<MatchRecordResponse> findMatches(UUID userId, Pageable pageable) {
         logger.debug("Finding matches for user: {}", userId);
         pageable = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
-                Sort.by(Sort.Direction.DESC, "endTime")
-        );
+                pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "endTime"));
 
         Page<MatchRecord> games = matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(userId, userId, pageable);
         logger.debug("Found {} matches for user {}", games.getTotalElements(), userId);
@@ -76,27 +77,27 @@ public class MatchService {
     @Transactional(readOnly = true)
     public String getMatchPGN(UUID matchId) {
         logger.debug("Fetching PGN for match: {}", matchId);
-        MatchRecord matchRecord = matchRecordRepo.findById(matchId).orElseThrow(() -> new GameNotFoundException("Game with id " + matchId + " does not exist"));
+        MatchRecord matchRecord = matchRecordRepo
+                .findById(matchId)
+                .orElseThrow(() -> new GameNotFoundException("Game with id " + matchId + " does not exist"));
         return matchRecord.getPgn();
     }
 
     public GameCreatedResponse createGame(Player currentUser, Color color, ClockSetting clockSetting) {
         UUID gameId = UUID.randomUUID();
-        logger.info("Creating new {} game {} for user {} with color {}",
-                clockSetting, gameId, currentUser.displayName(), color);
+        logger.info(
+                "Creating new {} game {} for user {} with color {}",
+                clockSetting,
+                gameId,
+                currentUser.displayName(),
+                color);
         Game game = color.isWhite()
                 ? new Game(currentUser, null, clockSetting, clock.instant())
                 : new Game(null, currentUser, clockSetting, clock.instant());
         saveGame(gameId, game);
 
         return new GameCreatedResponse(
-                gameId,
-                color,
-                clockSetting.toString(),
-                clockSetting.category(),
-                game.getFen(),
-                "/game/" + gameId
-        );
+                gameId, color, clockSetting.toString(), clockSetting.category(), game.getFen(), "/game/" + gameId);
     }
 
     public GameJoinResponse joinGame(UUID gameId, Player currentUser) {
@@ -129,13 +130,12 @@ public class MatchService {
                     game.getTimeControl(),
                     game.getFen(),
                     game.getStatus(),
-                    game.getTurnColor().name()
-            );
+                    game.getTurnColor().name());
         });
     }
 
-    public GameStateResponse makeMove(Player currentUser, UUID gameId,
-                                      String moveFrom, String moveTo, @Nullable PieceType promotion) {
+    public GameStateResponse makeMove(
+            Player currentUser, UUID gameId, String moveFrom, String moveTo, @Nullable PieceType promotion) {
         return updateGame(gameId, game -> {
             Instant now = clock.instant();
             requirePlayer(game, currentUser);
@@ -204,12 +204,12 @@ public class MatchService {
     }
 
     /**
-     * End the game if its time limit has passed, as one load-check-store step under the game's lock. Safe to call
-     * from any number of instances at once: only the call that actually ends the game gets a state back, so only
-     * that caller should publish the result and archive the match.
+     * End the game if its time limit has passed, as one load-check-store step under the game's lock. Safe to call from
+     * any number of instances at once: only the call that actually ends the game gets a state back, so only that caller
+     * should publish the result and archive the match.
      *
-     * @return the final state if this call ended the game; empty if the game is missing, already over, or still
-     * within its time limit
+     * @return the final state if this call ended the game; empty if the game is missing, already over, or still within
+     *     its time limit
      */
     public Optional<GameStateResponse> checkTimeout(UUID gameId) {
         return gameStateStore.withLock(gameId, () -> {
@@ -229,9 +229,7 @@ public class MatchService {
         return buildGameStateResponse(game);
     }
 
-    /**
-     * Build a GameStateResponse from the current game state
-     */
+    /** Build a GameStateResponse from the current game state */
     public GameStateResponse buildGameStateResponse(Game game) {
         Instant now = clock.instant();
         synchronized (game) {
@@ -244,8 +242,7 @@ public class MatchService {
                     game.getRemaining(Color.WHITE, now).toMillis(),
                     game.getRemaining(Color.BLACK, now).toMillis(),
                     game.isClockRunning(),
-                    firstMoveRemainingMillis(game, now)
-            );
+                    firstMoveRemainingMillis(game, now));
         }
     }
 
@@ -258,9 +255,7 @@ public class MatchService {
         return left.isNegative() ? 0L : left.toMillis();
     }
 
-    /**
-     * Save the finished game and apply its result to both players' ratings in one transaction.
-     */
+    /** Save the finished game and apply its result to both players' ratings in one transaction. */
     @Transactional
     public RatingChange archiveMatch(UUID matchId, Game game) {
         if (!game.isGameOver()) {
@@ -276,33 +271,36 @@ public class MatchService {
         if (white == null || black == null || endTime == null) {
             throw new IllegalStateException("Game " + matchId + " ended without both players seated");
         }
-        logger.info("Archiving match {} with result: {}", matchId, game.getStatus().getSymbol());
+        logger.info(
+                "Archiving match {} with result: {}", matchId, game.getStatus().getSymbol());
         UUID whitePlayerId = white.id();
         UUID blackPlayerId = black.id();
         User whitePlayer = userRepo.getReferenceById(whitePlayerId);
         User blackPlayer = userRepo.getReferenceById(blackPlayerId);
-        MatchRecord matchRecord = new MatchRecord(whitePlayer, blackPlayer, game.getStatus().getSymbol(),
-                game.getStatus().getReason(), game.getNotation(), game.getStartTime(), endTime);
+        MatchRecord matchRecord = new MatchRecord(
+                whitePlayer,
+                blackPlayer,
+                game.getStatus().getSymbol(),
+                game.getStatus().getReason(),
+                game.getNotation(),
+                game.getStartTime(),
+                endTime);
         matchRecord.setTimeControl(game.getTimeControl());
-        RatingChange ratingChange = ratingService.applyResult(
-                whitePlayerId, blackPlayerId, game.getTimeControl(), game.getStatus());
+        RatingChange ratingChange =
+                ratingService.applyResult(whitePlayerId, blackPlayerId, game.getTimeControl(), game.getStatus());
         matchRecord.setRatingChange(ratingChange);
         matchRecordRepo.save(matchRecord);
         logger.info("Match {} archived successfully", matchId);
         return ratingChange;
     }
 
-    /**
-     * Keep a finished game readable for a short while (late joiners, reconnects), then let Redis evict it
-     */
+    /** Keep a finished game readable for a short while (late joiners, reconnects), then let Redis evict it */
     public void scheduleGameCleanup(UUID gameId) {
         gameStateStore.expireGame(gameId, FINISHED_GAME_TTL);
         logger.info("Game {} will be removed in {}", gameId, FINISHED_GAME_TTL);
     }
 
-    /**
-     * Load a game session (useful for testing or administrative purposes)
-     */
+    /** Load a game session (useful for testing or administrative purposes) */
     public @Nullable Game getGameSession(UUID gameId) {
         return gameStateStore.loadGame(gameId);
     }
@@ -316,8 +314,8 @@ public class MatchService {
     }
 
     /**
-     * Load the game, apply {@code action} and store the result, all under the game's distributed lock.
-     * Nothing is stored if {@code action} throws.
+     * Load the game, apply {@code action} and store the result, all under the game's distributed lock. Nothing is
+     * stored if {@code action} throws.
      */
     private <T> T updateGame(UUID gameId, Function<Game, T> action) {
         return gameStateStore.withLock(gameId, () -> {

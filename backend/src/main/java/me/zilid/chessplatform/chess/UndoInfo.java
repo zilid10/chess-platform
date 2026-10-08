@@ -8,6 +8,4 @@ public record UndoInfo(
         CastlingRights castlingRights,
         @Nullable Square enPassantTarget,
         int halfMoveClock,
-        int fullMoveClock
-) {
-}
+        int fullMoveClock) {}

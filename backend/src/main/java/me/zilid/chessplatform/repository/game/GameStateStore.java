@@ -1,5 +1,11 @@
 package me.zilid.chessplatform.repository.game;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Supplier;
 import me.zilid.chessplatform.chess.game.Game;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -8,19 +14,12 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Supplier;
-
 /**
  * Keeps games in progress in Redis so they survive restarts and can be shared by several backend instances.
- * <p>
- * Deliberately a {@code @Component}, not a {@code @Repository}: exception translation would turn the game-rule
- * exceptions thrown inside {@link #withLock} into {@code InvalidDataAccessApiUsageException}. Redis errors are
- * already translated by {@link StringRedisTemplate}.
+ *
+ * <p>Deliberately a {@code @Component}, not a {@code @Repository}: exception translation would turn the game-rule
+ * exceptions thrown inside {@link #withLock} into {@code InvalidDataAccessApiUsageException}. Redis errors are already
+ * translated by {@link StringRedisTemplate}.
  */
 @Component
 public class GameStateStore {
@@ -44,16 +43,13 @@ public class GameStateStore {
     private final ObjectMapper objectMapper;
     private final ActiveGameStateConverter converter;
 
-    GameStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper,
-                   ActiveGameStateConverter converter) {
+    GameStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, ActiveGameStateConverter converter) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.converter = converter;
     }
 
-    /**
-     * Save the game, reset its expiry to {@link #GAME_TTL}, and record or clear its timeout deadline.
-     */
+    /** Save the game, reset its expiry to {@link #GAME_TTL}, and record or clear its timeout deadline. */
     public void storeGame(UUID gameId, Game game) {
         String json;
         try {
@@ -70,11 +66,10 @@ public class GameStateStore {
         }
     }
 
-    /**
-     * Ids of games whose timeout deadline is at or before {@code now}, earliest first.
-     */
+    /** Ids of games whose timeout deadline is at or before {@code now}, earliest first. */
     public List<UUID> findTimeoutsDue(Instant now, int limit) {
-        Set<String> ids = redisTemplate.opsForZSet()
+        Set<String> ids = redisTemplate
+                .opsForZSet()
                 .rangeByScore(TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, now.toEpochMilli(), 0, limit);
         if (ids == null) {
             return List.of();
@@ -82,9 +77,7 @@ public class GameStateStore {
         return ids.stream().map(UUID::fromString).toList();
     }
 
-    /**
-     * Stop tracking the game's timeout, for example after the game itself has disappeared.
-     */
+    /** Stop tracking the game's timeout, for example after the game itself has disappeared. */
     public void clearTimeoutDeadline(UUID gameId) {
         redisTemplate.opsForZSet().remove(TIMEOUT_DEADLINES_KEY, gameId.toString());
     }
@@ -107,8 +100,8 @@ public class GameStateStore {
     }
 
     /**
-     * Run {@code action} while holding a distributed lock on the game, so a load-modify-store cycle
-     * cannot interleave with another one on any backend instance.
+     * Run {@code action} while holding a distributed lock on the game, so a load-modify-store cycle cannot interleave
+     * with another one on any backend instance.
      *
      * @throws IllegalStateException if the lock could not be acquired in time
      */

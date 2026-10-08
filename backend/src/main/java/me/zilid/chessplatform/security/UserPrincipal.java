@@ -1,19 +1,18 @@
 package me.zilid.chessplatform.security;
 
+import java.io.Serial;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serial;
-import java.util.Collection;
-import java.util.Objects;
-import java.util.UUID;
-
 /**
- * Authenticated identity stored in Java-serialized Redis sessions. Its qualified class name, serialized fields,
- * and serialVersionUID are part of the session format; changing any of them invalidates existing sessions.
+ * Authenticated identity stored in Java-serialized Redis sessions. Its qualified class name, serialized fields, and
+ * serialVersionUID are part of the session format; changing any of them invalidates existing sessions.
  */
 public class UserPrincipal implements UserDetails, CredentialsContainer {
     // Stored in Redis-backed sessions; keep stable so sessions survive redeploys
@@ -27,7 +26,13 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
     private final Collection<? extends GrantedAuthority> authorities;
     private @Nullable String passwordHash;
 
-    public UserPrincipal(UUID id, String username, String email, String passwordHash, boolean enabled, Collection<? extends GrantedAuthority> authorities) {
+    public UserPrincipal(
+            UUID id,
+            String username,
+            String email,
+            String passwordHash,
+            boolean enabled,
+            Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -51,9 +56,7 @@ public class UserPrincipal implements UserDetails, CredentialsContainer {
         return id;
     }
 
-    /**
-     * This user as a {@link me.zilid.chessplatform.chess.game.Game} sees them.
-     */
+    /** This user as a {@link me.zilid.chessplatform.chess.game.Game} sees them. */
     public RegisteredPlayer toPlayer() {
         return new RegisteredPlayer(id, username);
     }

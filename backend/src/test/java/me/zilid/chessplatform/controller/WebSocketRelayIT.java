@@ -1,5 +1,20 @@
 package me.zilid.chessplatform.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.lang.reflect.Type;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
@@ -36,25 +51,9 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.testcontainers.containers.GenericContainer;
 
-import java.lang.reflect.Type;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 /**
- * Starts two backend instances that share the RabbitMQ broker relay and checks that messages sent by one instance
- * reach clients connected to the other. Runs with the RabbitMQ provisioned by the backend CI job.
+ * Starts two backend instances that share the RabbitMQ broker relay and checks that messages sent by one instance reach
+ * clients connected to the other. Runs with the RabbitMQ provisioned by the backend CI job.
  */
 class WebSocketRelayIT {
     private static final UUID GAME_ID = UUID.randomUUID();
@@ -91,15 +90,16 @@ class WebSocketRelayIT {
 
     private static ConfigurableApplicationContext startInstance() {
         // Arguments, unlike default properties, take precedence over application.yaml
-        return new SpringApplicationBuilder(TestApplication.class).run(
-                "--server.port=0",
-                "--management.server.port=-1",
-                "--app.allowed-origins=" + ORIGIN,
-                "--app.websocket.relay.enabled=true",
-                "--app.websocket.relay.host=" + RABBITMQ.getHost(),
-                "--app.websocket.relay.port=" + RABBITMQ.getMappedPort(61613),
-                "--app.websocket.relay.login=chess",
-                "--app.websocket.relay.passcode=password");
+        return new SpringApplicationBuilder(TestApplication.class)
+                .run(
+                        "--server.port=0",
+                        "--management.server.port=-1",
+                        "--app.allowed-origins=" + ORIGIN,
+                        "--app.websocket.relay.enabled=true",
+                        "--app.websocket.relay.host=" + RABBITMQ.getHost(),
+                        "--app.websocket.relay.port=" + RABBITMQ.getMappedPort(61613),
+                        "--app.websocket.relay.login=chess",
+                        "--app.websocket.relay.passcode=password");
     }
 
     private static void awaitBrokerAvailable(ConfigurableApplicationContext instance) {
@@ -136,9 +136,7 @@ class WebSocketRelayIT {
         return messages;
     }
 
-    /**
-     * Subscriptions reach RabbitMQ asynchronously, so keep sending a probe until one arrives.
-     */
+    /** Subscriptions reach RabbitMQ asynchronously, so keep sending a probe until one arrives. */
     private static void awaitDelivery(BlockingQueue<Map<String, Object>> messages, Runnable sendProbe)
             throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
@@ -166,10 +164,16 @@ class WebSocketRelayIT {
 
     private static GameStateResponse state(Game game) {
         Instant now = Instant.now();
-        return new GameStateResponse(game.getStatus(), game.getFen(), game.getLastMoveFrom(),
-                game.getLastMoveTo(), game.getTurnColor().name(),
-                game.getRemaining(Color.WHITE, now).toMillis(), game.getRemaining(Color.BLACK, now).toMillis(),
-                game.isClockRunning(), null);
+        return new GameStateResponse(
+                game.getStatus(),
+                game.getFen(),
+                game.getLastMoveFrom(),
+                game.getLastMoveTo(),
+                game.getTurnColor().name(),
+                game.getRemaining(Color.WHITE, now).toMillis(),
+                game.getRemaining(Color.BLACK, now).toMillis(),
+                game.isClockRunning(),
+                null);
     }
 
     private static UserPrincipal principal(String username) {
@@ -187,13 +191,14 @@ class WebSocketRelayIT {
         when(MATCH_SERVICE.getGameOrThrow(GAME_ID)).thenReturn(game);
         when(MATCH_SERVICE.buildGameStateResponse(game)).thenAnswer(invocation -> state(game));
         doAnswer(invocation -> {
-            String from = invocation.getArgument(2);
-            String to = invocation.getArgument(3);
-            PieceType promotion = invocation.getArgument(4);
-            assertThat(game.makeMove(from, to, promotion)).isTrue();
-            return state(game);
-        }).when(MATCH_SERVICE).makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(),
-                nullable(PieceType.class));
+                    String from = invocation.getArgument(2);
+                    String to = invocation.getArgument(3);
+                    PieceType promotion = invocation.getArgument(4);
+                    assertThat(game.makeMove(from, to, promotion)).isTrue();
+                    return state(game);
+                })
+                .when(MATCH_SERVICE)
+                .makeMove(any(Player.class), eq(GAME_ID), anyString(), anyString(), nullable(PieceType.class));
 
         client = new WebSocketStompClient(new StandardWebSocketClient());
         client.setMessageConverter(new JacksonJsonMessageConverter());
@@ -227,22 +232,24 @@ class WebSocketRelayIT {
         BlockingQueue<Map<String, Object>> errors = subscribe(black, "/user/topic/errors");
 
         // Instance A does not hold BLACK's session, so it must resolve the user through the broker
-        awaitDelivery(errors, () -> template(instanceA()).convertAndSendToUser(
-                BLACK.getUsername(), "/topic/errors", PROBE));
+        awaitDelivery(
+                errors, () -> template(instanceA()).convertAndSendToUser(BLACK.getUsername(), "/topic/errors", PROBE));
     }
 
     private StompSession connect(ConfigurableApplicationContext instance, UserPrincipal user) throws Exception {
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
         headers.setOrigin(ORIGIN);
-        String credentials = Base64.getEncoder().encodeToString(
-                (user.getUsername() + ":password").getBytes(StandardCharsets.UTF_8));
+        String credentials =
+                Base64.getEncoder().encodeToString((user.getUsername() + ":password").getBytes(StandardCharsets.UTF_8));
         headers.set(HttpHeaders.AUTHORIZATION, "Basic " + credentials);
 
         String port = instance.getEnvironment().getRequiredProperty("local.server.port");
         StompSession session = client.connectAsync(
-                URI.create("ws://localhost:" + port + "/ws"), headers, new StompHeaders(),
-                new StompSessionHandlerAdapter() {
-                }).get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                        URI.create("ws://localhost:" + port + "/ws"),
+                        headers,
+                        new StompHeaders(),
+                        new StompSessionHandlerAdapter() {})
+                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         sessions.add(session);
         return session;
     }

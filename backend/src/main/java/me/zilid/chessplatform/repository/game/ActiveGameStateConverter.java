@@ -1,11 +1,10 @@
 package me.zilid.chessplatform.repository.game;
 
+import java.util.ArrayList;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.Player;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
 
 @Component
 class ActiveGameStateConverter {
@@ -33,14 +32,24 @@ class ActiveGameStateConverter {
                     store(game.getWhitePlayer()),
                     store(game.getBlackPlayer()),
                     game.getDrawOfferedBy(),
-                    game.getFirstMoveDeadline()
-            );
+                    game.getFirstMoveDeadline());
         }
     }
 
     Game toGame(ActiveGameState state) {
-        return Game.restore(state.moves(), state.clockSetting(), state.whiteRemaining(), state.blackRemaining(),
-                state.turnStartAt(), state.turnColor(), state.startTime(), state.endTime(), state.status(),
-                load(state.whitePlayer()), load(state.blackPlayer()), state.drawOfferedBy(), state.firstMoveDeadline());
+        return Game.restore(
+                state.moves(),
+                state.clockSetting(),
+                state.whiteRemaining(),
+                state.blackRemaining(),
+                state.turnStartAt(),
+                state.turnColor(),
+                state.startTime(),
+                state.endTime(),
+                state.status(),
+                load(state.whitePlayer()),
+                load(state.blackPlayer()),
+                state.drawOfferedBy(),
+                state.firstMoveDeadline());
     }
 }

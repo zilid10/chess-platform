@@ -17,7 +17,13 @@ public class UserConverter {
     }
 
     public UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAbout(), user.getCreatedAt(), user.getUpdatedAt());
+        return new UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getAbout(),
+                user.getCreatedAt(),
+                user.getUpdatedAt());
     }
 
     public User fromRequest(UserCreateRequest request) {

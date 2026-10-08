@@ -1,5 +1,11 @@
 package me.zilid.chessplatform.service;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.UserNotFoundException;
@@ -16,13 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class RatingService {
@@ -57,8 +56,8 @@ public class RatingService {
     }
 
     /**
-     * Apply a finished game's result to both players' ratings for its time control.
-     * Runs inside the caller's transaction so the rating update and the match record commit together.
+     * Apply a finished game's result to both players' ratings for its time control. Runs inside the caller's
+     * transaction so the rating update and the match record commit together.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public RatingChange applyResult(UUID whiteId, UUID blackId, TimeControl timeControl, GameStatus status) {
@@ -81,14 +80,17 @@ public class RatingService {
         RatingChange change = ratingSystem.apply(toDto(whiteId, white), toDto(blackId, black), outcome);
         white.applyChanges(change.whiteAfter());
         black.applyChanges(change.blackAfter());
-        logger.info("{} ratings updated: white {} ({}), black {} ({})", timeControl,
-                change.whiteAfter(), change.whiteDelta(), change.blackAfter(), change.blackDelta());
+        logger.info(
+                "{} ratings updated: white {} ({}), black {} ({})",
+                timeControl,
+                change.whiteAfter(),
+                change.whiteDelta(),
+                change.blackAfter(),
+                change.blackDelta());
         return change;
     }
 
-    /**
-     * Get a user's rating for every time control, including ones they have not played yet.
-     */
+    /** Get a user's rating for every time control, including ones they have not played yet. */
     @Transactional(readOnly = true)
     public List<PlayerRatingResponse> getRatings(UUID userId) {
         if (!userRepo.existsById(userId)) {
@@ -100,19 +102,18 @@ public class RatingService {
                 .map(timeControl -> {
                     Rating rating = ratings.get(timeControl);
                     if (rating == null) {
-                        return new PlayerRatingResponse(timeControl, Rating.DEFAULT_RATING, 0,
-                                Rating.DEFAULT_RATING);
+                        return new PlayerRatingResponse(timeControl, Rating.DEFAULT_RATING, 0, Rating.DEFAULT_RATING);
                     }
-                    return new PlayerRatingResponse(timeControl, rating.getRating(), rating.getGamesPlayed(),
-                            rating.getPeakRating());
+                    return new PlayerRatingResponse(
+                            timeControl, rating.getRating(), rating.getGamesPlayed(), rating.getPeakRating());
                 })
                 .toList();
     }
 
     private Rating lockRating(UUID userId, TimeControl timeControl) {
         // Every user gets their rating rows at registration; this covers accounts that predate them.
-        return ratingRepo.findForUpdate(userId, timeControl)
-                .orElseGet(() -> ratingRepo.save(
-                        new Rating(userRepo.getReferenceById(userId), timeControl)));
+        return ratingRepo
+                .findForUpdate(userId, timeControl)
+                .orElseGet(() -> ratingRepo.save(new Rating(userRepo.getReferenceById(userId), timeControl)));
     }
 }

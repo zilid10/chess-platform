@@ -1,17 +1,16 @@
 package me.zilid.chessplatform.chess.game;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Square;
 import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GameTest {
     private static final String START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -186,7 +185,8 @@ class GameTest {
         play(game, "d8", "h4");
 
         assertThat(game.getStatus()).isEqualTo(GameStatus.CHECKMATE_BLACK_WINS);
-        assertThat(game.getNotation()).contains("[Result \"0-1\"]", "1. f3 e5 2. g4 Qh4#", "[Termination \"Black wins by checkmate\"]");
+        assertThat(game.getNotation())
+                .contains("[Result \"0-1\"]", "1. f3 e5 2. g4 Qh4#", "[Termination \"Black wins by checkmate\"]");
         assertThat(game.getNotation()).endsWith("0-1");
     }
 
@@ -286,8 +286,11 @@ class GameTest {
         @Test
         void flagIsADrawWhenTheOpponentCannotCheckmate() {
             // White has a queen; Black's lone knight cannot mate without a blocker other than a queen
-            Game game = Game.fromPosition(Fen.parse("1n2k3/8/8/8/8/8/8/3QK3 w - - 0 1"),
-                    player("white"), player("black"), TestGames.TEN_MINUTES);
+            Game game = Game.fromPosition(
+                    Fen.parse("1n2k3/8/8/8/8/8/8/3QK3 w - - 0 1"),
+                    player("white"),
+                    player("black"),
+                    TestGames.TEN_MINUTES);
             game.makeMove("e1", "f1", null, T0);
             game.makeMove("b8", "c6", null, T0.plusSeconds(1));
 
@@ -300,8 +303,11 @@ class GameTest {
         @Test
         void flagIsALossWhenTheOpponentCouldStillCheckmate() {
             // A rook can block its own king in, so a knight could still mate
-            Game game = Game.fromPosition(Fen.parse("1n2k3/8/8/8/8/8/8/3RK3 w - - 0 1"),
-                    player("white"), player("black"), TestGames.TEN_MINUTES);
+            Game game = Game.fromPosition(
+                    Fen.parse("1n2k3/8/8/8/8/8/8/3RK3 w - - 0 1"),
+                    player("white"),
+                    player("black"),
+                    TestGames.TEN_MINUTES);
             game.makeMove("e1", "f1", null, T0);
             game.makeMove("b8", "c6", null, T0.plusSeconds(1));
 
@@ -353,7 +359,9 @@ class GameTest {
             assertThat(game.checkTimeout(firstMoveDeadline)).isTrue();
 
             assertThat(game.getStatus()).isEqualTo(GameStatus.ABORTED);
-            assertThat(game.getStatus().isWhiteWin() || game.getStatus().isBlackWin() || game.getStatus().isDraw())
+            assertThat(game.getStatus().isWhiteWin()
+                            || game.getStatus().isBlackWin()
+                            || game.getStatus().isDraw())
                     .isFalse();
             assertThat(game.getEndTime()).isEqualTo(firstMoveDeadline);
             assertThat(game.timeoutDeadline()).isNull();
@@ -388,7 +396,8 @@ class GameTest {
         void aFirstMoveAfterTheWindowAbortsInsteadOfPlaying() {
             Game game = seatedAtT0();
 
-            assertThat(game.makeMove("e2", "e4", null, firstMoveDeadline.plusSeconds(1))).isTrue();
+            assertThat(game.makeMove("e2", "e4", null, firstMoveDeadline.plusSeconds(1)))
+                    .isTrue();
 
             assertThat(game.getStatus()).isEqualTo(GameStatus.ABORTED);
             assertThat(game.getMoves()).isEmpty();

@@ -1,5 +1,7 @@
 package me.zilid.chessplatform.service;
 
+import java.time.Clock;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.repository.game.GameStateStore;
 import org.slf4j.Logger;
@@ -8,12 +10,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.Clock;
-import java.util.UUID;
-
 /**
- * Ends games whose time limit has passed even when nobody acts on them, such as a player who never moves again.
- * Every backend instance runs the sweep; {@link MatchService#checkTimeout} makes sure each game ends once.
+ * Ends games whose time limit has passed even when nobody acts on them, such as a player who never moves again. Every
+ * backend instance runs the sweep; {@link MatchService#checkTimeout} makes sure each game ends once.
  */
 @Component
 @ConditionalOnProperty(name = "app.game.timeout-sweep.enabled", havingValue = "true", matchIfMissing = true)
@@ -26,8 +25,8 @@ public class GameTimeoutSweeper {
     private final GameEventPublisher publisher;
     private final Clock clock;
 
-    public GameTimeoutSweeper(GameStateStore gameStateStore, MatchService matchService, GameEventPublisher publisher,
-                              Clock clock) {
+    public GameTimeoutSweeper(
+            GameStateStore gameStateStore, MatchService matchService, GameEventPublisher publisher, Clock clock) {
         this.gameStateStore = gameStateStore;
         this.matchService = matchService;
         this.publisher = publisher;

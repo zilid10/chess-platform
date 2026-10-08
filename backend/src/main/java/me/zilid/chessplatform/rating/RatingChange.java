@@ -4,13 +4,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public record RatingChange(
-        UUID whitePlayerId,
-        UUID blackPlayerId,
-        int whiteAfter,
-        int blackAfter,
-        int whiteDelta,
-        int blackDelta
-) {
+        UUID whitePlayerId, UUID blackPlayerId, int whiteAfter, int blackAfter, int whiteDelta, int blackDelta) {
     public int newRatingFor(UUID userId) {
         if (Objects.equals(whitePlayerId, userId)) {
             return whiteAfter;

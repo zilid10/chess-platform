@@ -13,7 +13,8 @@ public record Square(int index) {
 
     public static Square of(int file, int rank) {
         if (!isValid(file, rank)) {
-            throw new IllegalArgumentException("Square out of bounds: (" + file + ", " + rank + "), expected file and rank in range 0-7");
+            throw new IllegalArgumentException(
+                    "Square out of bounds: (" + file + ", " + rank + "), expected file and rank in range 0-7");
         }
         return new Square(rank * 8 + file);
     }
@@ -49,6 +50,6 @@ public record Square(int index) {
     }
 
     public String toNotation() {
-        return String.valueOf(new char[]{(char) (file() + 'a'), (char) (rank() + '1')});
+        return String.valueOf(new char[] {(char) (file() + 'a'), (char) (rank() + '1')});
     }
 }

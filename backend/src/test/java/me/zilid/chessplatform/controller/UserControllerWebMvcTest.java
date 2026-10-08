@@ -1,5 +1,15 @@
 package me.zilid.chessplatform.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Stream;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.UserNotFoundException;
@@ -33,17 +43,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 // The production application enables JPA repositories, so keep this MVC slice isolated.
 @WebMvcTest(UserController.class)
 @ContextConfiguration(classes = UserControllerWebMvcTest.TestConfiguration.class)
@@ -51,16 +50,24 @@ class UserControllerWebMvcTest {
 
     private static final UUID USER_ID = UUID.fromString("724330e9-91ab-40b2-a1b8-2b822fd10bd7");
     private static final UserResponse USER = new UserResponse(
-            USER_ID, "player", "player@example.com", "Chess fan",
-            Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"));
-    private static final UserPrincipal PRINCIPAL = new UserPrincipal(
-            USER_ID, "player", "player@example.com", "password123", true, List.of());
+            USER_ID,
+            "player",
+            "player@example.com",
+            "Chess fan",
+            Instant.parse("2026-01-01T00:00:00Z"),
+            Instant.parse("2026-01-01T00:00:00Z"));
+    private static final UserPrincipal PRINCIPAL =
+            new UserPrincipal(USER_ID, "player", "player@example.com", "password123", true, List.of());
+
     @Autowired
     private MockMvc mvc;
+
     @MockitoBean
     private UserService userService;
+
     @MockitoBean
     private RatingService ratingService;
+
     @MockitoBean
     private AuthenticationManager authenticationManager;
 
@@ -74,15 +81,15 @@ class UserControllerWebMvcTest {
                         """, "email"),
                 Arguments.of("short password", """
                         {"username":"player","email":"player@example.com","rawPassword":"x"}
-                        """, "rawPassword")
-        );
+                        """, "rawPassword"));
     }
 
     @Test
     void ratingsAreListedPerTimeControl() throws Exception {
-        when(ratingService.getRatings(USER_ID)).thenReturn(List.of(
-                new PlayerRatingResponse(TimeControl.BLITZ, 1250, 12, 1290),
-                new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200)));
+        when(ratingService.getRatings(USER_ID))
+                .thenReturn(List.of(
+                        new PlayerRatingResponse(TimeControl.BLITZ, 1250, 12, 1290),
+                        new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200)));
 
         mvc.perform(get("/api/users/{userId}/ratings", USER_ID)
                         .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
@@ -105,8 +112,7 @@ class UserControllerWebMvcTest {
 
     @Test
     void ratingsRequireAuthentication() throws Exception {
-        mvc.perform(get("/api/users/{userId}/ratings", USER_ID))
-                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/users/{userId}/ratings", USER_ID)).andExpect(status().isUnauthorized());
 
         verifyNoInteractions(ratingService);
     }
@@ -115,9 +121,7 @@ class UserControllerWebMvcTest {
     void registrationIsPublicAndReturnsCreatedUser() throws Exception {
         when(userService.createUser(any(UserCreateRequest.class))).thenReturn(USER);
 
-        mvc.perform(post("/api/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
                                 {"username":"player","email":"player@example.com",
                                  "rawPassword":"password123","about":"Chess fan"}
                                 """))
@@ -126,16 +130,15 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.username").value("player"))
                 .andExpect(jsonPath("$.email").value("player@example.com"));
 
-        verify(userService).createUser(new UserCreateRequest(
-                "player", "player@example.com", "password123", "Chess fan"));
+        verify(userService)
+                .createUser(new UserCreateRequest("player", "player@example.com", "password123", "Chess fan"));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidRegistrations")
-    void invalidRegistrationIsRejectedBeforeCallingTheService(String scenario, String body, String field) throws Exception {
-        mvc.perform(post("/api/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+    void invalidRegistrationIsRejectedBeforeCallingTheService(String scenario, String body, String field)
+            throws Exception {
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Validation failed"))
@@ -152,9 +155,7 @@ class UserControllerWebMvcTest {
         when(userService.createUser(any(UserCreateRequest.class)))
                 .thenThrow(new DataIntegrityViolationException("users_email_key violated: private database detail"));
 
-        mvc.perform(post("/api/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
                                 {"username":"player","email":"player@example.com",
                                  "rawPassword":"password123"}
                                 """))
@@ -164,9 +165,7 @@ class UserControllerWebMvcTest {
 
     @Test
     void malformedRequestBodyUsesBadRequestResponse() throws Exception {
-        mvc.perform(post("/api/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{"))
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Invalid request body"));
 
@@ -175,16 +174,15 @@ class UserControllerWebMvcTest {
 
     @Test
     void currentUserRequiresAuthentication() throws Exception {
-        mvc.perform(get("/api/me"))
-                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
 
         verifyNoInteractions(userService);
     }
 
     @Test
     void loginAuthenticatesAndReturnsCurrentUser() throws Exception {
-        when(authenticationManager.authenticate(any())).thenReturn(
-                UsernamePasswordAuthenticationToken.authenticated(PRINCIPAL, null, List.of()));
+        when(authenticationManager.authenticate(any()))
+                .thenReturn(UsernamePasswordAuthenticationToken.authenticated(PRINCIPAL, null, List.of()));
         when(userService.getUserById(USER_ID)).thenReturn(USER);
 
         MvcResult login = mvc.perform(post("/api/login")
@@ -197,8 +195,7 @@ class UserControllerWebMvcTest {
                 .andExpect(jsonPath("$.username").value("player"))
                 .andReturn();
 
-        mvc.perform(get("/api/me")
-                        .session((MockHttpSession) login.getRequest().getSession()))
+        mvc.perform(get("/api/me").session((MockHttpSession) login.getRequest().getSession()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(USER_ID.toString()));
 
@@ -254,12 +251,9 @@ class UserControllerWebMvcTest {
 
     @Test
     void badCredentialsUseThePublicAuthenticationError() throws Exception {
-        when(authenticationManager.authenticate(any()))
-                .thenThrow(new BadCredentialsException("secret detail"));
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("secret detail"));
 
-        mvc.perform(post("/api/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON).content("""
                                 {"username":"player","password":"wrong"}
                                 """))
                 .andExpect(status().isUnauthorized())
@@ -286,8 +280,7 @@ class UserControllerWebMvcTest {
 
     @Test
     void validationReportsAllInvalidFieldsWithoutEchoingRejectedValues() throws Exception {
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
                                 {"username":"ab","email":"invalid","rawPassword":"pw"}
                                 """))
                 .andExpect(status().isBadRequest())
@@ -300,6 +293,5 @@ class UserControllerWebMvcTest {
 
     @SpringBootConfiguration
     @Import({UserController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {
-    }
+    static class TestConfiguration {}
 }

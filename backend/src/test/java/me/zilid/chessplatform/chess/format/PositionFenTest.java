@@ -1,18 +1,18 @@
 package me.zilid.chessplatform.chess.format;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.Position;
 import me.zilid.chessplatform.chess.Square;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for FEN parsing and serialization. Round-tripping (parse a FEN, format it
- * back out, expect the identical string) is the backbone check: it exercises piece
- * placement, side to move, castling rights, en passant target, and both clocks at once.
+ * Tests for FEN parsing and serialization. Round-tripping (parse a FEN, format it back out, expect the identical
+ * string) is the backbone check: it exercises piece placement, side to move, castling rights, en passant target, and
+ * both clocks at once.
  */
 class PositionFenTest {
 
@@ -63,8 +63,7 @@ class PositionFenTest {
 
     @Test
     void rejectsMalformedFen() {
-        assertThatThrownBy(() -> Fen.parse("not a fen"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Fen.parse("not a fen")).isInstanceOf(IllegalArgumentException.class);
         // only seven ranks on the board
         assertThatThrownBy(() -> Fen.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1"))
                 .isInstanceOf(IllegalArgumentException.class);

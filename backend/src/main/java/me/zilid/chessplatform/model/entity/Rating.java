@@ -7,12 +7,10 @@ import me.zilid.chessplatform.chess.game.TimeControl;
 @Table(
         name = "player_ratings",
         uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_player_rating_user_time_control",
-                        columnNames = {"user_id", "time_control"}
-                )
-        }
-)
+            @UniqueConstraint(
+                    name = "uk_player_rating_user_time_control",
+                    columnNames = {"user_id", "time_control"})
+        })
 public class Rating extends AuditedBaseEntity {
     public static final int DEFAULT_RATING = 1200;
 
@@ -33,8 +31,7 @@ public class Rating extends AuditedBaseEntity {
     @Column(name = "peak_rating", nullable = false)
     private int peakRating;
 
-    protected Rating() {
-    }
+    protected Rating() {}
 
     public Rating(User user, TimeControl timeControl) {
         this.user = user;

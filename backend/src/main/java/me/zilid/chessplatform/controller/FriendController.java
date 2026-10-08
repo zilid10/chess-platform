@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.controller;
 
+import java.util.UUID;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
 import me.zilid.chessplatform.model.dto.UserResponse;
 import me.zilid.chessplatform.security.UserPrincipal;
@@ -11,8 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -32,8 +31,8 @@ public class FriendController {
     }
 
     @DeleteMapping("/friends/{userId}")
-    public void removeFriend(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                             @PathVariable("userId") UUID friendId) {
+    public void removeFriend(
+            @AuthenticationPrincipal UserPrincipal userPrincipal, @PathVariable("userId") UUID friendId) {
         UUID userId = userPrincipal.getId();
         logger.info("User {} removing friend with ID: {}", userPrincipal.getUsername(), friendId);
         friendService.deleteFriend(userId, friendId);
@@ -55,8 +54,8 @@ public class FriendController {
 
     @PostMapping("/friends/send/{userId}")
     @ResponseStatus(HttpStatus.CREATED)
-    public FriendRequestResponse sendFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                   @PathVariable("userId") UUID recipientId) {
+    public FriendRequestResponse sendFriendRequest(
+            @AuthenticationPrincipal UserPrincipal userPrincipal, @PathVariable("userId") UUID recipientId) {
         UUID senderId = userPrincipal.getId();
         logger.info("User {} sending friend request to user {}", userPrincipal.getUsername(), recipientId);
         return friendService.createFriendRequest(senderId, recipientId);
@@ -64,8 +63,9 @@ public class FriendController {
 
     @PostMapping("/friends/accept/{friendRequestId}")
     @ResponseStatus(HttpStatus.CREATED)
-    public FriendRequestResponse acceptFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                     @PathVariable("friendRequestId") UUID friendRequestId) {
+    public FriendRequestResponse acceptFriendRequest(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("friendRequestId") UUID friendRequestId) {
         UUID recipientId = userPrincipal.getId();
         logger.info("User {} accepting friend request {}", userPrincipal.getUsername(), friendRequestId);
         return friendService.acceptFriendRequest(friendRequestId, recipientId);
@@ -73,11 +73,11 @@ public class FriendController {
 
     @PutMapping("/friends/reject/{friendRequestId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void rejectFriendRequest(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                    @PathVariable("friendRequestId") UUID friendRequestId) {
+    public void rejectFriendRequest(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("friendRequestId") UUID friendRequestId) {
         UUID recipientId = userPrincipal.getId();
         logger.info("User {} rejecting friend request {}", userPrincipal.getUsername(), friendRequestId);
         friendService.declineFriendRequest(friendRequestId, recipientId);
     }
-
 }

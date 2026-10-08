@@ -1,9 +1,8 @@
 package me.zilid.chessplatform.chess.format.pgn;
 
+import java.util.List;
 import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.Position;
-
-import java.util.List;
 
 public class PgnFormatter {
     public static String format(Position replayPosition, List<Move> moveHistory) {
