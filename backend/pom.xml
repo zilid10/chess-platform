@@ -236,6 +236,21 @@
                 </executions>
             </plugin>
 
+            <!-- Measure coverage of unit and integration tests -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Set profiles to test on Unit Test -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
