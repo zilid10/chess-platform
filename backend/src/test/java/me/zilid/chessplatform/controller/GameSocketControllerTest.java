@@ -1,5 +1,14 @@
 package me.zilid.chessplatform.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.security.Principal;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.GameStatus;
@@ -17,21 +26,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
-import java.security.Principal;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 class GameSocketControllerTest {
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
     private static final UserPrincipal PLAYER = new UserPrincipal(
             UUID.fromString("02410898-174c-4cb5-b8c5-55fe3cc535b9"),
-            "player", "player@example.com", "password", true, List.of());
+            "player",
+            "player@example.com",
+            "password",
+            true,
+            List.of());
 
     private final MatchService matchService = mock(MatchService.class);
     private final GameEventPublisher publisher = mock(GameEventPublisher.class);
@@ -143,8 +146,7 @@ class GameSocketControllerTest {
     void chatWithoutAnAuthenticatedUserIsRejected() {
         Principal anonymous = () -> "anonymous";
 
-        assertThatThrownBy(() -> controller.sendChatMessage(
-                GAME_ID, new ChatMessage("forged", "hello"), anonymous))
+        assertThatThrownBy(() -> controller.sendChatMessage(GAME_ID, new ChatMessage("forged", "hello"), anonymous))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Authentication required");
 

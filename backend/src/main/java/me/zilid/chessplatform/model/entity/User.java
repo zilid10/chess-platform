@@ -1,13 +1,12 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
-import me.zilid.chessplatform.chess.game.TimeControl;
-import org.jspecify.annotations.Nullable;
-
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import me.zilid.chessplatform.chess.game.TimeControl;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "users")
@@ -28,16 +27,14 @@ public class User extends AuditedBaseEntity {
     @JoinTable(
             name = "user_friendship",
             joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "friend_id")
-    )
+            inverseJoinColumns = @JoinColumn(name = "friend_id"))
     private Set<User> friends = new HashSet<>();
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @MapKey(name = "timeControl")
     private Map<TimeControl, Rating> playerRatings = new EnumMap<>(TimeControl.class);
 
-    protected User() {
-    }
+    protected User() {}
 
     public User(String email, String username, String passwordHash, @Nullable String about) {
         this.email = email;

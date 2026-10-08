@@ -1,6 +1,5 @@
 package me.zilid.chessplatform.chess;
 
-
 public enum Piece {
     WHITE_PAWN(Color.WHITE, PieceType.PAWN),
     WHITE_KNIGHT(Color.WHITE, PieceType.KNIGHT),

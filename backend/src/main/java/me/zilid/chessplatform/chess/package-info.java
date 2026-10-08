@@ -1,6 +1,4 @@
-/**
- * Board representation, move generation, and rule validation. Independent of Spring and persistence.
- */
+/** Board representation, move generation, and rule validation. Independent of Spring and persistence. */
 @NullMarked
 package me.zilid.chessplatform.chess;
 

@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.controller;
 
+import java.util.UUID;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
@@ -15,8 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -52,9 +51,7 @@ public class GameController {
     }
 
     @PostMapping("/games/{gameId}/join")
-    public GameJoinResponse joinGame(
-            @PathVariable UUID gameId,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+    public GameJoinResponse joinGame(@PathVariable UUID gameId, @AuthenticationPrincipal UserPrincipal currentUser) {
         logger.info("User {} joining game {}", currentUser.getUsername(), gameId);
         return matchService.joinGame(gameId, currentUser.toPlayer());
     }

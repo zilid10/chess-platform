@@ -1,13 +1,13 @@
 package me.zilid.chessplatform.chess.format;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.Square;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UciTest {
 

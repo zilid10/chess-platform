@@ -19,7 +19,6 @@ public class FriendRequestConverter {
                 userConverter.toResponse(friendRequest.getRecipient()),
                 friendRequest.getStatus(),
                 friendRequest.getCreatedAt(),
-                friendRequest.getUpdatedAt()
-        );
+                friendRequest.getUpdatedAt());
     }
 }

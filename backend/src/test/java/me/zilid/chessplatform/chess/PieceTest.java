@@ -1,17 +1,15 @@
 package me.zilid.chessplatform.chess;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
 import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Movement tests for each piece type. Every test follows the same shape:
- * build a position from a FEN string, ask for the legal moves of one piece,
- * and assert the exact set of destination squares.
+ * Movement tests for each piece type. Every test follows the same shape: build a position from a FEN string, ask for
+ * the legal moves of one piece, and assert the exact set of destination squares.
  */
 class PieceTest {
 
@@ -32,8 +30,7 @@ class PieceTest {
 
         @Test
         void knightInCornerHasTwoMoves() {
-            assertThat(legalMovesFrom("k7/8/8/8/8/8/8/N6K w - - 0 1", "a1"))
-                    .containsExactlyInAnyOrder("b3", "c2");
+            assertThat(legalMovesFrom("k7/8/8/8/8/8/8/N6K w - - 0 1", "a1")).containsExactlyInAnyOrder("b3", "c2");
         }
 
         @Test
@@ -45,8 +42,7 @@ class PieceTest {
 
         @Test
         void knightCapturesEnemyPiece() {
-            assertThat(legalMovesFrom("k7/8/3p4/8/4N3/8/8/7K w - - 0 1", "e4"))
-                    .contains("d6");
+            assertThat(legalMovesFrom("k7/8/3p4/8/4N3/8/8/7K w - - 0 1", "e4")).contains("d6");
         }
     }
 
@@ -92,8 +88,7 @@ class PieceTest {
 
         @Test
         void queenInCenterHasTwentySevenMoves() {
-            assertThat(legalMovesFrom("7k/8/8/8/4Q3/8/8/K7 w - - 0 1", "e4"))
-                    .hasSize(27);
+            assertThat(legalMovesFrom("7k/8/8/8/4Q3/8/8/K7 w - - 0 1", "e4")).hasSize(27);
         }
     }
 
@@ -125,14 +120,12 @@ class PieceTest {
 
         @Test
         void pawnCanOnlyPushOneAfterLeavingStartingRank() {
-            assertThat(legalMovesFrom("7k/8/8/8/8/4P3/8/K7 w - - 0 1", "e3"))
-                    .containsExactlyInAnyOrder("e4");
+            assertThat(legalMovesFrom("7k/8/8/8/8/4P3/8/K7 w - - 0 1", "e3")).containsExactlyInAnyOrder("e4");
         }
 
         @Test
         void pawnIsBlockedByPieceAhead() {
-            assertThat(legalMovesFrom("7k/8/8/4p3/4P3/8/8/K7 w - - 0 1", "e4"))
-                    .isEmpty();
+            assertThat(legalMovesFrom("7k/8/8/4p3/4P3/8/8/K7 w - - 0 1", "e4")).isEmpty();
         }
 
         @Test
@@ -144,8 +137,7 @@ class PieceTest {
 
         @Test
         void blackPawnMovesTowardRankOne() {
-            assertThat(legalMovesFrom("7k/4p3/8/8/8/8/8/K7 b - - 0 1", "e7"))
-                    .containsExactlyInAnyOrder("e6", "e5");
+            assertThat(legalMovesFrom("7k/4p3/8/8/8/8/8/K7 b - - 0 1", "e7")).containsExactlyInAnyOrder("e6", "e5");
         }
     }
 }

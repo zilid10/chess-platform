@@ -1,6 +1,10 @@
 package me.zilid.chessplatform.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
@@ -12,12 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-
-import java.time.Instant;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 
 @RepositoryTest
 class MatchRecordRepoIT {
@@ -45,32 +43,38 @@ class MatchRecordRepoIT {
         entityManager.clear();
 
         PageRequest firstTwo = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "endTime"));
-        Page<MatchRecord> firstPage = matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(
-                alice.getId(), alice.getId(), firstTwo);
-        Page<MatchRecord> secondPage = matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(
-                alice.getId(), alice.getId(), firstTwo.next());
+        Page<MatchRecord> firstPage =
+                matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(alice.getId(), alice.getId(), firstTwo);
+        Page<MatchRecord> secondPage =
+                matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(alice.getId(), alice.getId(), firstTwo.next());
 
         assertThat(firstPage.getTotalElements()).isEqualTo(3);
         assertThat(firstPage.getTotalPages()).isEqualTo(2);
-        assertThat(firstPage.map(MatchRecord::getId).getContent())
-                .containsExactly(newest.getId(), middle.getId());
-        assertThat(secondPage.map(MatchRecord::getId).getContent())
-                .containsExactly(oldest.getId());
+        assertThat(firstPage.map(MatchRecord::getId).getContent()).containsExactly(newest.getId(), middle.getId());
+        assertThat(secondPage.map(MatchRecord::getId).getContent()).containsExactly(oldest.getId());
         assertThat(secondPage.getContent().getFirst().getPgn()).isEqualTo("1. e4 e5");
     }
 
     @ParameterizedTest
-    @EnumSource(value = GameStatus.class, names = {"FLAGGED_WHITE_WINS", "DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL"})
+    @EnumSource(
+            value = GameStatus.class,
+            names = {"FLAGGED_WHITE_WINS", "DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL"})
     void gamesEndedOnTimeCanBeArchived(GameStatus status) {
-        MatchRecord match = new MatchRecord(saveUser("white"), saveUser("black"), status.getSymbol(),
-                status.getReason(), "1. e4 e5", Instant.parse("2026-01-01T00:00:00Z"),
+        MatchRecord match = new MatchRecord(
+                saveUser("white"),
+                saveUser("black"),
+                status.getSymbol(),
+                status.getReason(),
+                "1. e4 e5",
+                Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:10:00Z"));
 
         matchRecordRepo.save(match);
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(matchRecordRepo.findById(match.getId()).orElseThrow().getReason()).isEqualTo(status.getReason());
+        assertThat(matchRecordRepo.findById(match.getId()).orElseThrow().getReason())
+                .isEqualTo(status.getReason());
     }
 
     private User saveUser(String name) {
@@ -80,8 +84,13 @@ class MatchRecordRepoIT {
 
     private MatchRecord saveMatch(User white, User black, String endTime) {
         MatchRecord match = new MatchRecord(
-                white, black, "1-0", "CHECKMATE", "1. e4 e5",
-                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse(endTime));
+                white,
+                black,
+                "1-0",
+                "CHECKMATE",
+                "1. e4 e5",
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse(endTime));
         return matchRecordRepo.save(match);
     }
 }

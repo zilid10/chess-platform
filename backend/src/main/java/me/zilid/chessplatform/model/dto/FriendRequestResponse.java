@@ -1,9 +1,8 @@
 package me.zilid.chessplatform.model.dto;
 
-import me.zilid.chessplatform.model.entity.FriendRequest;
-
 import java.time.Instant;
 import java.util.UUID;
+import me.zilid.chessplatform.model.entity.FriendRequest;
 
 public record FriendRequestResponse(
         UUID friendRequestId,
@@ -11,6 +10,4 @@ public record FriendRequestResponse(
         UserResponse recipient,
         FriendRequest.RequestStatus status,
         Instant requestedAt,
-        Instant updatedAt
-) {
-}
+        Instant updatedAt) {}

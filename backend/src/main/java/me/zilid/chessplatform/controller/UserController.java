@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import me.zilid.chessplatform.model.dto.*;
 import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.RatingService;
@@ -23,9 +25,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api")
 public class UserController {
@@ -36,9 +35,11 @@ public class UserController {
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
 
-    public UserController(UserService userService, RatingService ratingService,
-                          AuthenticationManager authenticationManager,
-                          SecurityContextRepository securityContextRepository) {
+    public UserController(
+            UserService userService,
+            RatingService ratingService,
+            AuthenticationManager authenticationManager,
+            SecurityContextRepository securityContextRepository) {
         this.userService = userService;
         this.ratingService = ratingService;
         this.authenticationManager = authenticationManager;
@@ -46,16 +47,16 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public UserResponse login(@Valid @RequestBody LoginRequest request,
-                              HttpServletRequest httpRequest,
-                              HttpServletResponse httpResponse) {
+    public UserResponse login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         logger.info("Login attempt for user: {}", request.username());
 
         // Authenticate the user
         Authentication authentication = authenticationManager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password())
-        );
+                UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password()));
 
         // Set the authentication in the security context
         SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -63,11 +64,7 @@ public class UserController {
         SecurityContextHolder.setContext(context);
 
         // Store security context in HTTP session
-        securityContextRepository.saveContext(
-                context,
-                httpRequest,
-                httpResponse
-        );
+        securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
         // Get authenticated user details and return full user information
         if (!(authentication.getPrincipal() instanceof UserPrincipal userPrincipal)) {
@@ -93,17 +90,18 @@ public class UserController {
 
     @PutMapping("/users")
     @ResponseStatus(HttpStatus.OK)
-    public UserResponse updateUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                   @Valid @RequestBody UserUpdateRequest request) {
+    public UserResponse updateUser(
+            @AuthenticationPrincipal UserPrincipal userPrincipal, @Valid @RequestBody UserUpdateRequest request) {
         logger.info("Updating user: {}", userPrincipal.getUsername());
         return userService.updateUser(userPrincipal.getId(), request);
     }
 
     @DeleteMapping("/users")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                           HttpServletRequest httpRequest,
-                           HttpServletResponse httpResponse) {
+    public void deleteUser(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
         logger.info("Deleting user: {}", userPrincipal.getUsername());
         userService.deleteUser(userPrincipal.getId());
 
@@ -137,5 +135,4 @@ public class UserController {
         logger.debug("Fetching ratings for user: {}", userId);
         return ratingService.getRatings(userId);
     }
-
 }

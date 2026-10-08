@@ -5,8 +5,7 @@ import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.Square;
 
 public class Uci {
-    private Uci() {
-    }
+    private Uci() {}
 
     public static String format(Move move) {
         String base = move.from().toNotation() + move.to().toNotation();
@@ -22,7 +21,7 @@ public class Uci {
         if (uci.length() != 4 && uci.length() != 5) {
             throw new IllegalArgumentException("Invalid uci: " + uci);
         }
-        
+
         Square from = Square.fromNotation(uci.substring(0, 2));
         Square to = Square.fromNotation(uci.substring(2, 4));
 

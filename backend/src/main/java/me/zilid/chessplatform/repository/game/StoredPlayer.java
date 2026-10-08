@@ -1,9 +1,8 @@
 package me.zilid.chessplatform.repository.game;
 
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.Player;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
-
-import java.util.UUID;
 
 /**
  * Redis representation of a seated {@link Player}. {@link Player} is a sealed interface with no type information for

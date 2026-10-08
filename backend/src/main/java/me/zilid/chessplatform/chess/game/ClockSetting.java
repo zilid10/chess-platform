@@ -5,8 +5,8 @@ import java.time.Duration;
 import java.util.Objects;
 
 /**
- * A starting time and a per-move increment, written like "5+3". The starting time is at most
- * 180 minutes in steps of 15 seconds, and the increment is at most 180 whole seconds.
+ * A starting time and a per-move increment, written like "5+3". The starting time is at most 180 minutes in steps of 15
+ * seconds, and the increment is at most 180 whole seconds.
  */
 public record ClockSetting(Duration initial, Duration increment) {
     private static final Duration MAX_INITIAL = Duration.ofMinutes(180);
@@ -24,7 +24,8 @@ public record ClockSetting(Duration initial, Duration increment) {
             throw new IllegalArgumentException("initial and increment cannot both be zero");
         }
         if (initial.compareTo(MAX_INITIAL) > 0 || increment.compareTo(MAX_INCREMENT) > 0) {
-            throw new IllegalArgumentException("initial cannot exceed 180 minutes and increment cannot exceed 180 seconds");
+            throw new IllegalArgumentException(
+                    "initial cannot exceed 180 minutes and increment cannot exceed 180 seconds");
         }
         if (initial.toMillis() % INITIAL_STEP.toMillis() != 0) {
             throw new IllegalArgumentException("initial must be a multiple of 15 seconds");
@@ -50,7 +51,9 @@ public record ClockSetting(Duration initial, Duration increment) {
             throw new IllegalArgumentException("clock setting must look like 5+3: " + text);
         }
         try {
-            long initialSeconds = new BigDecimal(parts[0].strip()).multiply(BigDecimal.valueOf(60)).longValueExact();
+            long initialSeconds = new BigDecimal(parts[0].strip())
+                    .multiply(BigDecimal.valueOf(60))
+                    .longValueExact();
             long incrementSeconds = Long.parseLong(parts[1].strip());
             return new ClockSetting(Duration.ofSeconds(initialSeconds), Duration.ofSeconds(incrementSeconds));
         } catch (ArithmeticException e) {
@@ -58,9 +61,7 @@ public record ClockSetting(Duration initial, Duration increment) {
         }
     }
 
-    /**
-     * The rating category, from the estimated length of a 40-move game.
-     */
+    /** The rating category, from the estimated length of a 40-move game. */
     public TimeControl category() {
         long estimatedSeconds = initial.toSeconds() + 40 * increment.toSeconds();
         if (estimatedSeconds < 180) {
@@ -74,8 +75,8 @@ public record ClockSetting(Duration initial, Duration increment) {
     }
 
     /**
-     * Minutes plus increment seconds, such as "5+3" or "0.5+0". Distinct settings give distinct strings, so this
-     * can serve as a matchmaking queue key.
+     * Minutes plus increment seconds, such as "5+3" or "0.5+0". Distinct settings give distinct strings, so this can
+     * serve as a matchmaking queue key.
      */
     @Override
     public String toString() {

@@ -1,20 +1,18 @@
 package me.zilid.chessplatform.chess.format;
 
-import me.zilid.chessplatform.chess.*;
-
 import java.util.regex.Pattern;
+import me.zilid.chessplatform.chess.*;
 
 public class Fen {
     private static final Pattern castlingRightsPattern = Pattern.compile("^(-|(?!$)K?Q?k?q?)$");
 
-    private Fen() {
-    }
+    private Fen() {}
 
     /**
      * Parses a six-field FEN string into a position.
      *
-     * <p>Checks the notation's structure but does not check that the
-     * position is reachable through a legal sequence of moves.
+     * <p>Checks the notation's structure but does not check that the position is reachable through a legal sequence of
+     * moves.
      *
      * @throws IllegalArgumentException if the FEN cannot be parsed
      */
@@ -69,9 +67,7 @@ public class Fen {
         }
     }
 
-    /**
-     * Get the FEN representation of the current position
-     */
+    /** Get the FEN representation of the current position */
     public static String format(Position position) {
         StringBuilder fen = new StringBuilder();
         for (int rank = 7; rank >= 0; rank--) {
@@ -97,7 +93,11 @@ public class Fen {
         }
         fen.append(" ").append(colorToNotation(position.getTurnColor()));
         fen.append(" ").append(castlingRightsToSymbol(position.getCastlingRights()));
-        fen.append(" ").append(position.getEnPassantTarget() == null ? "-" : position.getEnPassantTarget().toNotation());
+        fen.append(" ")
+                .append(
+                        position.getEnPassantTarget() == null
+                                ? "-"
+                                : position.getEnPassantTarget().toNotation());
         fen.append(" ").append(position.getHalfMoveClock());
         fen.append(" ").append(position.getFullMoveClock());
         return fen.toString();
@@ -113,7 +113,6 @@ public class Fen {
             case 'N', 'n' -> PieceType.KNIGHT;
             case 'P', 'p' -> PieceType.PAWN;
             default -> throw new IllegalArgumentException("Invalid notation: " + c);
-
         };
         return Piece.of(color, type);
     }

@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.controller.advice;
 
+import java.util.*;
 import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
@@ -18,8 +19,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.util.*;
-
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -31,14 +30,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, "The request contains invalid values");
         problem.setTitle("Validation failed");
         Map<String, List<String>> errors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.computeIfAbsent(error.getField(), ignored -> new ArrayList<>())
+        ex.getBindingResult()
+                .getFieldErrors()
+                .forEach(error -> errors.computeIfAbsent(error.getField(), ignored -> new ArrayList<>())
                         .add(Objects.requireNonNullElse(error.getDefaultMessage(), "Invalid value")));
         problem.setProperty("errors", errors);
         if (ex.getBindingResult().hasGlobalErrors()) {
-            problem.setProperty("globalErrors", ex.getBindingResult().getGlobalErrors().stream()
-                    .map(error -> Objects.requireNonNullElse(error.getDefaultMessage(), "Invalid value"))
-                    .toList());
+            problem.setProperty(
+                    "globalErrors",
+                    ex.getBindingResult().getGlobalErrors().stream()
+                            .map(error -> Objects.requireNonNullElse(error.getDefaultMessage(), "Invalid value"))
+                            .toList());
         }
         return handleExceptionInternal(ex, problem, headers, status, request);
     }
@@ -74,7 +76,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "You do not have permission to perform this action");
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN, "You do not have permission to perform this action");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

@@ -1,18 +1,17 @@
 package me.zilid.chessplatform.chess.game;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
 import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
 import me.zilid.chessplatform.chess.format.pgn.PgnFormatter;
 import org.jspecify.annotations.Nullable;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-
 /**
  * Represents a complete chess game with history and metadata
- * <p>
- * Each side's first move has to come within {@link #FIRST_MOVE_TIMEOUT}: White's once both seats are taken, Black's
+ *
+ * <p>Each side's first move has to come within {@link #FIRST_MOVE_TIMEOUT}: White's once both seats are taken, Black's
  * after White's first move. A game whose first moves do not come in time is aborted, with no result.
  */
 public class Game {
@@ -41,18 +40,16 @@ public class Game {
         this(null, null, new ChessClock(clockSetting), Instant.now());
     }
 
-    private Game(@Nullable Player whitePlayer,
-                 @Nullable Player blackPlayer,
-                 ChessClock clock,
-                 Instant startTime) {
+    private Game(@Nullable Player whitePlayer, @Nullable Player blackPlayer, ChessClock clock, Instant startTime) {
         this(Position.startingPosition(), whitePlayer, blackPlayer, clock, startTime);
     }
 
-    private Game(Position position,
-                 @Nullable Player whitePlayer,
-                 @Nullable Player blackPlayer,
-                 ChessClock clock,
-                 Instant startTime) {
+    private Game(
+            Position position,
+            @Nullable Player whitePlayer,
+            @Nullable Player blackPlayer,
+            ChessClock clock,
+            Instant startTime) {
         this.position = position;
         moves = new ArrayList<>();
         undoes = new ArrayList<>();
@@ -66,33 +63,31 @@ public class Game {
         this.firstMoveDeadline = whitePlayer != null && blackPlayer != null ? startTime.plus(FIRST_MOVE_TIMEOUT) : null;
     }
 
-    public Game(@Nullable Player whitePlayer,
-                @Nullable Player blackPlayer,
-                ClockSetting clockSetting) {
+    public Game(@Nullable Player whitePlayer, @Nullable Player blackPlayer, ClockSetting clockSetting) {
         this(whitePlayer, blackPlayer, clockSetting, Instant.now());
     }
 
-    public Game(@Nullable Player whitePlayer,
-                @Nullable Player blackPlayer,
-                ClockSetting clockSetting,
-                Instant startTime) {
+    public Game(
+            @Nullable Player whitePlayer, @Nullable Player blackPlayer, ClockSetting clockSetting, Instant startTime) {
         this(whitePlayer, blackPlayer, new ChessClock(clockSetting), startTime);
     }
 
-    public static Game restore(List<Move> moves, ClockSetting clockSetting,
-                               Duration whiteRemaining,
-                               Duration blackRemaining,
-                               @Nullable Instant turnStartAt,
-                               Color turnColor,
-                               Instant startTime,
-                               @Nullable Instant endTime,
-                               GameStatus status,
-                               @Nullable Player whitePlayer,
-                               @Nullable Player blackPlayer,
-                               @Nullable Color drawOfferedBy,
-                               @Nullable Instant firstMoveDeadline) {
-        ChessClock clock = ChessClock.restore(clockSetting, whiteRemaining,
-                blackRemaining, turnColor, turnStartAt, status.isGameOver());
+    public static Game restore(
+            List<Move> moves,
+            ClockSetting clockSetting,
+            Duration whiteRemaining,
+            Duration blackRemaining,
+            @Nullable Instant turnStartAt,
+            Color turnColor,
+            Instant startTime,
+            @Nullable Instant endTime,
+            GameStatus status,
+            @Nullable Player whitePlayer,
+            @Nullable Player blackPlayer,
+            @Nullable Color drawOfferedBy,
+            @Nullable Instant firstMoveDeadline) {
+        ChessClock clock = ChessClock.restore(
+                clockSetting, whiteRemaining, blackRemaining, turnColor, turnStartAt, status.isGameOver());
         Game game = new Game(whitePlayer, blackPlayer, clock, startTime);
         for (Move move : moves) {
             game.recordMove(move);
@@ -117,10 +112,9 @@ public class Game {
         return player == null ? "?" : player.displayName();
     }
 
-    /**
-     * Make a move using chess notation
-     */
-    public synchronized boolean makeMove(String fromNotation, String toNotation, @Nullable PieceType promotionType, Instant now) {
+    /** Make a move using chess notation */
+    public synchronized boolean makeMove(
+            String fromNotation, String toNotation, @Nullable PieceType promotionType, Instant now) {
         if (status.isGameOver()) {
             return false; // GameService is already over
         }
@@ -151,9 +145,7 @@ public class Game {
         return makeMove(fromNotation, toNotation, promotionType, Instant.now());
     }
 
-    /**
-     * Get valid moves for a piece at the given position
-     */
+    /** Get valid moves for a piece at the given position */
     public synchronized List<Square> getValidMoves(String fromNotation) {
         Square from = Square.fromNotation(fromNotation);
         return MoveGenerator.legalDestinations(position, from);
@@ -165,9 +157,7 @@ public class Game {
         repetitions.merge(position.hashCode(), 1, Integer::sum);
     }
 
-    /**
-     * Get the current board state of the game
-     */
+    /** Get the current board state of the game */
     public synchronized String getFen() {
         return Fen.format(position);
     }
@@ -180,9 +170,7 @@ public class Game {
         return moves.isEmpty() ? null : moves.getLast().to().toNotation();
     }
 
-    /**
-     * Resign the game for the current player
-     */
+    /** Resign the game for the current player */
     public synchronized void resign(Color color, Instant now) {
         if (status.isGameOver()) {
             return;
@@ -194,9 +182,7 @@ public class Game {
         resign(color, Instant.now());
     }
 
-    /**
-     * Offer/accept a draw
-     */
+    /** Offer/accept a draw */
     private synchronized void agreeDraw(Instant now) {
         if (status.isGameOver()) {
             return;
@@ -204,9 +190,7 @@ public class Game {
         onGameEnd(GameStatus.DRAW_BY_AGREEMENT, now);
     }
 
-    /**
-     * Update the game status based on current board state
-     */
+    /** Update the game status based on current board state */
     private synchronized void updateGameStatus(Instant now) {
         if (status.isGameOver()) {
             return;
@@ -228,8 +212,8 @@ public class Game {
     }
 
     /**
-     * Whether the game is still on but, at {@code now}, the side to move has run out of time or missed the deadline
-     * for its first move.
+     * Whether the game is still on but, at {@code now}, the side to move has run out of time or missed the deadline for
+     * its first move.
      */
     public synchronized boolean hasTimedOut(Instant now) {
         return !status.isGameOver() && (clock.hasFlagged(now) || isFirstMoveOverdue(now));
@@ -241,9 +225,9 @@ public class Game {
     }
 
     /**
-     * End the game if a time limit has passed. A game whose first moves did not come in time is aborted. Otherwise
-     * the side to move has run out of time and their opponent wins, unless the opponent could not checkmate by any
-     * sequence of legal moves; then the game is drawn.
+     * End the game if a time limit has passed. A game whose first moves did not come in time is aborted. Otherwise the
+     * side to move has run out of time and their opponent wins, unless the opponent could not checkmate by any sequence
+     * of legal moves; then the game is drawn.
      *
      * @return {@code true} only if this call ended the game
      */
@@ -281,9 +265,7 @@ public class Game {
         return turnStartAt.plus(getTurnColor().isWhite() ? clock.getWhiteRemaining() : clock.getBlackRemaining());
     }
 
-    /**
-     * The time {@code color} has left at {@code now}, never below zero.
-     */
+    /** The time {@code color} has left at {@code now}, never below zero. */
     public synchronized Duration getRemaining(Color color, Instant now) {
         Duration remaining = clock.remaining(color, now);
         return remaining.isNegative() ? Duration.ZERO : remaining;
@@ -334,9 +316,7 @@ public class Game {
         return sb.toString();
     }
 
-    /**
-     * Check if now is the turn of the given player
-     */
+    /** Check if now is the turn of the given player */
     public synchronized boolean isUserTurn(Player player) {
         return switch (position.getTurnColor()) {
             case WHITE -> player.equals(whitePlayer);
@@ -407,7 +387,6 @@ public class Game {
         return blackPlayer;
     }
 
-
     public synchronized @Nullable Color getDrawOfferedBy() {
         return drawOfferedBy;
     }
@@ -417,10 +396,8 @@ public class Game {
     }
 
     public synchronized void acceptDraw(Color by, Instant now) {
-        if (drawOfferedBy == null)
-            return;
-        if (drawOfferedBy != by.opposite())
-            return;
+        if (drawOfferedBy == null) return;
+        if (drawOfferedBy != by.opposite()) return;
         agreeDraw(now);
         drawOfferedBy = null;
     }
@@ -438,9 +415,7 @@ public class Game {
         return gameStatus.isGameOver();
     }
 
-    /**
-     * Get the color in this game of the given player, spectator will get a null
-     */
+    /** Get the color in this game of the given player, spectator will get a null */
     public @Nullable Color getPlayerColor(Player player) {
         if (player.equals(whitePlayer)) {
             return Color.WHITE;
@@ -451,9 +426,7 @@ public class Game {
         return null;
     }
 
-    /**
-     * Check if the given player is seated in the game
-     */
+    /** Check if the given player is seated in the game */
     public boolean isValidPlayer(Player player) {
         return player.equals(whitePlayer) || player.equals(blackPlayer);
     }

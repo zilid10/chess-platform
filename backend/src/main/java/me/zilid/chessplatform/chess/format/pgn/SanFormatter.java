@@ -1,9 +1,7 @@
 package me.zilid.chessplatform.chess.format.pgn;
 
-import me.zilid.chessplatform.chess.*;
-
 import java.util.List;
-
+import me.zilid.chessplatform.chess.*;
 
 public class SanFormatter {
     public static String format(Position preMovePosition, Move move) {
@@ -48,7 +46,8 @@ public class SanFormatter {
     }
 
     /**
-     * calculate the disambiguation string (when multiple same pieces can move to the same square, requires disambiguation)
+     * calculate the disambiguation string (when multiple same pieces can move to the same square, requires
+     * disambiguation)
      */
     private static String getDisambiguation(Position position, Square to, Square square) {
         Piece movingPiece = position.getBoard().pieceAt(square);
@@ -68,7 +67,6 @@ public class SanFormatter {
                 Piece other = position.getPieceAt(Square.of(file, rank));
 
                 if (other != null && other.color() == movingPiece.color() && other.type() == movingPiece.type()) {
-
 
                     List<Square> moves = MoveGenerator.legalDestinations(position, Square.of(file, rank));
 

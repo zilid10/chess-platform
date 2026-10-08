@@ -17,5 +17,4 @@ public class ChessPlatformApplication {
     public static void main(String[] args) {
         SpringApplication.run(ChessPlatformApplication.class, args);
     }
-
 }

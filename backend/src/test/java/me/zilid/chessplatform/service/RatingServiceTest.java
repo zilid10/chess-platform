@@ -1,5 +1,13 @@
 package me.zilid.chessplatform.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.exception.UserNotFoundException;
@@ -18,15 +26,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InOrder;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 class RatingServiceTest {
     // UUIDs compare by their signed high bits, so LOW sorts before HIGH.
@@ -85,8 +84,8 @@ class RatingServiceTest {
     @ParameterizedTest
     @CsvSource({"true", "false"})
     void rowsAreLockedInIdOrderWhateverTheColors(boolean lowIdIsWhite) {
-        when(ratingRepo.findForUpdate(any(), any())).thenAnswer(invocation ->
-                Optional.of(rating(invocation.getArgument(1))));
+        when(ratingRepo.findForUpdate(any(), any()))
+                .thenAnswer(invocation -> Optional.of(rating(invocation.getArgument(1))));
         UUID white = lowIdIsWhite ? LOW_ID : HIGH_ID;
         UUID black = lowIdIsWhite ? HIGH_ID : LOW_ID;
 
@@ -106,15 +105,17 @@ class RatingServiceTest {
         when(ratingRepo.findForUpdate(HIGH_ID, TimeControl.CLASSICAL))
                 .thenReturn(Optional.of(rating(TimeControl.CLASSICAL)));
 
-        RatingChange change = service.applyResult(LOW_ID, HIGH_ID, TimeControl.CLASSICAL,
-                GameStatus.RESIGNED_BLACK_WINS);
+        RatingChange change =
+                service.applyResult(LOW_ID, HIGH_ID, TimeControl.CLASSICAL, GameStatus.RESIGNED_BLACK_WINS);
 
         assertThat(change.whiteAfter()).isEqualTo(1180);
         assertThat(change.blackAfter()).isEqualTo(1220);
     }
 
     @ParameterizedTest
-    @EnumSource(value = GameStatus.class, names = {"ONGOING", "ABORTED"})
+    @EnumSource(
+            value = GameStatus.class,
+            names = {"ONGOING", "ABORTED"})
     void gameWithoutAResultIsNotRated(GameStatus status) {
         assertThatThrownBy(() -> service.applyResult(LOW_ID, HIGH_ID, TimeControl.RAPID, status))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -130,11 +131,14 @@ class RatingServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = GameStatus.class, names = {"ONGOING", "ABORTED"}, mode = EnumSource.Mode.EXCLUDE)
+    @EnumSource(
+            value = GameStatus.class,
+            names = {"ONGOING", "ABORTED"},
+            mode = EnumSource.Mode.EXCLUDE)
     void everyResultMapsToTheMatchingOutcome(GameStatus status) {
-        GameOutcome expected = status.isWhiteWin() ? GameOutcome.WHITE_WINS
-                : status.isBlackWin() ? GameOutcome.BLACK_WINS
-                : GameOutcome.DRAW;
+        GameOutcome expected = status.isWhiteWin()
+                ? GameOutcome.WHITE_WINS
+                : status.isBlackWin() ? GameOutcome.BLACK_WINS : GameOutcome.DRAW;
 
         assertThat(RatingService.outcomeOf(status)).isEqualTo(expected);
     }

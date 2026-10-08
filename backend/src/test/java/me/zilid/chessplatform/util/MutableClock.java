@@ -3,9 +3,7 @@ package me.zilid.chessplatform.util;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * A clock that stands still until a test moves it.
- */
+/** A clock that stands still until a test moves it. */
 public final class MutableClock extends Clock {
     private AtomicReference<Instant> now;
 

@@ -34,14 +34,14 @@ public class OpenAPIConfig {
                         .title("ChessPlatform API")
                         .description("This is the ChessPlatform API.")
                         .version(appVersion)
-                        .license(new License()
-                                .name("MIT License")
-                                .url("https://opensource.org/licenses/MIT")))
+                        .license(new License().name("MIT License").url("https://opensource.org/licenses/MIT")))
                 .addSecurityItem(new SecurityRequirement().addList(SCHEME_NAME))
                 .components(new Components()
-                        .addSecuritySchemes(SCHEME_NAME, new SecurityScheme()
-                                .type(SecurityScheme.Type.APIKEY)
-                                .in(SecurityScheme.In.COOKIE)
-                                .name("JSESSIONID")));
+                        .addSecuritySchemes(
+                                SCHEME_NAME,
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.COOKIE)
+                                        .name("JSESSIONID")));
     }
 }

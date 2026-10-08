@@ -17,8 +17,7 @@ public class FriendRequest extends AuditedBaseEntity {
     @Column(name = "status", nullable = false)
     private RequestStatus status;
 
-    protected FriendRequest() {
-    }
+    protected FriendRequest() {}
 
     public FriendRequest(User sender, User recipient) {
         this.sender = sender;
@@ -49,6 +48,9 @@ public class FriendRequest extends AuditedBaseEntity {
     }
 
     public enum RequestStatus {
-        PENDING, ACCEPTED, REJECTED, CANCELLED
+        PENDING,
+        ACCEPTED,
+        REJECTED,
+        CANCELLED
     }
 }

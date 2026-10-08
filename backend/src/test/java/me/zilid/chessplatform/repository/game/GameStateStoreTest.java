@@ -1,5 +1,15 @@
 package me.zilid.chessplatform.repository.game;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.Move;
 import me.zilid.chessplatform.chess.PieceType;
@@ -19,17 +29,6 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import tools.jackson.databind.json.JsonMapper;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 class GameStateStoreTest {
     private static final UUID GAME_ID = UUID.randomUUID();
@@ -73,13 +72,16 @@ class GameStateStoreTest {
                 null);
 
         JsonMapper mapper = JsonMapper.builder().build();
-        assertThat(mapper.readValue(mapper.writeValueAsString(state), ActiveGameState.class)).isEqualTo(state);
+        assertThat(mapper.readValue(mapper.writeValueAsString(state), ActiveGameState.class))
+                .isEqualTo(state);
     }
 
     @Test
     void storeReconstructsGameClockAndPlayers() {
-        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
-                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2));
+        Game game = new Game(
+                new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"),
+                ClockSetting.ofMinutes(3, 2));
         assertThat(game.makeMove("e2", "e4", null, T0)).isTrue();
         assertThat(game.makeMove("e7", "e5", null, T0.plusSeconds(4))).isTrue();
         game.offerDraw(Color.WHITE);
@@ -112,8 +114,10 @@ class GameStateStoreTest {
 
     @Test
     void finishedGameStaysFinishedAfterReloading() {
-        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
-                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2));
+        Game game = new Game(
+                new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"),
+                ClockSetting.ofMinutes(3, 2));
         game.makeMove("e2", "e4", null, T0);
         game.makeMove("e7", "e5", null, T0.plusSeconds(1));
         assertThat(game.checkTimeout(T0.plus(Duration.ofMinutes(10)))).isTrue();
@@ -128,28 +132,39 @@ class GameStateStoreTest {
 
     @Test
     void storingAGameWithARunningClockIndexesItsDeadline() {
-        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
-                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2));
+        Game game = new Game(
+                new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"),
+                ClockSetting.ofMinutes(3, 2));
         game.makeMove("e2", "e4", null, T0);
         game.makeMove("e7", "e5", null, T0.plusSeconds(1));
 
         store.storeGame(GAME_ID, game);
 
-        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(),
-                game.timeoutDeadline().toEpochMilli());
+        verify(sortedSets)
+                .add(
+                        GameStateStore.TIMEOUT_DEADLINES_KEY,
+                        GAME_ID.toString(),
+                        game.timeoutDeadline().toEpochMilli());
         verify(sortedSets, never()).remove(any(), any());
     }
 
     @Test
     void firstMoveDeadlineSurvivesReloadingAndIsIndexed() {
-        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
-                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(3, 2), T0);
+        Game game = new Game(
+                new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"),
+                ClockSetting.ofMinutes(3, 2),
+                T0);
 
         Game restored = storeAndLoad(game);
 
         assertThat(restored.getFirstMoveDeadline()).isEqualTo(T0.plus(Game.FIRST_MOVE_TIMEOUT));
-        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(),
-                T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
+        verify(sortedSets)
+                .add(
+                        GameStateStore.TIMEOUT_DEADLINES_KEY,
+                        GAME_ID.toString(),
+                        T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
     }
 
     @Test
@@ -163,8 +178,9 @@ class GameStateStoreTest {
     @Test
     void dueTimeoutsAreReadUpToNow() {
         UUID other = UUID.randomUUID();
-        when(sortedSets.rangeByScore(GameStateStore.TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY,
-                T0.toEpochMilli(), 0, 50)).thenReturn(new LinkedHashSet<>(List.of(GAME_ID.toString(), other.toString())));
+        when(sortedSets.rangeByScore(
+                        GameStateStore.TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, T0.toEpochMilli(), 0, 50))
+                .thenReturn(new LinkedHashSet<>(List.of(GAME_ID.toString(), other.toString())));
 
         assertThat(store.findTimeoutsDue(T0, 50)).containsExactly(GAME_ID, other);
     }
@@ -211,8 +227,9 @@ class GameStateStoreTest {
             GameStateStore bean = context.getBean(GameStateStore.class);
 
             assertThatThrownBy(() -> bean.withLock(GAME_ID, () -> {
-                throw notYourTurn;
-            })).isSameAs(notYourTurn);
+                        throw notYourTurn;
+                    }))
+                    .isSameAs(notYourTurn);
         }
         verify(redisTemplate).execute(any(RedisScript.class), anyList(), anyString());
     }

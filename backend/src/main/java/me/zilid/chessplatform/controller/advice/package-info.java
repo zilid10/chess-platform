@@ -1,6 +1,4 @@
-/**
- * HTTP and STOMP exception translation. Application exception types remain in the exception package.
- */
+/** HTTP and STOMP exception translation. Application exception types remain in the exception package. */
 @NullMarked
 package me.zilid.chessplatform.controller.advice;
 

@@ -1,13 +1,12 @@
 package me.zilid.chessplatform.chess.game;
 
-import me.zilid.chessplatform.chess.Color;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import me.zilid.chessplatform.chess.Color;
+import org.junit.jupiter.api.Test;
 
 class ChessClockTest {
     private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");

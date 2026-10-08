@@ -1,6 +1,13 @@
 package me.zilid.chessplatform;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import jakarta.servlet.http.Cookie;
+import java.util.UUID;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.repository.UserRepo;
 import me.zilid.chessplatform.util.IntegrationTest;
@@ -12,17 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-/**
- * Runs with the PostgreSQL, Redis, and migrations provisioned by the backend CI job.
- */
+/** Runs with the PostgreSQL, Redis, and migrations provisioned by the backend CI job. */
 @IntegrationTest
 class UserSessionIT {
 
@@ -41,11 +38,10 @@ class UserSessionIT {
         String username = "test" + UUID.randomUUID().toString().substring(0, 8);
         String password = "securePassword123";
 
-        mvc.perform(post("/api/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
                                 {"username":"%s","email":"%s@example.com", "rawPassword":"%s"}
-                                """.formatted(username, username, password)))
+                                """.formatted(
+                                username, username, password)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value(username));
 
@@ -72,8 +68,7 @@ class UserSessionIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username));
 
-        mvc.perform(post("/api/logout").cookie(session))
-                .andExpect(status().isOk());
+        mvc.perform(post("/api/logout").cookie(session)).andExpect(status().isOk());
 
         mvc.perform(get("/api/me").cookie(session))
                 .andExpect(status().isUnauthorized())

@@ -1,6 +1,7 @@
 package me.zilid.chessplatform.service;
 
-
+import java.util.Optional;
+import java.util.UUID;
 import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.FriendRequestConverter;
@@ -18,9 +19,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-import java.util.UUID;
-
 @Service
 public class FriendService {
     private static final Logger logger = LoggerFactory.getLogger(FriendService.class);
@@ -30,7 +28,11 @@ public class FriendService {
     private final FriendRequestConverter friendRequestConverter;
     private final UserConverter userConverter;
 
-    public FriendService(FriendRequestRepo friendRequestRepo, UserRepo userRepo, FriendRequestConverter friendRequestConverter, UserConverter userConverter) {
+    public FriendService(
+            FriendRequestRepo friendRequestRepo,
+            UserRepo userRepo,
+            FriendRequestConverter friendRequestConverter,
+            UserConverter userConverter) {
         this.friendRequestRepo = friendRequestRepo;
         this.userRepo = userRepo;
         this.friendRequestConverter = friendRequestConverter;
@@ -44,27 +46,27 @@ public class FriendService {
         }
 
         // check if they are already friends
-        User sender = userRepo.findById(senderId)
-                .orElseThrow(() -> new UserNotFoundException("Sender not found"));
-        User recipient = userRepo.findById(recipientId)
-                .orElseThrow(() -> new UserNotFoundException("Recipient not found"));
+        User sender = userRepo.findById(senderId).orElseThrow(() -> new UserNotFoundException("Sender not found"));
+        User recipient =
+                userRepo.findById(recipientId).orElseThrow(() -> new UserNotFoundException("Recipient not found"));
         if (friendRequestRepo.existsFriendships(senderId, recipientId)) {
             throw new FriendAlreadyExistsException("Users are already friends");
         }
 
         // check if there already exists pending friend request
-        Optional<FriendRequest> existingRequest = friendRequestRepo
-                .findBySender_IdAndRecipient_IdAndStatus(senderId, recipientId, FriendRequest.RequestStatus.PENDING);
+        Optional<FriendRequest> existingRequest = friendRequestRepo.findBySender_IdAndRecipient_IdAndStatus(
+                senderId, recipientId, FriendRequest.RequestStatus.PENDING);
         if (existingRequest.isPresent()) {
             throw new IllegalArgumentException("Friend request already sent");
         }
-        Optional<FriendRequest> existingReverseRequest = friendRequestRepo
-                .findBySender_IdAndRecipient_IdAndStatus(recipientId, senderId, FriendRequest.RequestStatus.PENDING);
+        Optional<FriendRequest> existingReverseRequest = friendRequestRepo.findBySender_IdAndRecipient_IdAndStatus(
+                recipientId, senderId, FriendRequest.RequestStatus.PENDING);
         if (existingReverseRequest.isPresent()) {
             throw new IllegalArgumentException("Reverse friend request already sent");
         }
 
-        FriendRequest friendRequest = friendRequestRepo.save(new FriendRequest(sender, recipient, FriendRequest.RequestStatus.PENDING));
+        FriendRequest friendRequest =
+                friendRequestRepo.save(new FriendRequest(sender, recipient, FriendRequest.RequestStatus.PENDING));
         logger.info("Friend request created from {} to {}", sender.getUsername(), recipient.getUsername());
         return friendRequestConverter.toResponse(friendRequest);
     }
@@ -78,8 +80,11 @@ public class FriendService {
         friendRequest.setStatus(FriendRequest.RequestStatus.ACCEPTED);
         UUID senderId = friendRequest.getSender().getId();
         int res = friendRequestRepo.addFriend(senderId, recipientId);
-        logger.info("Friend request accepted: {} and {} are now friends, affected lines: {}",
-                friendRequest.getSender().getUsername(), friendRequest.getRecipient().getUsername(), res);
+        logger.info(
+                "Friend request accepted: {} and {} are now friends, affected lines: {}",
+                friendRequest.getSender().getUsername(),
+                friendRequest.getRecipient().getUsername(),
+                res);
         return friendRequestConverter.toResponse(friendRequest);
     }
 
@@ -96,7 +101,8 @@ public class FriendService {
     @Transactional(readOnly = true)
     public Page<FriendRequestResponse> getSentRequest(UUID senderId, Pageable pageable) {
         logger.debug("Fetching sent friend requests for user: {}", senderId);
-        Page<FriendRequest> sentRequests = friendRequestRepo.findBySender_IdAndStatus(senderId, FriendRequest.RequestStatus.PENDING, pageable);
+        Page<FriendRequest> sentRequests =
+                friendRequestRepo.findBySender_IdAndStatus(senderId, FriendRequest.RequestStatus.PENDING, pageable);
         logger.debug("Found {} sent friend requests", sentRequests.getTotalElements());
         return sentRequests.map(friendRequestConverter::toResponse);
     }
@@ -104,7 +110,8 @@ public class FriendService {
     @Transactional(readOnly = true)
     public Page<FriendRequestResponse> getReceivedRequest(UUID recipientId, Pageable pageable) {
         logger.debug("Fetching received friend requests for user: {}", recipientId);
-        Page<FriendRequest> receivedRequests = friendRequestRepo.findByRecipient_IdAndStatus(recipientId, FriendRequest.RequestStatus.PENDING, pageable);
+        Page<FriendRequest> receivedRequests = friendRequestRepo.findByRecipient_IdAndStatus(
+                recipientId, FriendRequest.RequestStatus.PENDING, pageable);
         logger.debug("Found {} received friend requests", receivedRequests.getTotalElements());
         return receivedRequests.map(friendRequestConverter::toResponse);
     }

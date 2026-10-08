@@ -1,6 +1,4 @@
-/**
- * HTTP and STOMP entry points. Translate authenticated identities into service arguments and publish responses.
- */
+/** HTTP and STOMP entry points. Translate authenticated identities into service arguments and publish responses. */
 @NullMarked
 package me.zilid.chessplatform.controller;
 

@@ -1,5 +1,6 @@
 package me.zilid.chessplatform.service;
 
+import java.util.UUID;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.converter.UserConverter;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
@@ -13,8 +14,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 public class UserService {
@@ -53,7 +52,11 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public Page<UserResponse> getUser(String search, Pageable pageable) {
-        logger.debug("Searching for users with query: '{}', page: {}, size: {}", search, pageable.getPageNumber(), pageable.getPageSize());
+        logger.debug(
+                "Searching for users with query: '{}', page: {}, size: {}",
+                search,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
         Page<User> users = userRepo.findByUsernameContainingIgnoreCase(search, pageable);
         logger.debug("Found {} users matching query '{}'", users.getTotalElements(), search);
         return users.map(userConverter::toResponse);

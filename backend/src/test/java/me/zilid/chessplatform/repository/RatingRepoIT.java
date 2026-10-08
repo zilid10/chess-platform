@@ -1,6 +1,10 @@
 package me.zilid.chessplatform.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.util.UUID;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.Rating;
@@ -9,11 +13,6 @@ import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.util.RepositoryTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.time.Instant;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @RepositoryTest
 class RatingRepoIT {
@@ -39,11 +38,10 @@ class RatingRepoIT {
         assertThat(ratingRepo.findByUser_Id(user.getId()))
                 .extracting(Rating::getTimeControl)
                 .containsExactlyInAnyOrder(TimeControl.values());
-        assertThat(ratingRepo.findByUser_Id(user.getId()))
-                .allSatisfy(rating -> {
-                    assertThat(rating.getRating()).isEqualTo(Rating.DEFAULT_RATING);
-                    assertThat(rating.getGamesPlayed()).isZero();
-                });
+        assertThat(ratingRepo.findByUser_Id(user.getId())).allSatisfy(rating -> {
+            assertThat(rating.getRating()).isEqualTo(Rating.DEFAULT_RATING);
+            assertThat(rating.getGamesPlayed()).isZero();
+        });
     }
 
     @Test
@@ -57,19 +55,27 @@ class RatingRepoIT {
         entityManager.flush();
         entityManager.clear();
 
-        Rating reloaded = ratingRepo.findForUpdate(user.getId(), TimeControl.BLITZ).orElseThrow();
+        Rating reloaded =
+                ratingRepo.findForUpdate(user.getId(), TimeControl.BLITZ).orElseThrow();
         assertThat(reloaded.getRating()).isEqualTo(1234);
         assertThat(reloaded.getPeakRating()).isEqualTo(1234);
         assertThat(reloaded.getGamesPlayed()).isEqualTo(1);
-        assertThat(ratingRepo.findForUpdate(UUID.randomUUID(), TimeControl.BLITZ)).isEmpty();
+        assertThat(ratingRepo.findForUpdate(UUID.randomUUID(), TimeControl.BLITZ))
+                .isEmpty();
     }
 
     @Test
     void matchRecordKeepsItsRatingSnapshot() {
         User white = saveUser("carol");
         User black = saveUser("dave");
-        MatchRecord match = new MatchRecord(white, black, "1-0", "CHECKMATE", "1. e4 e5",
-                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:30:00Z"));
+        MatchRecord match = new MatchRecord(
+                white,
+                black,
+                "1-0",
+                "CHECKMATE",
+                "1. e4 e5",
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-01-01T00:30:00Z"));
         match.setTimeControl(TimeControl.RAPID);
         match.setRatingChange(new RatingChange(white.getId(), black.getId(), 1220, 1180, 20, -20));
         matchRecordRepo.save(match);

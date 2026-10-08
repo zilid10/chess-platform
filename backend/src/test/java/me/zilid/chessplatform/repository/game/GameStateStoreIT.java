@@ -1,5 +1,12 @@
 package me.zilid.chessplatform.repository.game;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
+import java.util.concurrent.*;
 import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.Game;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
@@ -8,17 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.UUID;
-import java.util.concurrent.*;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * Runs against the Redis provisioned by the backend CI job.
- */
+/** Runs against the Redis provisioned by the backend CI job. */
 @IntegrationTest
 class GameStateStoreIT {
 
@@ -61,8 +58,10 @@ class GameStateStoreIT {
     void timeoutDeadlinesAreIndexedUntilTheGameEnds() {
         UUID gameId = UUID.randomUUID();
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
-        Game game = new Game(new RegisteredPlayer(UUID.randomUUID(), "white"),
-                new RegisteredPlayer(UUID.randomUUID(), "black"), ClockSetting.ofMinutes(1, 0));
+        Game game = new Game(
+                new RegisteredPlayer(UUID.randomUUID(), "white"),
+                new RegisteredPlayer(UUID.randomUUID(), "black"),
+                ClockSetting.ofMinutes(1, 0));
         game.makeMove("e2", "e4", null, start);
         game.makeMove("e7", "e5", null, start.plusSeconds(1));
         Instant deadline = game.timeoutDeadline();
@@ -113,8 +112,9 @@ class GameStateStoreIT {
         UUID gameId = UUID.randomUUID();
 
         assertThatThrownBy(() -> store.withLock(gameId, () -> {
-            throw new IllegalArgumentException("boom");
-        })).isInstanceOf(IllegalArgumentException.class);
+                    throw new IllegalArgumentException("boom");
+                }))
+                .isInstanceOf(IllegalArgumentException.class);
 
         assertThat(store.withLock(gameId, () -> "acquired again")).isEqualTo("acquired again");
     }

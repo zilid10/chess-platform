@@ -7,7 +7,6 @@ public class EloKFactorPolicy implements KFactorPolicy {
     private static final int NORMAL_PLAYER_K = 20;
     private static final int ELITE_PLAYER_K = 10;
 
-
     @Override
     public int kFor(PlayerRating playerRating) {
         if (playerRating.gamesPlayed() < 20) {

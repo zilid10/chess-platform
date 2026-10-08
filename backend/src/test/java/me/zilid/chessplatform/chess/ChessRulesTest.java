@@ -1,5 +1,8 @@
 package me.zilid.chessplatform.chess;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
 import me.zilid.chessplatform.chess.format.Fen;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -7,14 +10,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Rule and edge-case tests: check, checkmate/stalemate, castling, en passant,
- * promotionType, draw conditions, and apply/undo. These are the targeted tests that
- * tell you WHICH rule broke when the perft counts in {@link PerftTest} diverge.
+ * Rule and edge-case tests: check, checkmate/stalemate, castling, en passant, promotionType, draw conditions, and
+ * apply/undo. These are the targeted tests that tell you WHICH rule broke when the perft counts in {@link PerftTest}
+ * diverge.
  */
 class ChessRulesTest {
 
@@ -33,9 +32,7 @@ class ChessRulesTest {
                 .toList();
     }
 
-    /**
-     * The castling field is the third space-separated part of a FEN, e.g. "KQkq".
-     */
+    /** The castling field is the third space-separated part of a FEN, e.g. "KQkq". */
     private static String castlingRightsOf(Position position) {
         return Fen.format(position).split(" ")[2];
     }
@@ -132,10 +129,8 @@ class ChessRulesTest {
         void kingsideCastlingMovesKingAndRook() {
             Position position = Fen.parse(BOTH_SIDES_OPEN);
             assertThat(makeMove(position, "e1", "g1", null)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("g1")).type())
-                    .isEqualTo(PieceType.KING);
-            assertThat(position.getPieceAt(Square.fromNotation("f1")).type())
-                    .isEqualTo(PieceType.ROOK);
+            assertThat(position.getPieceAt(Square.fromNotation("g1")).type()).isEqualTo(PieceType.KING);
+            assertThat(position.getPieceAt(Square.fromNotation("f1")).type()).isEqualTo(PieceType.ROOK);
             assertThat(castlingRightsOf(position)).isEqualTo("kq");
         }
 
@@ -143,10 +138,8 @@ class ChessRulesTest {
         void queensideCastlingMovesKingAndRook() {
             Position position = Fen.parse(BOTH_SIDES_OPEN);
             assertThat(makeMove(position, "e1", "c1", null)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("c1")).type())
-                    .isEqualTo(PieceType.KING);
-            assertThat(position.getPieceAt(Square.fromNotation("d1")).type())
-                    .isEqualTo(PieceType.ROOK);
+            assertThat(position.getPieceAt(Square.fromNotation("c1")).type()).isEqualTo(PieceType.KING);
+            assertThat(position.getPieceAt(Square.fromNotation("d1")).type()).isEqualTo(PieceType.ROOK);
         }
 
         @Test
@@ -240,12 +233,13 @@ class ChessRulesTest {
     class Promotion {
 
         @ParameterizedTest
-        @EnumSource(value = PieceType.class, names = {"QUEEN", "ROOK", "BISHOP", "KNIGHT"})
+        @EnumSource(
+                value = PieceType.class,
+                names = {"QUEEN", "ROOK", "BISHOP", "KNIGHT"})
         void pawnPromotesToChosenPiece(PieceType promotion) {
             Position position = Fen.parse("7k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(makeMove(position, "a7", "a8", promotion)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("a8")).type())
-                    .isEqualTo(promotion);
+            assertThat(position.getPieceAt(Square.fromNotation("a8")).type()).isEqualTo(promotion);
         }
 
         @Test
@@ -254,8 +248,7 @@ class ChessRulesTest {
             Position position = Fen.parse("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(position, "a7")).containsExactlyInAnyOrder("a8", "b8");
             assertThat(makeMove(position, "a7", "b8", PieceType.QUEEN)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("b8")).type())
-                    .isEqualTo(PieceType.QUEEN);
+            assertThat(position.getPieceAt(Square.fromNotation("b8")).type()).isEqualTo(PieceType.QUEEN);
         }
     }
 
@@ -264,46 +257,57 @@ class ChessRulesTest {
 
         @Test
         void fiftyMoveRuleTriggersAtHundredHalfMoves() {
-            assertThat(Fen.parse("7k/8/8/8/8/8/R7/K7 w - - 100 60").isFiftyMoveRule()).isTrue();
-            assertThat(Fen.parse("7k/8/8/8/8/8/R7/K7 w - - 99 60").isFiftyMoveRule()).isFalse();
+            assertThat(Fen.parse("7k/8/8/8/8/8/R7/K7 w - - 100 60").isFiftyMoveRule())
+                    .isTrue();
+            assertThat(Fen.parse("7k/8/8/8/8/8/R7/K7 w - - 99 60").isFiftyMoveRule())
+                    .isFalse();
         }
 
         @Test
         void insufficientMaterialCases() {
             assertThat(Fen.parse("7k/8/8/8/8/8/8/K7 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("king vs king").isTrue();
+                    .as("king vs king")
+                    .isTrue();
             assertThat(Fen.parse("7k/8/8/8/8/8/8/KN6 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("king and knight vs king").isTrue();
+                    .as("king and knight vs king")
+                    .isTrue();
             assertThat(Fen.parse("7k/8/8/8/8/8/8/KB6 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("king and bishop vs king").isTrue();
+                    .as("king and bishop vs king")
+                    .isTrue();
             assertThat(Fen.parse("2b4k/8/8/8/8/8/8/K4B2 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("same-colored bishops").isTrue();
+                    .as("same-colored bishops")
+                    .isTrue();
             assertThat(Fen.parse("2b4k/8/8/8/8/8/8/K1B5 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("opposite-colored bishops").isFalse();
+                    .as("opposite-colored bishops")
+                    .isFalse();
             assertThat(Fen.parse("7k/8/8/8/8/8/8/KQ6 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("queen on the board").isFalse();
+                    .as("queen on the board")
+                    .isFalse();
             assertThat(Fen.parse("7k/8/8/8/8/8/8/KQB5 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("queen beside a single minor piece").isFalse();
+                    .as("queen beside a single minor piece")
+                    .isFalse();
             assertThat(Fen.parse("7k/8/8/8/8/8/P7/KB6 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("pawn beside a single minor piece").isFalse();
+                    .as("pawn beside a single minor piece")
+                    .isFalse();
             assertThat(Fen.parse("6nk/8/8/8/8/8/8/KN6 w - - 0 1").getBoard().isInsufficientMaterial())
-                    .as("knight vs knight").isFalse();
+                    .as("knight vs knight")
+                    .isFalse();
         }
 
         @ParameterizedTest(name = "{0}: White can mate = {1}, Black can mate = {2}")
         @CsvSource({
-                "k7/8/8/8/8/8/8/QK6 w - - 0 1, true, false",   // lone king cannot mate
-                "k7/8/8/8/8/8/8/NK6 w - - 0 1, false, false",  // knight vs lone king
-                "kr6/8/8/8/8/8/8/NK6 w - - 0 1, true, true",   // a rook can hem its own king in against a knight
-                "kq6/8/8/8/8/8/8/NK6 w - - 0 1, false, true",  // a queen cannot: it would capture or be pinned
-                "kn6/8/8/8/8/8/8/NK6 w - - 0 1, true, true",   // knight vs knight
-                "k7/1p6/8/8/8/8/8/BK6 w - - 0 1, true, true",  // a pawn can block for a bishop
-                "kr6/8/8/8/8/8/8/BK6 w - - 0 1, false, true",  // a rook cannot block for a bishop
-                "k1b5/8/8/8/8/8/8/1K3B2 w - - 0 1, false, false", // bishops on the same square color
-                "k1b5/8/8/8/8/8/8/1KB5 w - - 0 1, true, true",  // bishops on opposite square colors
-                "k7/8/8/8/8/8/8/NNK5 w - - 0 1, true, false",   // two knights
-                "k7/8/8/8/8/8/8/BNK5 w - - 0 1, true, false",   // bishop and knight
-                "k7/8/8/8/8/8/8/1BBK4 w - - 0 1, true, false",  // bishops on both square colors
+            "k7/8/8/8/8/8/8/QK6 w - - 0 1, true, false", // lone king cannot mate
+            "k7/8/8/8/8/8/8/NK6 w - - 0 1, false, false", // knight vs lone king
+            "kr6/8/8/8/8/8/8/NK6 w - - 0 1, true, true", // a rook can hem its own king in against a knight
+            "kq6/8/8/8/8/8/8/NK6 w - - 0 1, false, true", // a queen cannot: it would capture or be pinned
+            "kn6/8/8/8/8/8/8/NK6 w - - 0 1, true, true", // knight vs knight
+            "k7/1p6/8/8/8/8/8/BK6 w - - 0 1, true, true", // a pawn can block for a bishop
+            "kr6/8/8/8/8/8/8/BK6 w - - 0 1, false, true", // a rook cannot block for a bishop
+            "k1b5/8/8/8/8/8/8/1K3B2 w - - 0 1, false, false", // bishops on the same square color
+            "k1b5/8/8/8/8/8/8/1KB5 w - - 0 1, true, true", // bishops on opposite square colors
+            "k7/8/8/8/8/8/8/NNK5 w - - 0 1, true, false", // two knights
+            "k7/8/8/8/8/8/8/BNK5 w - - 0 1, true, false", // bishop and knight
+            "k7/8/8/8/8/8/8/1BBK4 w - - 0 1, true, false", // bishops on both square colors
         })
         void matingMaterialPerSide(String fen, boolean whiteCanMate, boolean blackCanMate) {
             Board board = Fen.parse(fen).getBoard();

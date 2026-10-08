@@ -1,11 +1,10 @@
 package me.zilid.chessplatform.model.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.rating.RatingChange;
 import org.jspecify.annotations.Nullable;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "match_records")
@@ -60,8 +59,7 @@ public class MatchRecord extends BaseEntity {
         this.endTime = end;
     }
 
-    protected MatchRecord() {
-    }
+    protected MatchRecord() {}
 
     public User getWhitePlayer() {
         return whitePlayer;
@@ -143,9 +141,7 @@ public class MatchRecord extends BaseEntity {
         return blackRatingChange;
     }
 
-    /**
-     * Record the players' ratings after this match and how much each one moved.
-     */
+    /** Record the players' ratings after this match and how much each one moved. */
     public void setRatingChange(RatingChange change) {
         this.whiteRating = change.whiteAfter();
         this.blackRating = change.blackAfter();

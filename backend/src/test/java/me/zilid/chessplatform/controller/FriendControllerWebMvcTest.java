@@ -1,5 +1,15 @@
 package me.zilid.chessplatform.controller;
 
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Stream;
 import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
@@ -22,17 +32,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @WebMvcTest(FriendController.class)
 @ContextConfiguration(classes = FriendControllerWebMvcTest.TestConfiguration.class)
 class FriendControllerWebMvcTest {
@@ -41,16 +40,18 @@ class FriendControllerWebMvcTest {
     private static final UUID FRIEND_ID = UUID.fromString("917a66af-bc3f-4438-b52d-4d049122de0e");
     private static final UUID REQUEST_ID = UUID.fromString("1f3864d1-a23f-49e6-8e50-bf4bc85b281b");
     private static final Instant CREATED_AT = Instant.parse("2026-01-01T00:00:00Z");
-    private static final UserPrincipal PLAYER = new UserPrincipal(
-            USER_ID, "player", "player@example.com", "password", true, List.of());
-    private static final UserResponse FRIEND = new UserResponse(
-            FRIEND_ID, "friend", "friend@example.com", "Chess fan", CREATED_AT, CREATED_AT);
-    private static final UserResponse PLAYER_RESPONSE = new UserResponse(
-            USER_ID, "player", "player@example.com", "", CREATED_AT, CREATED_AT);
+    private static final UserPrincipal PLAYER =
+            new UserPrincipal(USER_ID, "player", "player@example.com", "password", true, List.of());
+    private static final UserResponse FRIEND =
+            new UserResponse(FRIEND_ID, "friend", "friend@example.com", "Chess fan", CREATED_AT, CREATED_AT);
+    private static final UserResponse PLAYER_RESPONSE =
+            new UserResponse(USER_ID, "player", "player@example.com", "", CREATED_AT, CREATED_AT);
     private static final FriendRequestResponse REQUEST = new FriendRequestResponse(
             REQUEST_ID, PLAYER_RESPONSE, FRIEND, FriendRequest.RequestStatus.PENDING, CREATED_AT, CREATED_AT);
+
     @Autowired
     private MockMvc mvc;
+
     @MockitoBean
     private FriendService friendService;
 
@@ -76,13 +77,9 @@ class FriendControllerWebMvcTest {
     @Test
     void friendsPageUsesTheAuthenticatedUserAndRequestedPage() throws Exception {
         PageRequest page = PageRequest.of(1, 2);
-        when(friendService.getFriends(USER_ID, page))
-                .thenReturn(new PageImpl<>(List.of(FRIEND), page, 3));
+        when(friendService.getFriends(USER_ID, page)).thenReturn(new PageImpl<>(List.of(FRIEND), page, 3));
 
-        mvc.perform(get("/api/friends")
-                        .param("page", "1")
-                        .param("size", "2")
-                        .with(user(PLAYER)))
+        mvc.perform(get("/api/friends").param("page", "1").param("size", "2").with(user(PLAYER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(FRIEND_ID.toString()))
                 .andExpect(jsonPath("$.content[0].username").value("friend"))
@@ -153,6 +150,5 @@ class FriendControllerWebMvcTest {
 
     @SpringBootConfiguration
     @Import({FriendController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {
-    }
+    static class TestConfiguration {}
 }

@@ -1,8 +1,7 @@
 package me.zilid.chessplatform.chess;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 public class Position {
     private static final int KING_FILE = 4;
@@ -15,7 +14,13 @@ public class Position {
     private int halfMoveClock;
     private int fullMoveClock;
 
-    private Position(Board board, Color turnColor, CastlingRights castlingRights, @Nullable Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+    private Position(
+            Board board,
+            Color turnColor,
+            CastlingRights castlingRights,
+            @Nullable Square enPassantTarget,
+            int halfMoveClock,
+            int fullMoveClock) {
         this.board = board;
         this.turnColor = turnColor;
         this.castlingRights = castlingRights;
@@ -28,7 +33,13 @@ public class Position {
         return new Position(Board.initial(), Color.WHITE, CastlingRights.ALL, null, 0, 1);
     }
 
-    public static Position of(Board board, Color turnColor, CastlingRights castlingRights, @Nullable Square enPassantTarget, int halfMoveClock, int fullMoveClock) {
+    public static Position of(
+            Board board,
+            Color turnColor,
+            CastlingRights castlingRights,
+            @Nullable Square enPassantTarget,
+            int halfMoveClock,
+            int fullMoveClock) {
         return new Position(board.copy(), turnColor, castlingRights, enPassantTarget, halfMoveClock, fullMoveClock);
     }
 
@@ -111,15 +122,24 @@ public class Position {
         }
         turnColor = turnColor.opposite();
         castlingRights = castlingRights.afterMove(move.from(), move.to());
-        enPassantTarget = move.isDoublePush() ? Square.of(move.from().file(), (move.from().rank() + move.to().rank()) / 2) : null;
-        return new UndoInfo(capturedSquare, capturedPiece, undoCastlingRights, undoEnPassantTarget, undoHalfMoveClock, undoFullMoveClock);
+        enPassantTarget = move.isDoublePush()
+                ? Square.of(move.from().file(), (move.from().rank() + move.to().rank()) / 2)
+                : null;
+        return new UndoInfo(
+                capturedSquare,
+                capturedPiece,
+                undoCastlingRights,
+                undoEnPassantTarget,
+                undoHalfMoveClock,
+                undoFullMoveClock);
     }
 
     public void undoMove(Move move, UndoInfo undo) {
         Color moverColor = turnColor.opposite();
         int rank = move.from().rank();
 
-        // remove the piece from the destination square and restore the piece to the source square (works for promotionType)
+        // remove the piece from the destination square and restore the piece to the source square (works for
+        // promotionType)
         Piece movedPiece = board.put(move.to(), null);
         if (move.isPromotion()) {
             board.put(move.from(), Piece.of(moverColor, PieceType.PAWN));
@@ -130,8 +150,11 @@ public class Position {
 
         // undo rook movement for castling
         if (move.isCastle()) {
-            Square rookAfterCastle = move.isKingsideCastle() ? Square.of(KING_FILE + 1, rank) : Square.of(KING_FILE - 1, rank);
-            Square rookFrom = move.isKingsideCastle() ? Square.of(KINGSIDE_ROOK_FILE, rank) : Square.of(QUEENSIDE_ROOK_FILE, rank);
+            Square rookAfterCastle =
+                    move.isKingsideCastle() ? Square.of(KING_FILE + 1, rank) : Square.of(KING_FILE - 1, rank);
+            Square rookFrom = move.isKingsideCastle()
+                    ? Square.of(KINGSIDE_ROOK_FILE, rank)
+                    : Square.of(QUEENSIDE_ROOK_FILE, rank);
             Piece rook = board.put(rookAfterCastle, null);
             board.put(rookFrom, rook);
         }
@@ -143,32 +166,24 @@ public class Position {
         fullMoveClock = undo.fullMoveClock();
     }
 
-    /**
-     * check if the current position is checkmate
-     */
+    /** check if the current position is checkmate */
     public boolean isCheckmate(Color color) {
         // No legal moves and in check -> checkmate
         return board.isInCheck(color) && MoveGenerator.legalMoves(this, color).isEmpty();
     }
 
-    /**
-     * Check if current position is a draw due to stalemate
-     */
+    /** Check if current position is a draw due to stalemate */
     public boolean isStalemate(Color color) {
         // No legal moves and not in check -> stalemate
         return !board.isInCheck(color) && MoveGenerator.legalMoves(this, color).isEmpty();
     }
 
-    /**
-     * Check if the current position is in check for the current color
-     */
+    /** Check if the current position is in check for the current color */
     public boolean isInCheck() {
         return board.isInCheck(turnColor);
     }
 
-    /**
-     * Check if fifty moves have been made without pawn move or capture
-     */
+    /** Check if fifty moves have been made without pawn move or capture */
     public boolean isFiftyMoveRule() {
         return halfMoveClock >= 100; // 100 half-moves = 50 full moves
     }
@@ -184,9 +199,7 @@ public class Position {
                 && Objects.equals(board, position.board);
     }
 
-    /**
-     * Generate a hash of the current board position
-     */
+    /** Generate a hash of the current board position */
     @Override
     public int hashCode() {
         // TODO: implement Zobrist as hash method

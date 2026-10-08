@@ -35,7 +35,6 @@ public class EloRatingSystem implements RatingSystem {
                 newWhiteRating,
                 newBlackRating,
                 newWhiteRating - whiteRating,
-                newBlackRating - blackRating
-        );
+                newBlackRating - blackRating);
     }
 }

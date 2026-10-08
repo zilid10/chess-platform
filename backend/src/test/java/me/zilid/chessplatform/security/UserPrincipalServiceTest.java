@@ -1,17 +1,16 @@
 package me.zilid.chessplatform.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
 import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class UserPrincipalServiceTest {
     private final User user = new User("alice@example.com", "alice", "encoded-password", "");
@@ -40,7 +39,6 @@ class UserPrincipalServiceTest {
 
     @Test
     void missingUserProducesSecurityLookupException() {
-        assertThatThrownBy(() -> service.loadUserByUsername("missing"))
-                .isInstanceOf(UsernameNotFoundException.class);
+        assertThatThrownBy(() -> service.loadUserByUsername("missing")).isInstanceOf(UsernameNotFoundException.class);
     }
 }

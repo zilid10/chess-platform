@@ -14,16 +14,15 @@ public class ContainersConfig {
         return new GenericContainer<>(DockerImageName.parse("rabbitmq:4.1-management"))
                 .withEnv("RABBITMQ_DEFAULT_USER", "chess")
                 .withEnv("RABBITMQ_DEFAULT_PASS", "password")
-                .withCopyToContainer(Transferable.of("[rabbitmq_management,rabbitmq_stomp]."),
-                        "/etc/rabbitmq/enabled_plugins")
+                .withCopyToContainer(
+                        Transferable.of("[rabbitmq_management,rabbitmq_stomp]."), "/etc/rabbitmq/enabled_plugins")
                 .withExposedPorts(61613);
     }
 
     @Bean
     @ServiceConnection(name = "redis")
     public GenericContainer<?> redisContainer() {
-        return new GenericContainer<>(DockerImageName.parse("redis:8.6"))
-                .withExposedPorts(6379);
+        return new GenericContainer<>(DockerImageName.parse("redis:8.6")).withExposedPorts(6379);
     }
 
     @Bean
