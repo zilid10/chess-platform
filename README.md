@@ -125,6 +125,25 @@ game on one, then join it from the other with the game ID.
 
 The credentials in `docker-compose.yml` are for local development only.
 
+### Observability (optional)
+
+The backend exports metrics, traces, and logs over OpenTelemetry (OTLP). In Compose they go to a
+[Grafana Alloy](https://grafana.com/docs/alloy/) collector, which forwards them to Grafana Cloud. Only Alloy holds
+the Grafana Cloud credentials, so moving to another backend means changing the collector, not the app.
+
+1. In a free Grafana Cloud stack, open **Connections > OpenTelemetry (OTLP)** and create a token. Note the OTLP
+   endpoint and instance ID.
+2. Copy `.env.example` to `.env` and fill in those three values.
+3. Start with the observability profile:
+
+   ```bash
+   docker compose --profile observability up --build
+   ```
+
+Metrics land in Prometheus/Mimir, traces in Tempo, and logs in Loki, all labeled `service_name=chess-platform`. Each
+log line carries its trace ID, so you can jump from a log to the request trace across both backend instances. Import
+a JVM / Spring Boot dashboard from grafana.com to get started. The Alloy UI is at http://localhost:12345.
+
 ### Run without Docker Compose
 
 1. Start PostgreSQL on port 5432 and Redis on port 6379, and create a database and user. A single backend instance
@@ -163,6 +182,8 @@ The credentials in `docker-compose.yml` are for local development only.
 | `APP_ALLOWED_ORIGINS`                                      | Comma-separated frontend origins allowed for HTTP and WebSocket requests                   |
 | `APP_WEBSOCKET_RELAY_ENABLED`                              | Route WebSocket messages through RabbitMQ. Required when running more than one instance.   |
 | `APP_WEBSOCKET_RELAY_HOST`, `_PORT`, `_LOGIN`, `_PASSCODE` | RabbitMQ STOMP connection                                                                  |
+| `OTEL_EXPORT_ENABLED`                                      | Export metrics, traces, and logs over OTLP (default `false`)                               |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`                              | OTLP/HTTP base URL of the collector (default `http://localhost:4318`)                      |
 
 ---
 

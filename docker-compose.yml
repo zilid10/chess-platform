@@ -92,6 +92,9 @@ services:
       APP_WEBSOCKET_RELAY_HOST: rabbitmq
       APP_WEBSOCKET_RELAY_LOGIN: chess
       APP_WEBSOCKET_RELAY_PASSCODE: password
+      # Off unless .env turns it on; run with --profile observability so Alloy is there to receive
+      OTEL_EXPORT_ENABLED: ${OTEL_EXPORT_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
     healthcheck:
       test: [ "CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health" ]
       interval: 10s
@@ -107,6 +110,25 @@ services:
         condition: service_healthy
       flyway:
         condition: service_completed_successfully
+
+  alloy:
+    container_name: chess-alloy
+    hostname: alloy
+    image: grafana/alloy:v1.20.1
+    profiles:
+      - observability
+    command: [ "run", "/etc/alloy/config.alloy", "--server.http.listen-addr=0.0.0.0:12345" ]
+    ports:
+      - "12345:12345"
+    networks:
+      - backend
+    configs:
+      - source: alloy
+        target: /etc/alloy/config.alloy
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:-}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID:-}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
 
   backend-lb:
     container_name: chess-backend-lb
@@ -146,6 +168,39 @@ configs:
   rabbitmq-plugins:
     content: |
       [rabbitmq_management,rabbitmq_stomp].
+  alloy:
+    content: |
+      // The backend sends OTLP here; only Alloy holds the Grafana Cloud credentials
+      otelcol.receiver.otlp "default" {
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+        output {
+          metrics = [otelcol.processor.batch.default.input]
+          logs    = [otelcol.processor.batch.default.input]
+          traces  = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          metrics = [otelcol.exporter.otlphttp.grafana_cloud.input]
+          logs    = [otelcol.exporter.otlphttp.grafana_cloud.input]
+          traces  = [otelcol.exporter.otlphttp.grafana_cloud.input]
+        }
+      }
+
+      otelcol.auth.basic "grafana_cloud" {
+        username = sys.env("GRAFANA_CLOUD_INSTANCE_ID")
+        password = sys.env("GRAFANA_CLOUD_API_KEY")
+      }
+
+      otelcol.exporter.otlphttp "grafana_cloud" {
+        client {
+          endpoint = sys.env("GRAFANA_CLOUD_OTLP_ENDPOINT")
+          auth     = otelcol.auth.basic.grafana_cloud.handler
+        }
+      }
   backend-lb:
     content: |
       # nginx resolves "backend" to every replica at startup and balances round-robin between them
