@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.stream.Stream;
 import me.zilid.chessplatform.chess.format.Fen;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -52,7 +53,7 @@ class PositionUndoTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("specialMoves")
     void applyingAndUndoingSpecialMoveRestoresEntirePosition(
-            String name, String before, String from, String to, PieceType promotion, String after) {
+            String name, String before, String from, String to, @Nullable PieceType promotion, String after) {
         Position position = Fen.parse(before);
         Move move = MoveGenerator.findLegalMove(position, Square.fromNotation(from), Square.fromNotation(to), promotion)
                 .orElseThrow();

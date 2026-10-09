@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import me.zilid.chessplatform.chess.*;
 import me.zilid.chessplatform.chess.format.Fen;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -27,7 +28,7 @@ class SanPgnFormatterTest {
                         "promotion with check", "7k/P7/8/8/8/8/8/K7 w - - 0 1", "a7", "a8", PieceType.QUEEN, "a8=Q+"));
     }
 
-    private static Move legalMove(Position position, String from, String to, PieceType promotion) {
+    private static Move legalMove(Position position, String from, String to, @Nullable PieceType promotion) {
         return MoveGenerator.findLegalMove(position, Square.fromNotation(from), Square.fromNotation(to), promotion)
                 .orElseThrow();
     }
@@ -35,7 +36,7 @@ class SanPgnFormatterTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("sanCases")
     void formatsSanWithoutChangingPosition(
-            String name, String fen, String from, String to, PieceType promotion, String expected) {
+            String name, String fen, String from, String to, @Nullable PieceType promotion, String expected) {
         Position position = Fen.parse(fen);
         Move move = legalMove(position, from, to, promotion);
 

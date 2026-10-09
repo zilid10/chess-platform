@@ -32,7 +32,10 @@ public record CastlingRights(int rights) {
     }
 
     private static int mask(Color color, CastlingSide side) {
-        return 1 << (color.ordinal() * 2 + side.ordinal());
+        return switch (color) {
+            case WHITE -> side == CastlingSide.KINGSIDE ? 0b0001 : 0b0010;
+            case BLACK -> side == CastlingSide.KINGSIDE ? 0b0100 : 0b1000;
+        };
     }
 
     public boolean has(Color color, CastlingSide side) {

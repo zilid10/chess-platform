@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import me.zilid.chessplatform.chess.Move;
+import me.zilid.chessplatform.chess.PieceType;
 import me.zilid.chessplatform.chess.Square;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,9 +27,10 @@ class UciTest {
         String notation = "a7a8" + suffix;
         UciMove parsed = Uci.parse(notation);
 
-        assertThat(parsed.promotion()).isIn(Move.PROMOTION_CHOICES);
+        PieceType promotion = parsed.promotion();
+        assertThat(promotion).isNotNull().isIn(Move.PROMOTION_CHOICES);
         assertThat(Uci.format(parsed)).isEqualTo(notation);
-        assertThat(Uci.format(Move.promotion(parsed.from(), parsed.to(), parsed.promotion())))
+        assertThat(Uci.format(Move.promotion(parsed.from(), parsed.to(), promotion)))
                 .isEqualTo(notation);
     }
 

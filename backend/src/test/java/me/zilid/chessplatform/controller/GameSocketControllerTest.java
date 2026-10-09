@@ -19,13 +19,18 @@ import me.zilid.chessplatform.security.UserPrincipal;
 import me.zilid.chessplatform.service.GameEventPublisher;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+@ExtendWith(MockitoExtension.class)
 class GameSocketControllerTest {
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
     private static final UserPrincipal PLAYER = new UserPrincipal(
@@ -36,10 +41,21 @@ class GameSocketControllerTest {
             true,
             List.of());
 
-    private final MatchService matchService = mock(MatchService.class);
-    private final GameEventPublisher publisher = mock(GameEventPublisher.class);
-    private final Game game = mock(Game.class);
-    private final GameSocketController controller = new GameSocketController(matchService, publisher);
+    @Mock
+    private MatchService matchService;
+
+    @Mock
+    private GameEventPublisher publisher;
+
+    @Mock
+    private Game game;
+
+    private GameSocketController controller;
+
+    @BeforeEach
+    void setUp() {
+        controller = new GameSocketController(matchService, publisher);
+    }
 
     private static MoveRequest request(String from, String to, @Nullable String promotion) {
         return new MoveRequest(GAME_ID.toString(), from, to, promotion);

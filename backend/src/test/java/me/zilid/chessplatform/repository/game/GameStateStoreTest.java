@@ -20,7 +20,11 @@ import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,24 +34,27 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import tools.jackson.databind.json.JsonMapper;
 
+@ExtendWith(MockitoExtension.class)
 class GameStateStoreTest {
     private static final UUID GAME_ID = UUID.randomUUID();
 
     private static final Instant T0 = Instant.parse("2026-09-27T10:15:30Z");
 
+    @Mock
     private StringRedisTemplate redisTemplate;
+
+    @Mock
     private ValueOperations<String, String> values;
+
+    @Mock
     private ZSetOperations<String, String> sortedSets;
+
     private GameStateStore store;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
-        redisTemplate = mock(StringRedisTemplate.class);
-        values = mock(ValueOperations.class);
-        sortedSets = mock(ZSetOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(values);
-        when(redisTemplate.opsForZSet()).thenReturn(sortedSets);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(values);
+        lenient().when(redisTemplate.opsForZSet()).thenReturn(sortedSets);
         store = new GameStateStore(redisTemplate, JsonMapper.builder().build(), new ActiveGameStateConverter());
     }
 
@@ -60,7 +67,7 @@ class GameStateStoreTest {
                         Move.castleKingside(Color.BLACK)),
                 ClockSetting.ofMinutes(3, 2),
                 Duration.ofMillis(171_250),
-                Duration.ofSeconds(180),
+                Duration.ofMinutes(3),
                 Instant.parse("2026-09-27T10:16:30Z"),
                 Color.WHITE,
                 Instant.parse("2026-09-27T10:15:30Z"),
@@ -90,8 +97,9 @@ class GameStateStoreTest {
 
         assertThat(restored.getFen()).isEqualTo(game.getFen());
         assertThat(restored.getMoves()).isEqualTo(game.getMoves());
-        assertThat(restored.getWhitePlayer()).isEqualTo(game.getWhitePlayer());
-        assertThat(restored.getWhitePlayer().displayName()).isEqualTo("white");
+        var whitePlayer = restored.getWhitePlayer();
+        assertThat(whitePlayer).isNotNull().isEqualTo(game.getWhitePlayer());
+        assertThat(whitePlayer.displayName()).isEqualTo("white");
         assertThat(restored.getBlackPlayer()).isEqualTo(game.getBlackPlayer());
         assertThat(restored.getDrawOfferedBy()).isEqualTo(Color.WHITE);
         assertThat(restored.getClockSetting()).isEqualTo(ClockSetting.ofMinutes(3, 2));
@@ -141,11 +149,10 @@ class GameStateStoreTest {
 
         store.storeGame(GAME_ID, game);
 
+        Instant deadline = game.timeoutDeadline();
+        assertThat(deadline).isNotNull();
         verify(sortedSets)
-                .add(
-                        GameStateStore.TIMEOUT_DEADLINES_KEY,
-                        GAME_ID.toString(),
-                        game.timeoutDeadline().toEpochMilli());
+                .add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(), (double) deadline.toEpochMilli());
         verify(sortedSets, never()).remove(any(), any());
     }
 
@@ -160,11 +167,8 @@ class GameStateStoreTest {
         Game restored = storeAndLoad(game);
 
         assertThat(restored.getFirstMoveDeadline()).isEqualTo(T0.plus(Game.FIRST_MOVE_TIMEOUT));
-        verify(sortedSets)
-                .add(
-                        GameStateStore.TIMEOUT_DEADLINES_KEY,
-                        GAME_ID.toString(),
-                        T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
+        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(), (double)
+                T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
     }
 
     @Test
@@ -179,7 +183,11 @@ class GameStateStoreTest {
     void dueTimeoutsAreReadUpToNow() {
         UUID other = UUID.randomUUID();
         when(sortedSets.rangeByScore(
-                        GameStateStore.TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, T0.toEpochMilli(), 0, 50))
+                        GameStateStore.TIMEOUT_DEADLINES_KEY,
+                        Double.NEGATIVE_INFINITY,
+                        (double) T0.toEpochMilli(),
+                        0,
+                        50))
                 .thenReturn(new LinkedHashSet<>(List.of(GAME_ID.toString(), other.toString())));
 
         assertThat(store.findTimeoutsDue(T0, 50)).containsExactly(GAME_ID, other);
@@ -203,7 +211,9 @@ class GameStateStoreTest {
         ArgumentCaptor<String> json = ArgumentCaptor.forClass(String.class);
         verify(values).set(eq("game:" + GAME_ID), json.capture(), eq(GameStateStore.GAME_TTL));
         when(values.get("game:" + GAME_ID)).thenReturn(json.getValue());
-        return store.loadGame(GAME_ID);
+        Game loaded = store.loadGame(GAME_ID);
+        assertThat(loaded).isNotNull();
+        return loaded;
     }
 
     @Test
@@ -212,7 +222,6 @@ class GameStateStoreTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void actionExceptionsEscapeTheSpringBeanUntranslated() {
         when(values.setIfAbsent(eq("game:" + GAME_ID + ":lock"), anyString(), eq(GameStateStore.LOCK_TTL)))
                 .thenReturn(true);
@@ -231,6 +240,6 @@ class GameStateStoreTest {
                     }))
                     .isSameAs(notYourTurn);
         }
-        verify(redisTemplate).execute(any(RedisScript.class), anyList(), anyString());
+        verify(redisTemplate).execute(ArgumentMatchers.<RedisScript<Long>>any(), anyList(), anyString());
     }
 }

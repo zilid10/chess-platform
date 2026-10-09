@@ -13,19 +13,35 @@ import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.model.dto.ChatMessage;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.rating.RatingChange;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+@ExtendWith(MockitoExtension.class)
 class GameEventPublisherTest {
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
     private static final RegisteredPlayer WHITE = new RegisteredPlayer(UUID.randomUUID(), "white");
     private static final RegisteredPlayer BLACK = new RegisteredPlayer(UUID.randomUUID(), "black");
 
-    private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
-    private final MatchService matchService = mock(MatchService.class);
-    private final Game game = mock(Game.class);
-    private final GameEventPublisher publisher = new GameEventPublisher(messagingTemplate, matchService);
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
+
+    @Mock
+    private MatchService matchService;
+
+    @Mock
+    private Game game;
+
+    private GameEventPublisher publisher;
+
+    @BeforeEach
+    void setUp() {
+        publisher = new GameEventPublisher(messagingTemplate, matchService);
+    }
 
     private static GameStateResponse state(GameStatus status) {
         return new GameStateResponse(status, "fen", "e2", "e4", "BLACK", 0, 60_000, false, null);

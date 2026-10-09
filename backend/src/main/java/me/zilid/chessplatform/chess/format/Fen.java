@@ -17,7 +17,7 @@ public class Fen {
      * @throws IllegalArgumentException if the FEN cannot be parsed
      */
     public static Position parse(String fen) {
-        String[] parsedFen = fen.split("\\s+");
+        String[] parsedFen = fen.split("\\s+", -1);
         if (parsedFen.length != 6) {
             throw new IllegalArgumentException("Invalid fen: " + fen);
         }

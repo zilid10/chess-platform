@@ -22,18 +22,26 @@ import me.zilid.chessplatform.repository.RatingRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InOrder;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class RatingServiceTest {
     // UUIDs compare by their signed high bits, so LOW sorts before HIGH.
     private static final UUID LOW_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID HIGH_ID = UUID.fromString("7fffffff-0000-0000-0000-000000000001");
 
+    @Mock
     private RatingRepo ratingRepo;
+
+    @Mock
     private UserRepo userRepo;
+
     private RatingService service;
 
     private static Rating rating(TimeControl timeControl) {
@@ -42,8 +50,6 @@ class RatingServiceTest {
 
     @BeforeEach
     void setUp() {
-        ratingRepo = mock(RatingRepo.class);
-        userRepo = mock(UserRepo.class);
         service = new RatingService(ratingRepo, userRepo, new EloRatingSystem(new EloKFactorPolicy()));
     }
 
@@ -153,10 +159,10 @@ class RatingServiceTest {
         List<PlayerRatingResponse> ratings = service.getRatings(LOW_ID);
 
         assertThat(ratings).extracting(PlayerRatingResponse::timeControl).containsExactly(TimeControl.values());
-        assertThat(ratings.get(TimeControl.BLITZ.ordinal()))
-                .isEqualTo(new PlayerRatingResponse(TimeControl.BLITZ, 1260, 1, 1260));
-        assertThat(ratings.get(TimeControl.RAPID.ordinal()))
-                .isEqualTo(new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200));
+        assertThat(ratings)
+                .contains(
+                        new PlayerRatingResponse(TimeControl.BLITZ, 1260, 1, 1260),
+                        new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200));
     }
 
     @Test

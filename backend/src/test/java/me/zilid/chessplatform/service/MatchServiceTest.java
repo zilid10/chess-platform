@@ -31,26 +31,38 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
+@ExtendWith(MockitoExtension.class)
 class MatchServiceTest {
     private final RegisteredPlayer alice = player("alice");
     private final RegisteredPlayer bob = player("bob");
     private final RegisteredPlayer spectator = player("spectator");
     private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
+
+    @Mock
     private MatchRecordRepo matchRecordRepo;
+
+    @Mock
     private UserRepo userRepo;
+
+    @Mock
     private RatingService ratingService;
+
     private GameStateStore gameStateStore;
     private MatchService service;
 
     /** Stands in for Redis: a map for storage and a real lock, so races are still serialized per game. */
-    @SuppressWarnings("unchecked")
     private static GameStateStore inMemoryGameStateStore() {
-        GameStateStore store = mock(GameStateStore.class);
+        GameStateStore store = mock(GameStateStore.class, withSettings().strictness(Strictness.LENIENT));
         Map<UUID, Game> games = new ConcurrentHashMap<>();
         ReentrantLock lock = new ReentrantLock();
         doAnswer(invocation -> games.put(invocation.getArgument(0), copyGame(invocation.getArgument(1))))
@@ -85,9 +97,6 @@ class MatchServiceTest {
 
     @BeforeEach
     void setUp() {
-        matchRecordRepo = mock(MatchRecordRepo.class);
-        userRepo = mock(UserRepo.class);
-        ratingService = mock(RatingService.class);
         gameStateStore = inMemoryGameStateStore();
         service = newService();
     }
@@ -97,7 +106,7 @@ class MatchServiceTest {
         UUID gameId = gameWithBothPlayers();
         service.makeMove(alice, gameId, "e2", "e4", null);
 
-        Game reloaded = service.getGameSession(gameId);
+        Game reloaded = requireGameSession(gameId);
         assertThat(reloaded.getMoves()).hasSize(1);
         assertThat(reloaded.getWhitePlayer()).isEqualTo(alice);
         assertThat(reloaded.getBlackPlayer()).isEqualTo(bob);
@@ -107,13 +116,17 @@ class MatchServiceTest {
     @Test
     void rejectedActionsAreNotStored() {
         UUID gameId = gameWithBothPlayers();
-        String fenBefore = gameStateStore.loadGame(gameId).getFen();
+        Game before = gameStateStore.loadGame(gameId);
+        assertThat(before).isNotNull();
+        String fenBefore = before.getFen();
 
         assertThatThrownBy(() -> service.makeMove(alice, gameId, "e2", "e5", null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThat(gameStateStore.loadGame(gameId).getFen()).isEqualTo(fenBefore);
-        assertThat(gameStateStore.loadGame(gameId).getMoves()).isEmpty();
+        Game after = gameStateStore.loadGame(gameId);
+        assertThat(after).isNotNull();
+        assertThat(after.getFen()).isEqualTo(fenBefore);
+        assertThat(after.getMoves()).isEmpty();
     }
 
     @Test
@@ -133,14 +146,14 @@ class MatchServiceTest {
         assertThat(created.color()).isEqualTo(Color.WHITE);
         assertThat(created.clockSetting()).isEqualTo("3+2");
         assertThat(created.timeControl()).isEqualTo(TimeControl.BLITZ);
-        assertThat(service.getGameSession(gameId).getTimeControl()).isEqualTo(TimeControl.BLITZ);
+        assertThat(requireGameSession(gameId).getTimeControl()).isEqualTo(TimeControl.BLITZ);
         assertThat(created.socketUrl()).isEqualTo("/game/" + gameId);
         assertThat(created.fen()).isEqualTo(service.getGameState(gameId).fen());
         assertThat(service.joinGame(gameId, alice).role()).isEqualTo("WHITE");
         assertThat(service.joinGame(gameId, bob).role()).isEqualTo("BLACK");
         assertThat(service.joinGame(gameId, spectator).role()).isEqualTo("SPECTATOR");
-        assertThat(service.getGameSession(gameId).getWhitePlayer()).isEqualTo(alice);
-        assertThat(service.getGameSession(gameId).getBlackPlayer()).isEqualTo(bob);
+        assertThat(requireGameSession(gameId).getWhitePlayer()).isEqualTo(alice);
+        assertThat(requireGameSession(gameId).getBlackPlayer()).isEqualTo(bob);
     }
 
     @Test
@@ -259,7 +272,7 @@ class MatchServiceTest {
         CountDownLatch bothTurnChecksReached = new CountDownLatch(2);
         Game game = new Game(alice, bob, TestGames.TEN_MINUTES) {
             @Override
-            public boolean isUserTurn(Player user) {
+            public synchronized boolean isUserTurn(Player user) {
                 boolean isTurn = super.isUserTurn(user);
                 bothTurnChecksReached.countDown();
                 try {
@@ -327,13 +340,13 @@ class MatchServiceTest {
 
         assertThat(service.acceptDraw(bob, gameId).gameStatus()).isEqualTo(GameStatus.ONGOING);
         service.offerDraw(alice, gameId);
-        assertThat(service.getGameSession(gameId).getDrawOfferedBy()).isEqualTo(Color.WHITE);
+        assertThat(requireGameSession(gameId).getDrawOfferedBy()).isEqualTo(Color.WHITE);
         assertThat(service.acceptDraw(alice, gameId).gameStatus()).isEqualTo(GameStatus.ONGOING);
 
         GameStateResponse accepted = service.acceptDraw(bob, gameId);
         assertThat(accepted.gameStatus()).isEqualTo(GameStatus.DRAW_BY_AGREEMENT);
-        assertThat(service.getGameSession(gameId).getDrawOfferedBy()).isNull();
-        assertThat(service.getGameSession(gameId).getEndTime()).isNotNull();
+        assertThat(requireGameSession(gameId).getDrawOfferedBy()).isNull();
+        assertThat(requireGameSession(gameId).getEndTime()).isNotNull();
     }
 
     @Test
@@ -343,7 +356,7 @@ class MatchServiceTest {
         GameStateResponse state = service.resign(alice, gameId);
 
         assertThat(state.gameStatus()).isEqualTo(GameStatus.RESIGNED_BLACK_WINS);
-        assertThat(service.getGameSession(gameId).getEndTime()).isNotNull();
+        assertThat(requireGameSession(gameId).getEndTime()).isNotNull();
         assertThatThrownBy(() -> service.resign(bob, gameId)).isInstanceOf(GameIsOverException.class);
         assertThatThrownBy(() -> service.acceptDraw(bob, gameId)).isInstanceOf(GameIsOverException.class);
         assertThatThrownBy(() -> service.offerDraw(bob, gameId))
@@ -406,15 +419,22 @@ class MatchServiceTest {
         verify(matchRecordRepo).findByWhitePlayer_IdOrBlackPlayer_Id(eq(userId), eq(userId), page.capture());
         assertThat(page.getValue().getPageNumber()).isEqualTo(2);
         assertThat(page.getValue().getPageSize()).isEqualTo(5);
-        assertThat(page.getValue().getSort().getOrderFor("endTime").isDescending())
-                .isTrue();
+        Sort.Order endTimeOrder = page.getValue().getSort().getOrderFor("endTime");
+        assertThat(endTimeOrder).isNotNull();
+        assertThat(endTimeOrder.isDescending()).isTrue();
     }
 
     @Test
     void newGamesStartAtTheClocksTime() {
         UUID gameId = gameWithBothPlayers();
 
-        assertThat(service.getGameSession(gameId).getStartTime()).isEqualTo(clock.instant());
+        assertThat(requireGameSession(gameId).getStartTime()).isEqualTo(clock.instant());
+    }
+
+    private Game requireGameSession(UUID gameId) {
+        Game game = service.getGameSession(gameId);
+        assertThat(game).isNotNull();
+        return game;
     }
 
     private MatchService newService() {
@@ -457,7 +477,7 @@ class MatchServiceTest {
 
             assertThat(service.checkTimeout(gameId)).isEmpty();
 
-            assertThat(service.getGameSession(gameId).getStatus()).isEqualTo(GameStatus.ONGOING);
+            assertThat(requireGameSession(gameId).getStatus()).isEqualTo(GameStatus.ONGOING);
             assertThat(service.getGameState(gameId).whiteRemainingMillis()).isEqualTo(1);
         }
 
@@ -472,7 +492,7 @@ class MatchServiceTest {
             assertThat(state.gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
             assertThat(state.whiteRemainingMillis()).isZero();
             assertThat(state.clockRunning()).isFalse();
-            Game stored = service.getGameSession(gameId);
+            Game stored = requireGameSession(gameId);
             assertThat(stored.getStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
             assertThat(stored.getEndTime()).isEqualTo(deadline);
         }
@@ -525,7 +545,7 @@ class MatchServiceTest {
             GameStateResponse state = service.makeMove(alice, gameId, "g1", "f3", null);
 
             assertThat(state.gameStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
-            assertThat(service.getGameSession(gameId).getMoves()).hasSize(2);
+            assertThat(requireGameSession(gameId).getMoves()).hasSize(2);
             assertThat(service.checkTimeout(gameId)).isEmpty();
         }
 
@@ -555,7 +575,7 @@ class MatchServiceTest {
             assertThatThrownBy(() -> service.offerDraw(bob, gameId))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("Game is over");
-            assertThat(service.getGameSession(gameId).getDrawOfferedBy()).isNull();
+            assertThat(requireGameSession(gameId).getDrawOfferedBy()).isNull();
         }
 
         @Test
@@ -565,7 +585,7 @@ class MatchServiceTest {
 
             service.resign(alice, gameId);
 
-            assertThat(service.getGameSession(gameId).getEndTime()).isEqualTo(clock.instant());
+            assertThat(requireGameSession(gameId).getEndTime()).isEqualTo(clock.instant());
         }
     }
 
@@ -581,7 +601,7 @@ class MatchServiceTest {
 
             service.joinGame(gameId, bob);
 
-            assertThat(service.getGameSession(gameId).getFirstMoveDeadline())
+            assertThat(requireGameSession(gameId).getFirstMoveDeadline())
                     .isEqualTo(clock.instant().plus(Game.FIRST_MOVE_TIMEOUT));
             clock.advance(Duration.ofSeconds(10));
             assertThat(service.getGameState(gameId).firstMoveRemainingMillis()).isEqualTo(20_000);
@@ -596,7 +616,7 @@ class MatchServiceTest {
 
             assertThat(state.gameStatus()).isEqualTo(GameStatus.ABORTED);
             assertThat(state.firstMoveRemainingMillis()).isNull();
-            assertThat(service.getGameSession(gameId).getStatus()).isEqualTo(GameStatus.ABORTED);
+            assertThat(requireGameSession(gameId).getStatus()).isEqualTo(GameStatus.ABORTED);
         }
 
         @Test
@@ -616,7 +636,7 @@ class MatchServiceTest {
             UUID gameId = gameWithBothPlayers();
             clock.advance(Game.FIRST_MOVE_TIMEOUT);
             service.checkTimeout(gameId);
-            Game aborted = service.getGameSession(gameId);
+            Game aborted = requireGameSession(gameId);
 
             assertThatThrownBy(() -> service.archiveMatch(gameId, aborted))
                     .isInstanceOf(IllegalStateException.class)

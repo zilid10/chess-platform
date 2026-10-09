@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import me.zilid.chessplatform.chess.Color;
-import me.zilid.chessplatform.chess.PieceType;
+import me.zilid.chessplatform.chess.Piece;
 import me.zilid.chessplatform.chess.Position;
 import me.zilid.chessplatform.chess.Square;
 import org.junit.jupiter.api.Test;
@@ -43,10 +43,8 @@ class PositionFenTest {
     @Test
     void placesPiecesOnCorrectSquares() {
         Position position = Fen.parse(START);
-        assertThat(position.getPieceAt(Square.fromNotation("e1")).type()).isEqualTo(PieceType.KING);
-        assertThat(position.getPieceAt(Square.fromNotation("e1")).color()).isEqualTo(Color.WHITE);
-        assertThat(position.getPieceAt(Square.fromNotation("d8")).type()).isEqualTo(PieceType.QUEEN);
-        assertThat(position.getPieceAt(Square.fromNotation("d8")).color()).isEqualTo(Color.BLACK);
+        assertThat(position.getPieceAt(Square.fromNotation("e1"))).isEqualTo(Piece.WHITE_KING);
+        assertThat(position.getPieceAt(Square.fromNotation("d8"))).isEqualTo(Piece.BLACK_QUEEN);
         assertThat(position.getPieceAt(Square.fromNotation("e4"))).isNull();
     }
 

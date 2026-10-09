@@ -62,7 +62,7 @@ public class GameStateStore {
         if (deadline == null) {
             clearTimeoutDeadline(gameId);
         } else {
-            redisTemplate.opsForZSet().add(TIMEOUT_DEADLINES_KEY, gameId.toString(), deadline.toEpochMilli());
+            redisTemplate.opsForZSet().add(TIMEOUT_DEADLINES_KEY, gameId.toString(), (double) deadline.toEpochMilli());
         }
     }
 
@@ -70,7 +70,7 @@ public class GameStateStore {
     public List<UUID> findTimeoutsDue(Instant now, int limit) {
         Set<String> ids = redisTemplate
                 .opsForZSet()
-                .rangeByScore(TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, now.toEpochMilli(), 0, limit);
+                .rangeByScore(TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, (double) now.toEpochMilli(), 0, limit);
         if (ids == null) {
             return List.of();
         }

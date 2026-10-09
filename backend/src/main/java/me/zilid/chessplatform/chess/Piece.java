@@ -14,14 +14,6 @@ public enum Piece {
     BLACK_QUEEN(Color.BLACK, PieceType.QUEEN),
     BLACK_KING(Color.BLACK, PieceType.KING);
 
-    private static final Piece[][] LOOKUP = new Piece[Color.values().length][PieceType.values().length];
-
-    static {
-        for (Piece piece : Piece.values()) {
-            LOOKUP[piece.color.ordinal()][piece.type.ordinal()] = piece;
-        }
-    }
-
     private final Color color;
     private final PieceType type;
 
@@ -31,7 +23,26 @@ public enum Piece {
     }
 
     public static Piece of(Color color, PieceType type) {
-        return LOOKUP[color.ordinal()][type.ordinal()];
+        return switch (color) {
+            case WHITE ->
+                switch (type) {
+                    case PAWN -> WHITE_PAWN;
+                    case KNIGHT -> WHITE_KNIGHT;
+                    case BISHOP -> WHITE_BISHOP;
+                    case ROOK -> WHITE_ROOK;
+                    case QUEEN -> WHITE_QUEEN;
+                    case KING -> WHITE_KING;
+                };
+            case BLACK ->
+                switch (type) {
+                    case PAWN -> BLACK_PAWN;
+                    case KNIGHT -> BLACK_KNIGHT;
+                    case BISHOP -> BLACK_BISHOP;
+                    case ROOK -> BLACK_ROOK;
+                    case QUEEN -> BLACK_QUEEN;
+                    case KING -> BLACK_KING;
+                };
+        };
     }
 
     public static boolean isEnemyPiece(Piece piece, Piece target) {

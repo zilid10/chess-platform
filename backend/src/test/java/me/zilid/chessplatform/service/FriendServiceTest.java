@@ -25,24 +25,30 @@ import me.zilid.chessplatform.repository.FriendRequestRepo;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+@ExtendWith(MockitoExtension.class)
 class FriendServiceTest {
-    private FriendRequestRepo requestRepo;
-    private UserRepo userRepo;
-    private FriendRequestConverter requestConverter;
-    private FriendService service;
-
     private final User alice = new User("alice@example.com", "alice", "hash", "");
     private final User bob = new User("bob@example.com", "bob", "hash", "");
 
+    @Mock
+    private FriendRequestRepo requestRepo;
+
+    @Mock
+    private UserRepo userRepo;
+
+    private FriendService service;
+
     @BeforeEach
     void setUp() {
-        requestRepo = mock(FriendRequestRepo.class);
-        userRepo = mock(UserRepo.class);
-        UserConverter userConverter = new UserConverter(mock(PasswordEncoder.class));
-        requestConverter = new FriendRequestConverter(userConverter);
+        PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+        UserConverter userConverter = new UserConverter(passwordEncoder);
+        FriendRequestConverter requestConverter = new FriendRequestConverter(userConverter);
         service = new FriendService(requestRepo, userRepo, requestConverter, userConverter);
     }
 
