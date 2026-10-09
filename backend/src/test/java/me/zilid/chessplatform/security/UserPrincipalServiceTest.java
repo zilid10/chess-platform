@@ -2,7 +2,6 @@ package me.zilid.chessplatform.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -10,16 +9,22 @@ import me.zilid.chessplatform.model.entity.User;
 import me.zilid.chessplatform.repository.UserRepo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+@ExtendWith(MockitoExtension.class)
 class UserPrincipalServiceTest {
     private final User user = new User("alice@example.com", "alice", "encoded-password", "");
+
+    @Mock
     private UserRepo userRepo;
+
     private UserPrincipalService service;
 
     @BeforeEach
     void setUp() {
-        userRepo = mock(UserRepo.class);
         service = new UserPrincipalService(userRepo);
     }
 

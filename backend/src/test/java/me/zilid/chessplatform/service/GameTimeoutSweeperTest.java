@@ -12,17 +12,34 @@ import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.model.dto.GameStateResponse;
 import me.zilid.chessplatform.repository.game.GameStateStore;
 import me.zilid.chessplatform.util.MutableClock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class GameTimeoutSweeperTest {
     private static final UUID EXPIRED = UUID.randomUUID();
     private static final UUID OTHER = UUID.randomUUID();
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:10:00Z"));
-    private final GameStateStore store = mock(GameStateStore.class);
-    private final MatchService matchService = mock(MatchService.class);
-    private final GameEventPublisher publisher = mock(GameEventPublisher.class);
-    private final GameTimeoutSweeper sweeper = new GameTimeoutSweeper(store, matchService, publisher, clock);
+
+    @Mock
+    private GameStateStore store;
+
+    @Mock
+    private MatchService matchService;
+
+    @Mock
+    private GameEventPublisher publisher;
+
+    private GameTimeoutSweeper sweeper;
+
+    @BeforeEach
+    void setUp() {
+        sweeper = new GameTimeoutSweeper(store, matchService, publisher, clock);
+    }
 
     private static GameStateResponse flagged() {
         return new GameStateResponse(GameStatus.FLAGGED_BLACK_WINS, "fen", "e7", "e5", "WHITE", 0, 60_000, false, null);

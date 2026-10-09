@@ -31,27 +31,38 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+@ExtendWith(MockitoExtension.class)
 class MatchServiceTest {
     private final RegisteredPlayer alice = player("alice");
     private final RegisteredPlayer bob = player("bob");
     private final RegisteredPlayer spectator = player("spectator");
     private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
+
+    @Mock
     private MatchRecordRepo matchRecordRepo;
+
+    @Mock
     private UserRepo userRepo;
+
+    @Mock
     private RatingService ratingService;
+
     private GameStateStore gameStateStore;
     private MatchService service;
 
     /** Stands in for Redis: a map for storage and a real lock, so races are still serialized per game. */
-    @SuppressWarnings("unchecked")
     private static GameStateStore inMemoryGameStateStore() {
-        GameStateStore store = mock(GameStateStore.class);
+        GameStateStore store = mock(GameStateStore.class, withSettings().strictness(Strictness.LENIENT));
         Map<UUID, Game> games = new ConcurrentHashMap<>();
         ReentrantLock lock = new ReentrantLock();
         doAnswer(invocation -> games.put(invocation.getArgument(0), copyGame(invocation.getArgument(1))))
@@ -86,9 +97,6 @@ class MatchServiceTest {
 
     @BeforeEach
     void setUp() {
-        matchRecordRepo = mock(MatchRecordRepo.class);
-        userRepo = mock(UserRepo.class);
-        ratingService = mock(RatingService.class);
         gameStateStore = inMemoryGameStateStore();
         service = newService();
     }

@@ -20,7 +20,10 @@ import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.RegisteredPlayer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,24 +33,27 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import tools.jackson.databind.json.JsonMapper;
 
+@ExtendWith(MockitoExtension.class)
 class GameStateStoreTest {
     private static final UUID GAME_ID = UUID.randomUUID();
 
     private static final Instant T0 = Instant.parse("2026-09-27T10:15:30Z");
 
+    @Mock
     private StringRedisTemplate redisTemplate;
+
+    @Mock
     private ValueOperations<String, String> values;
+
+    @Mock
     private ZSetOperations<String, String> sortedSets;
+
     private GameStateStore store;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
-        redisTemplate = mock(StringRedisTemplate.class);
-        values = mock(ValueOperations.class);
-        sortedSets = mock(ZSetOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(values);
-        when(redisTemplate.opsForZSet()).thenReturn(sortedSets);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(values);
+        lenient().when(redisTemplate.opsForZSet()).thenReturn(sortedSets);
         store = new GameStateStore(redisTemplate, JsonMapper.builder().build(), new ActiveGameStateConverter());
     }
 
