@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import java.util.Map;
 import java.util.UUID;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.ErrorResponse;
@@ -41,7 +40,7 @@ class WebSocketExceptionHandlerTest {
 
     private static SimpMessageHeaderAccessor sessionHeaders() {
         SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
-        headers.setSessionAttributes(Map.of("username", "player"));
+        headers.setUser(() -> "player");
         return headers;
     }
 }

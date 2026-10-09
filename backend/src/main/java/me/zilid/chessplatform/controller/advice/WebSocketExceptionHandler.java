@@ -1,6 +1,6 @@
 package me.zilid.chessplatform.controller.advice;
 
-import java.util.Map;
+import java.security.Principal;
 import java.util.Objects;
 import me.zilid.chessplatform.controller.GameSocketController;
 import me.zilid.chessplatform.exception.GameIsOverException;
@@ -60,13 +60,10 @@ public class WebSocketExceptionHandler {
     }
 
     private void sendError(SimpMessageHeaderAccessor headerAccessor, String message) {
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null) {
-            return;
-        }
-        String username = (String) sessionAttributes.get("username");
-        if (username != null) {
-            messagingTemplate.convertAndSendToUser(username, "/topic/errors", new ErrorResponse(message));
+        // The principal, unlike the session attributes set on join, is present for every authenticated frame
+        Principal user = headerAccessor.getUser();
+        if (user != null) {
+            messagingTemplate.convertAndSendToUser(user.getName(), "/topic/errors", new ErrorResponse(message));
         }
     }
 }
