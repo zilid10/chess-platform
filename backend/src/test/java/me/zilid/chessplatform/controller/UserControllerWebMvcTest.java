@@ -3,15 +3,14 @@ package me.zilid.chessplatform.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.UserNotFoundException;
 import me.zilid.chessplatform.model.dto.PlayerRatingResponse;
 import me.zilid.chessplatform.model.dto.UserCreateRequest;
@@ -27,25 +26,24 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-// The production application enables JPA repositories, so keep this MVC slice isolated.
 @WebMvcTest(UserController.class)
-@ContextConfiguration(classes = UserControllerWebMvcTest.TestConfiguration.class)
+@Import(SecurityConfig.class)
+@MockitoBean(types = SimpMessagingTemplate.class) // needed by the STOMP-only WebSocketExceptionHandler advice
 class UserControllerWebMvcTest {
 
     private static final UUID USER_ID = UUID.fromString("724330e9-91ab-40b2-a1b8-2b822fd10bd7");
@@ -60,7 +58,7 @@ class UserControllerWebMvcTest {
             new UserPrincipal(USER_ID, "player", "player@example.com", "password123", true, List.of());
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvcTester mvcTester;
 
     @MockitoBean
     private UserService userService;
@@ -85,50 +83,57 @@ class UserControllerWebMvcTest {
     }
 
     @Test
-    void ratingsAreListedPerTimeControl() throws Exception {
+    void ratingsAreListedPerTimeControl() {
         when(ratingService.getRatings(USER_ID))
                 .thenReturn(List.of(
                         new PlayerRatingResponse(TimeControl.BLITZ, 1250, 12, 1290),
                         new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200)));
 
-        mvc.perform(get("/api/users/{userId}/ratings", USER_ID)
-                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].timeControl").value("BLITZ"))
-                .andExpect(jsonPath("$[0].rating").value(1250))
-                .andExpect(jsonPath("$[0].gamesPlayed").value(12))
-                .andExpect(jsonPath("$[0].peakRating").value(1290))
-                .andExpect(jsonPath("$[1].timeControl").value("RAPID"));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/users/{userId}/ratings", USER_ID)
+                .with(user(PRINCIPAL))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$[0].timeControl").isEqualTo("BLITZ");
+        assertThat(result).bodyJson().extractingPath("$[0].rating").isEqualTo(1250);
+        assertThat(result).bodyJson().extractingPath("$[0].gamesPlayed").isEqualTo(12);
+        assertThat(result).bodyJson().extractingPath("$[0].peakRating").isEqualTo(1290);
+        assertThat(result).bodyJson().extractingPath("$[1].timeControl").isEqualTo("RAPID");
     }
 
     @Test
-    void ratingsForUnknownUserAreNotFound() throws Exception {
+    void ratingsForUnknownUserAreNotFound() {
         when(ratingService.getRatings(USER_ID)).thenThrow(new UserNotFoundException("User not found!"));
 
-        mvc.perform(get("/api/users/{userId}/ratings", USER_ID)
-                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
-                .andExpect(status().isNotFound());
+        assertThat(mvcTester.get().uri("/api/users/{userId}/ratings", USER_ID).with(user(PRINCIPAL)))
+                .hasStatus(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    void ratingsRequireAuthentication() throws Exception {
-        mvc.perform(get("/api/users/{userId}/ratings", USER_ID)).andExpect(status().isUnauthorized());
+    void ratingsRequireAuthentication() {
+        assertThat(mvcTester.get().uri("/api/users/{userId}/ratings", USER_ID)).hasStatus(HttpStatus.UNAUTHORIZED);
 
         verifyNoInteractions(ratingService);
     }
 
     @Test
-    void registrationIsPublicAndReturnsCreatedUser() throws Exception {
+    void registrationIsPublicAndReturnsCreatedUser() {
         when(userService.createUser(any(UserCreateRequest.class))).thenReturn(USER);
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
                                 {"username":"player","email":"player@example.com",
                                  "rawPassword":"password123","about":"Chess fan"}
-                                """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(USER_ID.toString()))
-                .andExpect(jsonPath("$.username").value("player"))
-                .andExpect(jsonPath("$.email").value("player@example.com"));
+                                """)
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(USER_ID.toString());
+        assertThat(result).bodyJson().extractingPath("$.username").isEqualTo("player");
+        assertThat(result).bodyJson().extractingPath("$.email").isEqualTo("player@example.com");
 
         verify(userService)
                 .createUser(new UserCreateRequest("player", "player@example.com", "password123", "Chess fan"));
@@ -136,68 +141,92 @@ class UserControllerWebMvcTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidRegistrations")
-    void invalidRegistrationIsRejectedBeforeCallingTheService(String scenario, String body, String field)
-            throws Exception {
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.title").value("Validation failed"))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.instance").value("/api/users"))
-                .andExpect(jsonPath("$.errors." + field).isArray())
-                .andExpect(jsonPath("$.errors." + field + "[0]").isNotEmpty());
+    void invalidRegistrationIsRejectedBeforeCallingTheService(String scenario, String body, String field) {
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+        assertThat(result)
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.title").isEqualTo("Validation failed");
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(400);
+        assertThat(result).bodyJson().extractingPath("$.instance").isEqualTo("/api/users");
+        assertThat(result).bodyJson().extractingPath("$.errors." + field).asArray();
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.errors." + field + "[0]")
+                .isNotEmpty();
 
         verifyNoInteractions(userService);
     }
 
     @Test
-    void databaseConflictDoesNotExposePersistenceDetails() throws Exception {
+    void databaseConflictDoesNotExposePersistenceDetails() {
         when(userService.createUser(any(UserCreateRequest.class)))
                 .thenThrow(new DataIntegrityViolationException("users_email_key violated: private database detail"));
 
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
                                 {"username":"player","email":"player@example.com",
                                  "rawPassword":"password123"}
-                                """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Request conflicts with existing data"));
+                                """)
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CONFLICT);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Request conflicts with existing data");
     }
 
     @Test
-    void malformedRequestBodyUsesBadRequestResponse() throws Exception {
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("{"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value("Invalid request body"));
+    void malformedRequestBodyUsesBadRequestResponse() {
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{")
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Invalid request body");
 
         verifyNoInteractions(userService);
     }
 
     @Test
-    void currentUserRequiresAuthentication() throws Exception {
-        mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
+    void currentUserRequiresAuthentication() {
+        assertThat(mvcTester.get().uri("/api/me")).hasStatus(HttpStatus.UNAUTHORIZED);
 
         verifyNoInteractions(userService);
     }
 
     @Test
-    void loginAuthenticatesAndReturnsCurrentUser() throws Exception {
+    void loginAuthenticatesAndReturnsCurrentUser() {
         when(authenticationManager.authenticate(any()))
                 .thenReturn(UsernamePasswordAuthenticationToken.authenticated(PRINCIPAL, null, List.of()));
         when(userService.getUserById(USER_ID)).thenReturn(USER);
 
-        MvcResult login = mvc.perform(post("/api/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+        MvcTestResult login = mvcTester
+                .post()
+                .uri("/api/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
                                 {"username":"player","password":"password123"}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(USER_ID.toString()))
-                .andExpect(jsonPath("$.username").value("player"))
-                .andReturn();
+                                """)
+                .exchange();
+        assertThat(login).hasStatusOk();
+        assertThat(login).bodyJson().extractingPath("$.id").isEqualTo(USER_ID.toString());
+        assertThat(login).bodyJson().extractingPath("$.username").isEqualTo("player");
 
-        mvc.perform(get("/api/me").session((MockHttpSession) login.getRequest().getSession()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(USER_ID.toString()));
+        MvcTestResult me = mvcTester
+                .get()
+                .uri("/api/me")
+                .session((MockHttpSession) login.getRequest().getSession())
+                .exchange();
+        assertThat(me).hasStatusOk();
+        assertThat(me).bodyJson().extractingPath("$.id").isEqualTo(USER_ID.toString());
 
         ArgumentCaptor<Authentication> authentication = ArgumentCaptor.forClass(Authentication.class);
         verify(authenticationManager).authenticate(authentication.capture());
@@ -207,91 +236,110 @@ class UserControllerWebMvcTest {
     }
 
     @Test
-    void profileUpdateUsesTheAuthenticatedUserId() throws Exception {
+    void profileUpdateUsesTheAuthenticatedUserId() {
         when(userService.updateUser(USER_ID, new UserUpdateRequest(null, null, null, "New bio")))
                 .thenReturn(USER);
 
-        mvc.perform(put("/api/users")
-                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"about\":\"New bio\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(USER_ID.toString()));
+        MvcTestResult result = mvcTester
+                .put()
+                .uri("/api/users")
+                .with(user(PRINCIPAL))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"about\":\"New bio\"}")
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(USER_ID.toString());
 
         verify(userService).updateUser(USER_ID, new UserUpdateRequest(null, null, null, "New bio"));
     }
 
     @Test
-    void invalidProfileUpdateIsRejectedBeforeCallingTheService() throws Exception {
-        mvc.perform(put("/api/users")
-                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"ab\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.username").isArray());
+    void invalidProfileUpdateIsRejectedBeforeCallingTheService() {
+        MvcTestResult result = mvcTester
+                .put()
+                .uri("/api/users")
+                .with(user(PRINCIPAL))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"ab\"}")
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(result).bodyJson().extractingPath("$.errors.username").asArray();
 
         verifyNoInteractions(userService);
     }
 
     @Test
-    void accountDeletionInvalidatesSessionAndClearsCookie() throws Exception {
+    void accountDeletionInvalidatesSessionAndClearsCookie() {
         MockHttpSession session = new MockHttpSession();
 
-        MvcResult deletion = mvc.perform(delete("/api/users")
-                        .with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL))
-                        .session(session))
-                .andExpect(status().isNoContent())
-                .andReturn();
+        MvcTestResult deletion = mvcTester
+                .delete()
+                .uri("/api/users")
+                .with(user(PRINCIPAL))
+                .session(session)
+                .exchange();
+        assertThat(deletion).hasStatus(HttpStatus.NO_CONTENT);
 
         verify(userService).deleteUser(USER_ID);
         assertThat(session.isInvalid()).isTrue();
-        assertThat(deletion.getResponse().getCookie("JSESSIONID")).isNotNull();
-        assertThat(deletion.getResponse().getCookie("JSESSIONID").getMaxAge()).isZero();
+        assertThat(deletion).cookies().hasMaxAge("JSESSIONID", Duration.ZERO);
     }
 
     @Test
-    void badCredentialsUseThePublicAuthenticationError() throws Exception {
+    void badCredentialsUseThePublicAuthenticationError() {
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("secret detail"));
 
-        mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON).content("""
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
                                 {"username":"player","password":"wrong"}
-                                """))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.detail").value("Invalid username or password"));
+                                """)
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Invalid username or password");
 
         verifyNoInteractions(userService);
     }
 
     @Test
-    void missingUserReturnsNotFound() throws Exception {
+    void missingUserReturnsNotFound() {
         when(userService.getUserById(USER_ID)).thenThrow(new UserNotFoundException("User not found!"));
-        mvc.perform(get("/api/me").with(SecurityMockMvcRequestPostProcessors.user(PRINCIPAL)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail").value("User not found!"));
+        MvcTestResult result =
+                mvcTester.get().uri("/api/me").with(user(PRINCIPAL)).exchange();
+        assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("User not found!");
     }
 
     @Test
-    void unsupportedContentTypeReturns415() throws Exception {
-        mvc.perform(post("/api/users").contentType(MediaType.TEXT_PLAIN).content("not JSON"))
-                .andExpect(status().isUnsupportedMediaType())
-                .andExpect(jsonPath("$.status").value(415));
+    void unsupportedContentTypeReturns415() {
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/users")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("not JSON")
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(415);
         verifyNoInteractions(userService);
     }
 
     @Test
-    void validationReportsAllInvalidFieldsWithoutEchoingRejectedValues() throws Exception {
-        mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("""
+    void validationReportsAllInvalidFieldsWithoutEchoingRejectedValues() {
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
                                 {"username":"ab","email":"invalid","rawPassword":"pw"}
-                                """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.username[0]").isNotEmpty())
-                .andExpect(jsonPath("$.errors.email[0]").isNotEmpty())
-                .andExpect(jsonPath("$.errors.rawPassword[0]").isNotEmpty())
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("pw"))));
+                                """)
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(result).bodyJson().extractingPath("$.errors.username[0]").isNotEmpty();
+        assertThat(result).bodyJson().extractingPath("$.errors.email[0]").isNotEmpty();
+        assertThat(result).bodyJson().extractingPath("$.errors.rawPassword[0]").isNotEmpty();
+        assertThat(result).bodyText().doesNotContain("pw");
         verifyNoInteractions(userService);
     }
-
-    @SpringBootConfiguration
-    @Import({UserController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {}
 }

@@ -29,12 +29,12 @@ import me.zilid.chessplatform.service.GameEventPublisher;
 import me.zilid.chessplatform.service.MatchService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.messaging.converter.JacksonJsonMessageConverter;
@@ -252,7 +252,7 @@ class WebSocketRelayIT {
         return session;
     }
 
-    @SpringBootConfiguration
+    @Configuration
     @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
     @Import({WebsocketConfig.class, GameSocketController.class, GameEventPublisher.class})
     static class TestApplication {

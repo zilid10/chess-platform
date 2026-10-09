@@ -6,7 +6,6 @@ import static me.zilid.chessplatform.model.entity.FriendRequest.RequestStatus.RE
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -29,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,7 +46,7 @@ class FriendServiceTest {
 
     @BeforeEach
     void setUp() {
-        PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
         UserConverter userConverter = new UserConverter(passwordEncoder);
         FriendRequestConverter requestConverter = new FriendRequestConverter(userConverter);
         service = new FriendService(requestRepo, userRepo, requestConverter, userConverter);

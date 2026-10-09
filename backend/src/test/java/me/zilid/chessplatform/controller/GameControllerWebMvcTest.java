@@ -1,10 +1,8 @@
 package me.zilid.chessplatform.controller;
 
-import static org.hamcrest.Matchers.containsString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.util.List;
 import java.util.UUID;
@@ -12,7 +10,6 @@ import me.zilid.chessplatform.chess.Color;
 import me.zilid.chessplatform.chess.game.ClockSetting;
 import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
-import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.GameIsOverException;
 import me.zilid.chessplatform.exception.GameNotFoundException;
 import me.zilid.chessplatform.model.dto.GameCreatedResponse;
@@ -25,19 +22,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-// The production application enables JPA repositories, so keep this MVC slice isolated.
 @WebMvcTest(GameController.class)
-@ContextConfiguration(classes = GameControllerWebMvcTest.TestConfiguration.class)
+@Import(SecurityConfig.class)
+@MockitoBean(types = SimpMessagingTemplate.class) // needed by the STOMP-only WebSocketExceptionHandler advice
 class GameControllerWebMvcTest {
 
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
@@ -50,221 +47,283 @@ class GameControllerWebMvcTest {
             List.of());
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvcTester mvcTester;
 
     @MockitoBean
     private MatchService matchService;
 
     @Test
-    void gameStateRequiresAuthentication() throws Exception {
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.detail").value("Authentication required"))
-                .andExpect(jsonPath("$.instance").value("/api/games/" + GAME_ID + "/state"));
+    void gameStateRequiresAuthentication() {
+        MvcTestResult result =
+                mvcTester.get().uri("/api/games/{gameId}/state", GAME_ID).exchange();
+        assertThat(result)
+                .hasStatus(HttpStatus.UNAUTHORIZED)
+                .hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(401);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Authentication required");
+        assertThat(result).bodyJson().extractingPath("$.instance").isEqualTo("/api/games/" + GAME_ID + "/state");
 
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void creatingAndJoiningGamesRequireAuthentication() throws Exception {
-        mvc.perform(post("/api/games").param("color", "WHITE")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/games/{gameId}/join", GAME_ID)).andExpect(status().isUnauthorized());
+    void creatingAndJoiningGamesRequireAuthentication() {
+        assertThat(mvcTester.post().uri("/api/games").param("color", "WHITE")).hasStatus(HttpStatus.UNAUTHORIZED);
+        assertThat(mvcTester.post().uri("/api/games/{gameId}/join", GAME_ID)).hasStatus(HttpStatus.UNAUTHORIZED);
 
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void stateEndpointSerializesTheServiceResponse() throws Exception {
+    void stateEndpointSerializesTheServiceResponse() {
         when(matchService.getGameState(GAME_ID))
                 .thenReturn(new GameStateResponse(
                         GameStatus.ONGOING, "starting-fen", "e2", "e4", "BLACK", 299_500, 300_000, true, null));
 
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.gameStatus").value("ONGOING"))
-                .andExpect(jsonPath("$.fen").value("starting-fen"))
-                .andExpect(jsonPath("$.lastMoveFrom").value("e2"))
-                .andExpect(jsonPath("$.lastMoveTo").value("e4"))
-                .andExpect(jsonPath("$.turnColor").value("BLACK"))
-                .andExpect(jsonPath("$.whiteRemainingMillis").value(299_500))
-                .andExpect(jsonPath("$.blackRemainingMillis").value(300_000))
-                .andExpect(jsonPath("$.clockRunning").value(true));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.gameStatus").isEqualTo("ONGOING");
+        assertThat(result).bodyJson().extractingPath("$.fen").isEqualTo("starting-fen");
+        assertThat(result).bodyJson().extractingPath("$.lastMoveFrom").isEqualTo("e2");
+        assertThat(result).bodyJson().extractingPath("$.lastMoveTo").isEqualTo("e4");
+        assertThat(result).bodyJson().extractingPath("$.turnColor").isEqualTo("BLACK");
+        assertThat(result).bodyJson().extractingPath("$.whiteRemainingMillis").isEqualTo(299_500);
+        assertThat(result).bodyJson().extractingPath("$.blackRemainingMillis").isEqualTo(300_000);
+        assertThat(result).bodyJson().extractingPath("$.clockRunning").isEqualTo(true);
 
         verify(matchService).getGameState(GAME_ID);
     }
 
     @Test
-    void createGamePassesAuthenticatedPlayerColorAndClockSetting() throws Exception {
+    void createGamePassesAuthenticatedPlayerColorAndClockSetting() {
         ClockSetting blitz = ClockSetting.ofMinutes(3, 2);
         when(matchService.createGame(PLAYER.toPlayer(), Color.BLACK, blitz))
                 .thenReturn(new GameCreatedResponse(
                         GAME_ID, Color.BLACK, "3+2", TimeControl.BLITZ, "starting-fen", "/game/" + GAME_ID));
 
-        mvc.perform(post("/api/games")
-                        .param("color", "BLACK")
-                        .param("timeControl", "3+2")
-                        .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.gameId").value(GAME_ID.toString()))
-                .andExpect(jsonPath("$.color").value("BLACK"))
-                .andExpect(jsonPath("$.clockSetting").value("3+2"))
-                .andExpect(jsonPath("$.timeControl").value("BLITZ"))
-                .andExpect(jsonPath("$.socketUrl").value("/game/" + GAME_ID));
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/games")
+                .param("color", "BLACK")
+                .param("timeControl", "3+2")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(result).bodyJson().extractingPath("$.gameId").isEqualTo(GAME_ID.toString());
+        assertThat(result).bodyJson().extractingPath("$.color").isEqualTo("BLACK");
+        assertThat(result).bodyJson().extractingPath("$.clockSetting").isEqualTo("3+2");
+        assertThat(result).bodyJson().extractingPath("$.timeControl").isEqualTo("BLITZ");
+        assertThat(result).bodyJson().extractingPath("$.socketUrl").isEqualTo("/game/" + GAME_ID);
 
         verify(matchService).createGame(PLAYER.toPlayer(), Color.BLACK, blitz);
     }
 
     @Test
-    void createGameDefaultsToFivePlusThree() throws Exception {
+    void createGameDefaultsToFivePlusThree() {
         ClockSetting fivePlusThree = ClockSetting.ofMinutes(5, 3);
         when(matchService.createGame(PLAYER.toPlayer(), Color.WHITE, fivePlusThree))
                 .thenReturn(new GameCreatedResponse(
                         GAME_ID, Color.WHITE, "5+3", TimeControl.BLITZ, "starting-fen", "/game/" + GAME_ID));
 
-        mvc.perform(post("/api/games").param("color", "WHITE").with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clockSetting").value("5+3"));
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/games")
+                .param("color", "WHITE")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(result).bodyJson().extractingPath("$.clockSetting").isEqualTo("5+3");
 
         verify(matchService).createGame(PLAYER.toPlayer(), Color.WHITE, fivePlusThree);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"BLITZ", "5", "5+", "+3", "5+3+1", "0+0", "5.1+0", "181+0", "5+-3"})
-    void createGameRejectsMalformedClockSettings(String clockSetting) throws Exception {
-        mvc.perform(post("/api/games")
+    void createGameRejectsMalformedClockSettings(String clockSetting) {
+        assertThat(mvcTester
+                        .post()
+                        .uri("/api/games")
                         .param("color", "WHITE")
                         .param("timeControl", clockSetting)
-                        .with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isBadRequest());
+                        .with(user(PLAYER)))
+                .hasStatus(HttpStatus.BAD_REQUEST);
 
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void joinGameReturnsTheAssignedRole() throws Exception {
+    void joinGameReturnsTheAssignedRole() {
         when(matchService.joinGame(GAME_ID, PLAYER.toPlayer()))
                 .thenReturn(new GameJoinResponse(
                         GAME_ID, "WHITE", "10+0", TimeControl.RAPID, "starting-fen", GameStatus.ONGOING, "WHITE"));
 
-        mvc.perform(post("/api/games/{gameId}/join", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.role").value("WHITE"))
-                .andExpect(jsonPath("$.currentTurn").value("WHITE"));
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/games/{gameId}/join", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.role").isEqualTo("WHITE");
+        assertThat(result).bodyJson().extractingPath("$.currentTurn").isEqualTo("WHITE");
 
         verify(matchService).joinGame(GAME_ID, PLAYER.toPlayer());
     }
 
     @Test
-    void pgnEndpointReturnsPlainText() throws Exception {
+    void pgnEndpointReturnsPlainText() {
         when(matchService.getMatchPGN(GAME_ID)).thenReturn("1. e4 e5 2. Nf3");
 
-        mvc.perform(get("/api/games/{gameId}/pgn", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string("1. e4 e5 2. Nf3"));
+        assertThat(mvcTester.get().uri("/api/games/{gameId}/pgn", GAME_ID).with(user(PLAYER)))
+                .hasStatusOk()
+                .hasContentTypeCompatibleWith(MediaType.TEXT_PLAIN)
+                .hasBodyTextEqualTo("1. e4 e5 2. Nf3");
     }
 
     @Test
-    void invalidGameRequestUsesTheApplicationErrorFormat() throws Exception {
+    void invalidGameRequestUsesTheApplicationErrorFormat() {
         when(matchService.getGameState(GAME_ID)).thenThrow(new IllegalArgumentException("Invalid game"));
 
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value("Invalid request"));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Invalid request");
     }
 
     @Test
-    void missingGameReturnsNotFound() throws Exception {
+    void missingGameReturnsNotFound() {
         when(matchService.getGameState(GAME_ID)).thenThrow(new GameNotFoundException("Game not found: " + GAME_ID));
 
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail").value("Game not found: " + GAME_ID));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Game not found: " + GAME_ID);
     }
 
     @Test
-    void unexpectedFailureDoesNotExposeInternalDetails() throws Exception {
+    void unexpectedFailureDoesNotExposeInternalDetails() {
         when(matchService.getGameState(GAME_ID)).thenThrow(new RuntimeException("private connection detail"));
 
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.detail").value("An unexpected error occurred"));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("An unexpected error occurred");
     }
 
     @Test
-    void invalidUuidReturnsBadRequestRatherThanInternalError() throws Exception {
-        mvc.perform(get("/api/games/not-a-uuid/state").with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.instance").value("/api/games/not-a-uuid/state"));
+    void invalidUuidReturnsBadRequestRatherThanInternalError() {
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/not-a-uuid/state")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result)
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(400);
+        assertThat(result).bodyJson().extractingPath("$.instance").isEqualTo("/api/games/not-a-uuid/state");
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void missingColorReturnsBadRequest() throws Exception {
-        mvc.perform(post("/api/games").with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
+    void missingColorReturnsBadRequest() {
+        MvcTestResult result =
+                mvcTester.post().uri("/api/games").with(user(PLAYER)).exchange();
+        assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(400);
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void invalidColorReturnsBadRequest() throws Exception {
-        mvc.perform(post("/api/games").param("color", "PURPLE").with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
+    void invalidColorReturnsBadRequest() {
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/games")
+                .param("color", "PURPLE")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(400);
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void unsupportedMethodPreservesAllowHeader() throws Exception {
-        mvc.perform(post("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isMethodNotAllowed())
-                .andExpect(jsonPath("$.status").value(405))
-                .andExpect(header().string("Allow", containsString("GET")));
+    void unsupportedMethodPreservesAllowHeader() {
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(405);
+        assertThat(result)
+                .headers()
+                .hasHeaderSatisfying(
+                        "Allow",
+                        allow -> assertThat(allow)
+                                .anySatisfy(value -> assertThat(value).contains("GET")));
         verifyNoInteractions(matchService);
     }
 
     @Test
-    void missingRouteUsesProblemDetails() throws Exception {
-        mvc.perform(get("/api/nonexistent").with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404));
+    void missingRouteUsesProblemDetails() {
+        MvcTestResult result =
+                mvcTester.get().uri("/api/nonexistent").with(user(PLAYER)).exchange();
+        assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(404);
     }
 
     @Test
-    void accessDeniedInControllerReturnsForbiddenWithoutInternalDetails() throws Exception {
+    void accessDeniedInControllerReturnsForbiddenWithoutInternalDetails() {
         when(matchService.getGameState(GAME_ID)).thenThrow(new AccessDeniedException("private policy"));
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status").value(403))
-                .andExpect(jsonPath("$.detail").value("You do not have permission to perform this action"));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(403);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("You do not have permission to perform this action");
     }
 
     @Test
-    void unexpectedIllegalStateIsAnInternalFailureRatherThanConflict() throws Exception {
+    void unexpectedIllegalStateIsAnInternalFailureRatherThanConflict() {
         when(matchService.getGameState(GAME_ID)).thenThrow(new IllegalStateException("private state"));
-        mvc.perform(get("/api/games/{gameId}/state", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.status").value(500))
-                .andExpect(jsonPath("$.detail").value("An unexpected error occurred"));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/games/{gameId}/state", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(500);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("An unexpected error occurred");
     }
 
     @Test
-    void gameOverIsAnExplicitDomainConflict() throws Exception {
+    void gameOverIsAnExplicitDomainConflict() {
         when(matchService.joinGame(GAME_ID, PLAYER.toPlayer()))
                 .thenThrow(new GameIsOverException("Game is already over"));
-        mvc.perform(post("/api/games/{gameId}/join", GAME_ID).with(SecurityMockMvcRequestPostProcessors.user(PLAYER)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Game is already over"));
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/games/{gameId}/join", GAME_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CONFLICT);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Game is already over");
     }
-
-    @SpringBootConfiguration
-    @Import({GameController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {}
 }
