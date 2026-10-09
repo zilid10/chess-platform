@@ -90,8 +90,9 @@ class GameStateStoreTest {
 
         assertThat(restored.getFen()).isEqualTo(game.getFen());
         assertThat(restored.getMoves()).isEqualTo(game.getMoves());
-        assertThat(restored.getWhitePlayer()).isEqualTo(game.getWhitePlayer());
-        assertThat(restored.getWhitePlayer().displayName()).isEqualTo("white");
+        var whitePlayer = restored.getWhitePlayer();
+        assertThat(whitePlayer).isNotNull().isEqualTo(game.getWhitePlayer());
+        assertThat(whitePlayer.displayName()).isEqualTo("white");
         assertThat(restored.getBlackPlayer()).isEqualTo(game.getBlackPlayer());
         assertThat(restored.getDrawOfferedBy()).isEqualTo(Color.WHITE);
         assertThat(restored.getClockSetting()).isEqualTo(ClockSetting.ofMinutes(3, 2));
@@ -141,8 +142,10 @@ class GameStateStoreTest {
 
         store.storeGame(GAME_ID, game);
 
-        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(), (double)
-                game.timeoutDeadline().toEpochMilli());
+        Instant deadline = game.timeoutDeadline();
+        assertThat(deadline).isNotNull();
+        verify(sortedSets)
+                .add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(), (double) deadline.toEpochMilli());
         verify(sortedSets, never()).remove(any(), any());
     }
 
@@ -201,7 +204,9 @@ class GameStateStoreTest {
         ArgumentCaptor<String> json = ArgumentCaptor.forClass(String.class);
         verify(values).set(eq("game:" + GAME_ID), json.capture(), eq(GameStateStore.GAME_TTL));
         when(values.get("game:" + GAME_ID)).thenReturn(json.getValue());
-        return store.loadGame(GAME_ID);
+        Game loaded = store.loadGame(GAME_ID);
+        assertThat(loaded).isNotNull();
+        return loaded;
     }
 
     @Test

@@ -227,6 +227,7 @@ class GameTest {
         void checkTimeoutEndsTheGameOnlyOnceTheDeadlinePasses() {
             Game game = gameWithRunningClock();
             Instant deadline = game.timeoutDeadline();
+            assertThat(deadline).isNotNull();
 
             assertThat(game.hasTimedOut(deadline.minusMillis(1))).isFalse();
             assertThat(game.checkTimeout(deadline.minusMillis(1))).isFalse();
@@ -243,7 +244,9 @@ class GameTest {
         @Test
         void checkTimeoutIsIdempotent() {
             Game game = gameWithRunningClock();
-            Instant late = game.timeoutDeadline().plusSeconds(5);
+            Instant deadline = game.timeoutDeadline();
+            assertThat(deadline).isNotNull();
+            Instant late = deadline.plusSeconds(5);
 
             assertThat(game.checkTimeout(late)).isTrue();
             assertThat(game.checkTimeout(late.plusSeconds(5))).isFalse();
@@ -253,7 +256,9 @@ class GameTest {
         @Test
         void checkTimeoutDoesNotOverrideAnEarlierResult() {
             Game game = gameWithRunningClock();
-            Instant late = game.timeoutDeadline().plusSeconds(1);
+            Instant deadline = game.timeoutDeadline();
+            assertThat(deadline).isNotNull();
+            Instant late = deadline.plusSeconds(1);
             game.resign(Color.BLACK);
 
             assertThat(game.checkTimeout(late)).isFalse();
@@ -263,7 +268,9 @@ class GameTest {
         @Test
         void aMoveAfterTheFlagEndsTheGameOnTimeInstead() {
             Game game = gameWithRunningClock();
-            Instant late = game.timeoutDeadline().plusMillis(1);
+            Instant deadline = game.timeoutDeadline();
+            assertThat(deadline).isNotNull();
+            Instant late = deadline.plusMillis(1);
 
             assertThat(game.makeMove("g1", "f3", null, late)).isTrue();
 
@@ -294,7 +301,9 @@ class GameTest {
             game.makeMove("e1", "f1", null, T0);
             game.makeMove("b8", "c6", null, T0.plusSeconds(1));
 
-            assertThat(game.checkTimeout(game.timeoutDeadline())).isTrue();
+            Instant deadline = game.timeoutDeadline();
+            assertThat(deadline).isNotNull();
+            assertThat(game.checkTimeout(deadline)).isTrue();
 
             assertThat(game.getStatus()).isEqualTo(GameStatus.DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL);
             assertThat(game.getStatus().getSymbol()).isEqualTo("1/2-1/2");
@@ -311,7 +320,9 @@ class GameTest {
             game.makeMove("e1", "f1", null, T0);
             game.makeMove("b8", "c6", null, T0.plusSeconds(1));
 
-            assertThat(game.checkTimeout(game.timeoutDeadline())).isTrue();
+            Instant deadline = game.timeoutDeadline();
+            assertThat(deadline).isNotNull();
+            assertThat(game.checkTimeout(deadline)).isTrue();
 
             assertThat(game.getStatus()).isEqualTo(GameStatus.FLAGGED_BLACK_WINS);
         }

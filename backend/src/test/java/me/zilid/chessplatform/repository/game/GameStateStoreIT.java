@@ -42,6 +42,7 @@ class GameStateStoreIT {
         store.storeGame(gameId, game);
 
         Game loaded = store.loadGame(gameId);
+        assertThat(loaded).isNotNull();
         assertThat(loaded.getFen()).isEqualTo(game.getFen());
         assertThat(loaded.getClockSetting()).isEqualTo(game.getClockSetting());
         assertThat(loaded.getStartTime()).isEqualTo(game.getStartTime());
@@ -65,6 +66,7 @@ class GameStateStoreIT {
         game.makeMove("e2", "e4", null, start);
         game.makeMove("e7", "e5", null, start.plusSeconds(1));
         Instant deadline = game.timeoutDeadline();
+        assertThat(deadline).isNotNull();
 
         try {
             store.storeGame(gameId, game);

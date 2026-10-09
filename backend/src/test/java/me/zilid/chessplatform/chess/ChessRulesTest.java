@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import me.zilid.chessplatform.chess.format.Fen;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,7 +18,7 @@ import org.junit.jupiter.params.provider.EnumSource;
  */
 class ChessRulesTest {
 
-    private static boolean makeMove(Position position, String from, String to, PieceType promotionType) {
+    private static boolean makeMove(Position position, String from, String to, @Nullable PieceType promotionType) {
         return MoveGenerator.findLegalMove(position, Square.fromNotation(from), Square.fromNotation(to), promotionType)
                 .map(move -> {
                     position.applyMove(move);
@@ -129,8 +130,8 @@ class ChessRulesTest {
         void kingsideCastlingMovesKingAndRook() {
             Position position = Fen.parse(BOTH_SIDES_OPEN);
             assertThat(makeMove(position, "e1", "g1", null)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("g1")).type()).isEqualTo(PieceType.KING);
-            assertThat(position.getPieceAt(Square.fromNotation("f1")).type()).isEqualTo(PieceType.ROOK);
+            assertThat(position.getPieceAt(Square.fromNotation("g1"))).isEqualTo(Piece.WHITE_KING);
+            assertThat(position.getPieceAt(Square.fromNotation("f1"))).isEqualTo(Piece.WHITE_ROOK);
             assertThat(castlingRightsOf(position)).isEqualTo("kq");
         }
 
@@ -138,8 +139,8 @@ class ChessRulesTest {
         void queensideCastlingMovesKingAndRook() {
             Position position = Fen.parse(BOTH_SIDES_OPEN);
             assertThat(makeMove(position, "e1", "c1", null)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("c1")).type()).isEqualTo(PieceType.KING);
-            assertThat(position.getPieceAt(Square.fromNotation("d1")).type()).isEqualTo(PieceType.ROOK);
+            assertThat(position.getPieceAt(Square.fromNotation("c1"))).isEqualTo(Piece.WHITE_KING);
+            assertThat(position.getPieceAt(Square.fromNotation("d1"))).isEqualTo(Piece.WHITE_ROOK);
         }
 
         @Test
@@ -239,7 +240,7 @@ class ChessRulesTest {
         void pawnPromotesToChosenPiece(PieceType promotion) {
             Position position = Fen.parse("7k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(makeMove(position, "a7", "a8", promotion)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("a8")).type()).isEqualTo(promotion);
+            assertThat(position.getPieceAt(Square.fromNotation("a8"))).isEqualTo(Piece.of(Color.WHITE, promotion));
         }
 
         @Test
@@ -248,7 +249,7 @@ class ChessRulesTest {
             Position position = Fen.parse("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
             assertThat(legalMovesFrom(position, "a7")).containsExactlyInAnyOrder("a8", "b8");
             assertThat(makeMove(position, "a7", "b8", PieceType.QUEEN)).isTrue();
-            assertThat(position.getPieceAt(Square.fromNotation("b8")).type()).isEqualTo(PieceType.QUEEN);
+            assertThat(position.getPieceAt(Square.fromNotation("b8"))).isEqualTo(Piece.WHITE_QUEEN);
         }
     }
 
