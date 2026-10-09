@@ -1,11 +1,11 @@
 package me.zilid.chessplatform.config;
 
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-@Configuration(proxyBeanMethods = false)
+@TestConfiguration(proxyBeanMethods = false)
 public class PostgresConfig {
     @Bean
     @ServiceConnection(name = "postgres")
