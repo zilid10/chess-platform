@@ -64,7 +64,7 @@ class PositionFenTest {
     @ParameterizedTest(name = "{0}")
     @CsvSource({
         "'empty string', ''",
-        "'not a fen', 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1'",
+        "'not a fen', 'not a valid fen string'",
         "'only seven ranks on the board', 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1'",
         "'nine files in the first rank', 'rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1'",
     })
