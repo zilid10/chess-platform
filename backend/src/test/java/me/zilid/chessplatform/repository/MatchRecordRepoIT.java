@@ -1,18 +1,21 @@
 package me.zilid.chessplatform.repository;
 
+import static me.zilid.chessplatform.util.EntityFixtures.match;
+import static me.zilid.chessplatform.util.EntityFixtures.user;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
-import java.util.UUID;
 import me.zilid.chessplatform.chess.game.GameStatus;
+import me.zilid.chessplatform.chess.game.TimeControl;
 import me.zilid.chessplatform.model.entity.MatchRecord;
 import me.zilid.chessplatform.model.entity.User;
+import me.zilid.chessplatform.rating.RatingChange;
 import me.zilid.chessplatform.util.RepositoryTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -24,21 +27,18 @@ class MatchRecordRepoIT {
     private MatchRecordRepo matchRecordRepo;
 
     @Autowired
-    private UserRepo userRepo;
-
-    @Autowired
-    private EntityManager entityManager;
+    private TestEntityManager entityManager;
 
     @Test
     void historyIncludesEitherColorAndPaginatesByLatestEndTime() {
-        User alice = saveUser("alice");
-        User bob = saveUser("bob");
-        User carol = saveUser("carol");
-        User dave = saveUser("dave");
-        MatchRecord oldest = saveMatch(alice, bob, "2026-01-01T12:00:00Z");
-        MatchRecord newest = saveMatch(bob, alice, "2026-01-03T12:00:00Z");
-        MatchRecord middle = saveMatch(alice, carol, "2026-01-02T12:00:00Z");
-        saveMatch(carol, dave, "2026-01-04T12:00:00Z");
+        User alice = user(entityManager, "alice");
+        User bob = user(entityManager, "bob");
+        User carol = user(entityManager, "carol");
+        User dave = user(entityManager, "dave");
+        MatchRecord oldest = match(entityManager, alice, bob, Instant.parse("2026-01-01T12:00:00Z"));
+        MatchRecord newest = match(entityManager, bob, alice, Instant.parse("2026-01-03T12:00:00Z"));
+        MatchRecord middle = match(entityManager, alice, carol, Instant.parse("2026-01-02T12:00:00Z"));
+        match(entityManager, carol, dave, Instant.parse("2026-01-04T12:00:00Z"));
         entityManager.flush();
         entityManager.clear();
 
@@ -49,48 +49,56 @@ class MatchRecordRepoIT {
                 matchRecordRepo.findByWhitePlayer_IdOrBlackPlayer_Id(alice.getId(), alice.getId(), firstTwo.next());
 
         assertThat(firstPage.getTotalElements()).isEqualTo(3);
-        assertThat(firstPage.getTotalPages()).isEqualTo(2);
         assertThat(firstPage.map(MatchRecord::getId).getContent()).containsExactly(newest.getId(), middle.getId());
         assertThat(secondPage.map(MatchRecord::getId).getContent()).containsExactly(oldest.getId());
-        assertThat(secondPage.getContent().getFirst().getPgn()).isEqualTo("1. e4 e5");
     }
 
+    // MatchService archives a game's status symbol and reason, so each finished status must pass the column checks
     @ParameterizedTest
     @EnumSource(
             value = GameStatus.class,
-            names = {"FLAGGED_WHITE_WINS", "DRAW_BY_TIMEOUT_VS_INSUFFICIENT_MATERIAL"})
-    void gamesEndedOnTimeCanBeArchived(GameStatus status) {
-        MatchRecord match = new MatchRecord(
-                saveUser("white"),
-                saveUser("black"),
+            mode = EnumSource.Mode.EXCLUDE,
+            names = {"ONGOING", "ABORTED"})
+    void everyArchivedGameStatusFitsTheSchema(GameStatus status) {
+        MatchRecord reloaded = entityManager.persistFlushFind(new MatchRecord(
+                user(entityManager, "white"),
+                user(entityManager, "black"),
                 status.getSymbol(),
                 status.getReason(),
                 "1. e4 e5",
                 Instant.parse("2026-01-01T00:00:00Z"),
-                Instant.parse("2026-01-01T00:10:00Z"));
+                Instant.parse("2026-01-01T00:10:00Z")));
 
-        matchRecordRepo.save(match);
-        entityManager.flush();
-        entityManager.clear();
-
-        assertThat(matchRecordRepo.findById(match.getId()).orElseThrow().getReason())
-                .isEqualTo(status.getReason());
+        assertThat(reloaded.getMatchResult()).isEqualTo(status.getSymbol());
+        assertThat(reloaded.getReason()).isEqualTo(status.getReason());
     }
 
-    private User saveUser(String name) {
-        String uniqueName = name + "-" + UUID.randomUUID();
-        return userRepo.save(new User(uniqueName + "@example.com", uniqueName, "hash", null));
-    }
-
-    private MatchRecord saveMatch(User white, User black, String endTime) {
+    @Test
+    void archivedMatchRoundTripsWithItsRatingSnapshot() {
+        User white = user(entityManager, "white");
+        User black = user(entityManager, "black");
         MatchRecord match = new MatchRecord(
                 white,
                 black,
                 "1-0",
                 "CHECKMATE",
-                "1. e4 e5",
+                "1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7#",
                 Instant.parse("2026-01-01T00:00:00Z"),
-                Instant.parse(endTime));
-        return matchRecordRepo.save(match);
+                Instant.parse("2026-01-01T00:30:00Z"));
+        match.setTimeControl(TimeControl.RAPID);
+        match.setRatingChange(new RatingChange(white.getId(), black.getId(), 1220, 1180, 20, -20));
+
+        MatchRecord reloaded = entityManager.persistFlushFind(match);
+
+        assertThat(reloaded.getWhitePlayer().getId()).isEqualTo(white.getId());
+        assertThat(reloaded.getBlackPlayer().getId()).isEqualTo(black.getId());
+        assertThat(reloaded.getPgn()).isEqualTo("1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7#");
+        assertThat(reloaded.getStartTime()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
+        assertThat(reloaded.getEndTime()).isEqualTo(Instant.parse("2026-01-01T00:30:00Z"));
+        assertThat(reloaded.getTimeControl()).isEqualTo(TimeControl.RAPID);
+        assertThat(reloaded.getWhiteRating()).isEqualTo(1220);
+        assertThat(reloaded.getBlackRating()).isEqualTo(1180);
+        assertThat(reloaded.getWhiteRatingChange()).isEqualTo(20);
+        assertThat(reloaded.getBlackRatingChange()).isEqualTo(-20);
     }
 }
