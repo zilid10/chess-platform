@@ -259,7 +259,7 @@ class MatchServiceTest {
         CountDownLatch bothTurnChecksReached = new CountDownLatch(2);
         Game game = new Game(alice, bob, TestGames.TEN_MINUTES) {
             @Override
-            public boolean isUserTurn(Player user) {
+            public synchronized boolean isUserTurn(Player user) {
                 boolean isTurn = super.isUserTurn(user);
                 bothTurnChecksReached.countDown();
                 try {

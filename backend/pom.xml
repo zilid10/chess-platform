@@ -182,19 +182,32 @@
                 </executions>
             </plugin>
 
-            <!-- Check JSpecify nullness in @NullMarked code with NullAway -->
+            <!-- Run Error Prone bug checks, with NullAway enforcing JSpecify nullness in @NullMarked main code -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <!-- Tests share @NullMarked packages but pass nulls on purpose: keep Error Prone, drop NullAway -->
+                    <execution>
+                        <id>default-testCompile</id>
+                        <configuration>
+                            <compilerArgs combine.self="override">
+                                <arg>-XDcompilePolicy=simple</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+                                <arg>-Xplugin:ErrorProne -Xep:NullAway:OFF</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </execution>
+                </executions>
                 <configuration>
                     <showWarnings>true</showWarnings>
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
                         <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
-                        <arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR
                             -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=true
-                            -XepExcludedPaths:.*/src/test/.*
                         </arg>
                     </compilerArgs>
                     <annotationProcessorPaths>

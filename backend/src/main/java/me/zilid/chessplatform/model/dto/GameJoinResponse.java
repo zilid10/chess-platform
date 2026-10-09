@@ -5,6 +5,8 @@ import me.zilid.chessplatform.chess.game.GameStatus;
 import me.zilid.chessplatform.chess.game.TimeControl;
 
 /**
+ * A response sent to the client when they join a game.
+ *
  * @param clockSetting initial minutes and increment seconds, such as "5+3"
  * @param timeControl the rating category of {@code clockSetting}
  */

@@ -34,7 +34,7 @@ class ChessRulesTest {
 
     /** The castling field is the third space-separated part of a FEN, e.g. "KQkq". */
     private static String castlingRightsOf(Position position) {
-        return Fen.format(position).split(" ")[2];
+        return Fen.format(position).split(" ", -1)[2];
     }
 
     @Nested

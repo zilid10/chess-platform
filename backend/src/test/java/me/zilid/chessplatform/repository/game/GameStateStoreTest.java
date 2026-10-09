@@ -60,7 +60,7 @@ class GameStateStoreTest {
                         Move.castleKingside(Color.BLACK)),
                 ClockSetting.ofMinutes(3, 2),
                 Duration.ofMillis(171_250),
-                Duration.ofSeconds(180),
+                Duration.ofMinutes(3),
                 Instant.parse("2026-09-27T10:16:30Z"),
                 Color.WHITE,
                 Instant.parse("2026-09-27T10:15:30Z"),
@@ -141,11 +141,8 @@ class GameStateStoreTest {
 
         store.storeGame(GAME_ID, game);
 
-        verify(sortedSets)
-                .add(
-                        GameStateStore.TIMEOUT_DEADLINES_KEY,
-                        GAME_ID.toString(),
-                        game.timeoutDeadline().toEpochMilli());
+        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(), (double)
+                game.timeoutDeadline().toEpochMilli());
         verify(sortedSets, never()).remove(any(), any());
     }
 
@@ -160,11 +157,8 @@ class GameStateStoreTest {
         Game restored = storeAndLoad(game);
 
         assertThat(restored.getFirstMoveDeadline()).isEqualTo(T0.plus(Game.FIRST_MOVE_TIMEOUT));
-        verify(sortedSets)
-                .add(
-                        GameStateStore.TIMEOUT_DEADLINES_KEY,
-                        GAME_ID.toString(),
-                        T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
+        verify(sortedSets).add(GameStateStore.TIMEOUT_DEADLINES_KEY, GAME_ID.toString(), (double)
+                T0.plus(Game.FIRST_MOVE_TIMEOUT).toEpochMilli());
     }
 
     @Test
@@ -179,7 +173,11 @@ class GameStateStoreTest {
     void dueTimeoutsAreReadUpToNow() {
         UUID other = UUID.randomUUID();
         when(sortedSets.rangeByScore(
-                        GameStateStore.TIMEOUT_DEADLINES_KEY, Double.NEGATIVE_INFINITY, T0.toEpochMilli(), 0, 50))
+                        GameStateStore.TIMEOUT_DEADLINES_KEY,
+                        Double.NEGATIVE_INFINITY,
+                        (double) T0.toEpochMilli(),
+                        0,
+                        50))
                 .thenReturn(new LinkedHashSet<>(List.of(GAME_ID.toString(), other.toString())));
 
         assertThat(store.findTimeoutsDue(T0, 50)).containsExactly(GAME_ID, other);

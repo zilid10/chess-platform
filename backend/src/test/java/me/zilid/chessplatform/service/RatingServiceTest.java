@@ -153,10 +153,10 @@ class RatingServiceTest {
         List<PlayerRatingResponse> ratings = service.getRatings(LOW_ID);
 
         assertThat(ratings).extracting(PlayerRatingResponse::timeControl).containsExactly(TimeControl.values());
-        assertThat(ratings.get(TimeControl.BLITZ.ordinal()))
-                .isEqualTo(new PlayerRatingResponse(TimeControl.BLITZ, 1260, 1, 1260));
-        assertThat(ratings.get(TimeControl.RAPID.ordinal()))
-                .isEqualTo(new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200));
+        assertThat(ratings)
+                .contains(
+                        new PlayerRatingResponse(TimeControl.BLITZ, 1260, 1, 1260),
+                        new PlayerRatingResponse(TimeControl.RAPID, 1200, 0, 1200));
     }
 
     @Test

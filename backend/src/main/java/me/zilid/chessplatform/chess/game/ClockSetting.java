@@ -9,8 +9,8 @@ import java.util.Objects;
  * seconds, and the increment is at most 180 whole seconds.
  */
 public record ClockSetting(Duration initial, Duration increment) {
-    private static final Duration MAX_INITIAL = Duration.ofMinutes(180);
-    private static final Duration MAX_INCREMENT = Duration.ofSeconds(180);
+    private static final Duration MAX_INITIAL = Duration.ofHours(3);
+    private static final Duration MAX_INCREMENT = Duration.ofMinutes(3);
     private static final Duration INITIAL_STEP = Duration.ofSeconds(15);
 
     public ClockSetting {

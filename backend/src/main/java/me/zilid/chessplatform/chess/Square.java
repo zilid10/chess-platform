@@ -39,16 +39,6 @@ public record Square(int index) {
         return index / 8;
     }
 
-    @Deprecated(forRemoval = true)
-    public int x() {
-        return file();
-    }
-
-    @Deprecated(forRemoval = true)
-    public int y() {
-        return rank();
-    }
-
     public String toNotation() {
         return String.valueOf(new char[] {(char) (file() + 'a'), (char) (rank() + '1')});
     }
