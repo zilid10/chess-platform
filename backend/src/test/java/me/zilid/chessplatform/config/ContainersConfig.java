@@ -1,14 +1,14 @@
 package me.zilid.chessplatform.config;
 
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 
-@Configuration(proxyBeanMethods = false)
+@TestConfiguration(proxyBeanMethods = false)
 public class ContainersConfig {
     public static GenericContainer<?> rabbitMqContainer() {
         return new GenericContainer<>(DockerImageName.parse("rabbitmq:4.1-management"))

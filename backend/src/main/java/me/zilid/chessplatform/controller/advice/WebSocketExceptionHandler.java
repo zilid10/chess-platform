@@ -1,6 +1,5 @@
 package me.zilid.chessplatform.controller.advice;
 
-import java.security.Principal;
 import java.util.Objects;
 import me.zilid.chessplatform.controller.GameSocketController;
 import me.zilid.chessplatform.exception.GameIsOverException;
@@ -9,8 +8,7 @@ import me.zilid.chessplatform.model.dto.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
 /**
@@ -23,47 +21,38 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 public class WebSocketExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketExceptionHandler.class);
 
-    private final SimpMessagingTemplate messagingTemplate;
-
-    public WebSocketExceptionHandler(SimpMessagingTemplate messagingTemplate) {
-        this.messagingTemplate = messagingTemplate;
-    }
-
     @MessageExceptionHandler
-    public void handleException(Exception e, SimpMessageHeaderAccessor headerAccessor) {
+    @SendToUser("/topic/errors")
+    public ErrorResponse handleException(Exception e) {
         logger.error("Unexpected WebSocket error", e);
-        sendError(headerAccessor, "An unexpected error occurred");
+        return new ErrorResponse("An unexpected error occurred");
     }
 
     @MessageExceptionHandler(GameNotFoundException.class)
-    public void handleException(GameNotFoundException e, SimpMessageHeaderAccessor headerAccessor) {
+    @SendToUser("/topic/errors")
+    public ErrorResponse handleException(GameNotFoundException e) {
         logger.warn("WebSocket request failed: {}", e.getMessage());
-        sendError(headerAccessor, Objects.requireNonNullElse(e.getMessage(), "Game not found"));
+        return new ErrorResponse(Objects.requireNonNullElse(e.getMessage(), "Game not found"));
     }
 
     @MessageExceptionHandler(GameIsOverException.class)
-    public void handleException(GameIsOverException e, SimpMessageHeaderAccessor headerAccessor) {
+    @SendToUser("/topic/errors")
+    public ErrorResponse handleException(GameIsOverException e) {
         logger.warn("Game is over: {}", e.getMessage());
-        sendError(headerAccessor, Objects.requireNonNullElse(e.getMessage(), "Game is already over"));
+        return new ErrorResponse(Objects.requireNonNullElse(e.getMessage(), "Game is already over"));
     }
 
     @MessageExceptionHandler(IllegalArgumentException.class)
-    public void handleInvalidInput(IllegalArgumentException e, SimpMessageHeaderAccessor headerAccessor) {
+    @SendToUser("/topic/errors")
+    public ErrorResponse handleInvalidInput(IllegalArgumentException e) {
         logger.warn("Invalid WebSocket input: {}", e.getMessage());
-        sendError(headerAccessor, "Invalid input: " + e.getMessage());
+        return new ErrorResponse("Invalid input: " + e.getMessage());
     }
 
     @MessageExceptionHandler(IllegalStateException.class)
-    public void handleInvalidState(IllegalStateException e, SimpMessageHeaderAccessor headerAccessor) {
+    @SendToUser("/topic/errors")
+    public ErrorResponse handleInvalidState(IllegalStateException e) {
         logger.warn("Invalid WebSocket state: {}", e.getMessage());
-        sendError(headerAccessor, "Cannot perform action: " + e.getMessage());
-    }
-
-    private void sendError(SimpMessageHeaderAccessor headerAccessor, String message) {
-        // The principal, unlike the session attributes set on join, is present for every authenticated frame
-        Principal user = headerAccessor.getUser();
-        if (user != null) {
-            messagingTemplate.convertAndSendToUser(user.getName(), "/topic/errors", new ErrorResponse(message));
-        }
+        return new ErrorResponse("Cannot perform action: " + e.getMessage());
     }
 }

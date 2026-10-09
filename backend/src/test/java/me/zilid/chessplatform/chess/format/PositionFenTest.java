@@ -8,6 +8,8 @@ import me.zilid.chessplatform.chess.Piece;
 import me.zilid.chessplatform.chess.Position;
 import me.zilid.chessplatform.chess.Square;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Tests for FEN parsing and serialization. Round-tripping (parse a FEN, format it back out, expect the identical
@@ -59,14 +61,24 @@ class PositionFenTest {
         assertThat(position.getEnPassantTarget()).isEqualTo(Square.fromNotation("d6"));
     }
 
-    @Test
-    void rejectsMalformedFen() {
-        assertThatThrownBy(() -> Fen.parse("not a fen")).isInstanceOf(IllegalArgumentException.class);
-        // only seven ranks on the board
-        assertThatThrownBy(() -> Fen.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1"))
-                .isInstanceOf(IllegalArgumentException.class);
-        // nine files in the first rank
-        assertThatThrownBy(() -> Fen.parse("rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"))
-                .isInstanceOf(IllegalArgumentException.class);
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+        "'empty string', ''",
+        "'not a fen', 'not a valid fen string'",
+        "'only seven ranks on the board', 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1'",
+        "'nine files in the first rank', 'rnbqkbnrr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1'",
+    })
+    void rejectsMalformedFen(String name, String fen) {
+        assertThatThrownBy(() -> Fen.parse(fen)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+        "'starting position', 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'",
+        "'kiwipete', 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1'",
+        "'position without castling rights', '7k/8/8/8/8/8/8/K7 b - - 12 34'",
+    })
+    void roundTripsValidFen(String name, String fen) {
+        assertThat(Fen.format(Fen.parse(fen))).isEqualTo(fen);
     }
 }

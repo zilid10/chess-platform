@@ -1,16 +1,14 @@
 package me.zilid.chessplatform.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
-import me.zilid.chessplatform.controller.advice.GlobalExceptionHandler;
 import me.zilid.chessplatform.exception.FriendAlreadyExistsException;
 import me.zilid.chessplatform.model.dto.FriendRequestResponse;
 import me.zilid.chessplatform.model.dto.UserResponse;
@@ -22,18 +20,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(FriendController.class)
-@ContextConfiguration(classes = FriendControllerWebMvcTest.TestConfiguration.class)
+@Import(SecurityConfig.class)
 class FriendControllerWebMvcTest {
 
     private static final UUID USER_ID = UUID.fromString("02410898-174c-4cb5-b8c5-55fe3cc535b9");
@@ -50,7 +48,7 @@ class FriendControllerWebMvcTest {
             REQUEST_ID, PLAYER_RESPONSE, FRIEND, FriendRequest.RequestStatus.PENDING, CREATED_AT, CREATED_AT);
 
     @Autowired
-    private MockMvc mvc;
+    private MockMvcTester mvcTester;
 
     @MockitoBean
     private FriendService friendService;
@@ -68,87 +66,125 @@ class FriendControllerWebMvcTest {
 
     @ParameterizedTest
     @MethodSource("friendRoutes")
-    void everyFriendRouteRequiresAuthentication(MockHttpServletRequestBuilder request) throws Exception {
-        mvc.perform(request).andExpect(status().isUnauthorized());
+    void everyFriendRouteRequiresAuthentication(MockHttpServletRequestBuilder request) {
+        assertThat(mvcTester.perform(request)).hasStatus(HttpStatus.UNAUTHORIZED);
 
         verifyNoInteractions(friendService);
     }
 
     @Test
-    void friendsPageUsesTheAuthenticatedUserAndRequestedPage() throws Exception {
+    void friendsPageUsesTheAuthenticatedUserAndRequestedPage() {
         PageRequest page = PageRequest.of(1, 2);
         when(friendService.getFriends(USER_ID, page)).thenReturn(new PageImpl<>(List.of(FRIEND), page, 3));
 
-        mvc.perform(get("/api/friends").param("page", "1").param("size", "2").with(user(PLAYER)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].id").value(FRIEND_ID.toString()))
-                .andExpect(jsonPath("$.content[0].username").value("friend"))
-                .andExpect(jsonPath("$.page.totalElements").value(3))
-                .andExpect(jsonPath("$.page.number").value(1));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/friends")
+                .param("page", "1")
+                .param("size", "2")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result).bodyJson().extractingPath("$.content[0].id").isEqualTo(FRIEND_ID.toString());
+        assertThat(result).bodyJson().extractingPath("$.content[0].username").isEqualTo("friend");
+        assertThat(result).bodyJson().extractingPath("$.page.totalElements").isEqualTo(3);
+        assertThat(result).bodyJson().extractingPath("$.page.number").isEqualTo(1);
 
         verify(friendService).getFriends(USER_ID, page);
     }
 
     @Test
-    void sentAndReceivedRequestsUseTheAuthenticatedUser() throws Exception {
+    void sentAndReceivedRequestsUseTheAuthenticatedUser() {
         PageRequest page = PageRequest.of(0, 5);
         PageImpl<FriendRequestResponse> requests = new PageImpl<>(List.of(REQUEST), page, 1);
         when(friendService.getSentRequest(USER_ID, page)).thenReturn(requests);
         when(friendService.getReceivedRequest(USER_ID, page)).thenReturn(requests);
 
-        mvc.perform(get("/api/friends/sent").param("size", "5").with(user(PLAYER)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].friendRequestId").value(REQUEST_ID.toString()))
-                .andExpect(jsonPath("$.content[0].recipient.id").value(FRIEND_ID.toString()))
-                .andExpect(jsonPath("$.content[0].status").value("PENDING"));
-        mvc.perform(get("/api/friends/received").param("size", "5").with(user(PLAYER)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].friendRequestId").value(REQUEST_ID.toString()))
-                .andExpect(jsonPath("$.content[0].sender.id").value(USER_ID.toString()));
+        MvcTestResult result = mvcTester
+                .get()
+                .uri("/api/friends/sent")
+                .param("size", "5")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.content[0].friendRequestId")
+                .isEqualTo(REQUEST_ID.toString());
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.content[0].recipient.id")
+                .isEqualTo(FRIEND_ID.toString());
+        assertThat(result).bodyJson().extractingPath("$.content[0].status").isEqualTo("PENDING");
+
+        result = mvcTester
+                .get()
+                .uri("/api/friends/received")
+                .param("size", "5")
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.content[0].friendRequestId")
+                .isEqualTo(REQUEST_ID.toString());
+        assertThat(result).bodyJson().extractingPath("$.content[0].sender.id").isEqualTo(USER_ID.toString());
 
         verify(friendService).getSentRequest(USER_ID, page);
         verify(friendService).getReceivedRequest(USER_ID, page);
     }
 
     @Test
-    void sendAndAcceptReturnCreatedRequestsForTheAuthenticatedUser() throws Exception {
+    void sendAndAcceptReturnCreatedRequestsForTheAuthenticatedUser() {
         when(friendService.createFriendRequest(USER_ID, FRIEND_ID)).thenReturn(REQUEST);
         when(friendService.acceptFriendRequest(REQUEST_ID, USER_ID)).thenReturn(REQUEST);
 
-        mvc.perform(post("/api/friends/send/{userId}", FRIEND_ID).with(user(PLAYER)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.friendRequestId").value(REQUEST_ID.toString()))
-                .andExpect(jsonPath("$.recipient.id").value(FRIEND_ID.toString()));
-        mvc.perform(post("/api/friends/accept/{friendRequestId}", REQUEST_ID).with(user(PLAYER)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.friendRequestId").value(REQUEST_ID.toString()));
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/friends/send/{userId}", FRIEND_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(result).bodyJson().extractingPath("$.friendRequestId").isEqualTo(REQUEST_ID.toString());
+        assertThat(result).bodyJson().extractingPath("$.recipient.id").isEqualTo(FRIEND_ID.toString());
+
+        result = mvcTester
+                .post()
+                .uri("/api/friends/accept/{friendRequestId}", REQUEST_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(result).bodyJson().extractingPath("$.friendRequestId").isEqualTo(REQUEST_ID.toString());
 
         verify(friendService).createFriendRequest(USER_ID, FRIEND_ID);
         verify(friendService).acceptFriendRequest(REQUEST_ID, USER_ID);
     }
 
     @Test
-    void rejectionAndFriendRemovalReturnTheirDeclaredStatuses() throws Exception {
-        mvc.perform(put("/api/friends/reject/{friendRequestId}", REQUEST_ID).with(user(PLAYER)))
-                .andExpect(status().isNoContent());
-        mvc.perform(delete("/api/friends/{userId}", FRIEND_ID).with(user(PLAYER)))
-                .andExpect(status().isOk());
+    void rejectionAndFriendRemovalReturnTheirDeclaredStatuses() {
+        assertThat(mvcTester
+                        .put()
+                        .uri("/api/friends/reject/{friendRequestId}", REQUEST_ID)
+                        .with(user(PLAYER)))
+                .hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(mvcTester.delete().uri("/api/friends/{userId}", FRIEND_ID).with(user(PLAYER)))
+                .hasStatusOk();
 
         verify(friendService).declineFriendRequest(REQUEST_ID, USER_ID);
         verify(friendService).deleteFriend(USER_ID, FRIEND_ID);
     }
 
     @Test
-    void invalidFriendRequestUsesTheApplicationErrorResponse() throws Exception {
+    void invalidFriendRequestUsesTheApplicationErrorResponse() {
         when(friendService.createFriendRequest(USER_ID, FRIEND_ID))
                 .thenThrow(new FriendAlreadyExistsException("Users are already friends"));
 
-        mvc.perform(post("/api/friends/send/{userId}", FRIEND_ID).with(user(PLAYER)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Users are already friends"));
+        MvcTestResult result = mvcTester
+                .post()
+                .uri("/api/friends/send/{userId}", FRIEND_ID)
+                .with(user(PLAYER))
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.CONFLICT);
+        assertThat(result).bodyJson().extractingPath("$.detail").isEqualTo("Users are already friends");
     }
-
-    @SpringBootConfiguration
-    @Import({FriendController.class, SecurityConfig.class, GlobalExceptionHandler.class})
-    static class TestConfiguration {}
 }
