@@ -25,7 +25,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -33,7 +32,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 @WebMvcTest(FriendController.class)
 @Import(SecurityConfig.class)
-@MockitoBean(types = SimpMessagingTemplate.class) // needed by the STOMP-only WebSocketExceptionHandler advice
 class FriendControllerWebMvcTest {
 
     private static final UUID USER_ID = UUID.fromString("02410898-174c-4cb5-b8c5-55fe3cc535b9");
