@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -221,7 +222,6 @@ class GameStateStoreTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void actionExceptionsEscapeTheSpringBeanUntranslated() {
         when(values.setIfAbsent(eq("game:" + GAME_ID + ":lock"), anyString(), eq(GameStateStore.LOCK_TTL)))
                 .thenReturn(true);
@@ -240,6 +240,6 @@ class GameStateStoreTest {
                     }))
                     .isSameAs(notYourTurn);
         }
-        verify(redisTemplate).execute(any(RedisScript.class), anyList(), anyString());
+        verify(redisTemplate).execute(ArgumentMatchers.<RedisScript<Long>>any(), anyList(), anyString());
     }
 }

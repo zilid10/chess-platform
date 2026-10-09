@@ -119,8 +119,8 @@ class WebSocketRelayIT {
         return instance.getBean(SimpMessagingTemplate.class);
     }
 
-    private static BlockingQueue<Map<String, Object>> subscribe(StompSession session, String destination) {
-        BlockingQueue<Map<String, Object>> messages = new LinkedBlockingQueue<>();
+    private static BlockingQueue<Map<?, ?>> subscribe(StompSession session, String destination) {
+        BlockingQueue<Map<?, ?>> messages = new LinkedBlockingQueue<>();
         session.subscribe(destination, new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
@@ -128,21 +128,20 @@ class WebSocketRelayIT {
             }
 
             @Override
-            @SuppressWarnings("unchecked")
             public void handleFrame(StompHeaders headers, @Nullable Object payload) {
-                messages.add((Map<String, Object>) Objects.requireNonNull(payload, "STOMP payload"));
+                messages.add((Map<?, ?>) Objects.requireNonNull(payload, "STOMP payload"));
             }
         });
         return messages;
     }
 
     /** Subscriptions reach RabbitMQ asynchronously, so keep sending a probe until one arrives. */
-    private static void awaitDelivery(BlockingQueue<Map<String, Object>> messages, Runnable sendProbe)
+    private static void awaitDelivery(BlockingQueue<Map<?, ?>> messages, Runnable sendProbe)
             throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (System.nanoTime() < deadline) {
             sendProbe.run();
-            Map<String, Object> received = messages.poll(100, TimeUnit.MILLISECONDS);
+            Map<?, ?> received = messages.poll(100, TimeUnit.MILLISECONDS);
             if (received != null && received.containsKey("probe")) {
                 return;
             }
@@ -150,11 +149,10 @@ class WebSocketRelayIT {
         throw new AssertionError("No message delivered across instances within " + TIMEOUT);
     }
 
-    private static Map<String, Object> takeNonProbe(BlockingQueue<Map<String, Object>> messages)
-            throws InterruptedException {
+    private static Map<?, ?> takeNonProbe(BlockingQueue<Map<?, ?>> messages) throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (System.nanoTime() < deadline) {
-            Map<String, Object> message = messages.poll(100, TimeUnit.MILLISECONDS);
+            Map<?, ?> message = messages.poll(100, TimeUnit.MILLISECONDS);
             if (message != null && !message.containsKey("probe")) {
                 return message;
             }
@@ -214,13 +212,13 @@ class WebSocketRelayIT {
     void moveHandledByOneInstanceReachesPlayerConnectedToAnother() throws Exception {
         String topic = "/topic/game." + GAME_ID;
         StompSession black = connect(instanceB(), BLACK);
-        BlockingQueue<Map<String, Object>> updates = subscribe(black, topic);
+        BlockingQueue<Map<?, ?>> updates = subscribe(black, topic);
         awaitDelivery(updates, () -> template(instanceA()).convertAndSend(topic, PROBE));
 
         StompSession white = connect(instanceA(), WHITE);
         white.send("/app/game/" + GAME_ID + "/move", new MoveRequest(GAME_ID.toString(), "e2", "e4", null));
 
-        Map<String, Object> update = takeNonProbe(updates);
+        Map<?, ?> update = takeNonProbe(updates);
         assertThat(update.get("lastMoveFrom")).isEqualTo("e2");
         assertThat(update.get("lastMoveTo")).isEqualTo("e4");
         assertThat(update.get("turnColor")).isEqualTo("BLACK");
@@ -229,7 +227,7 @@ class WebSocketRelayIT {
     @Test
     void privateMessageSentByOneInstanceReachesUserConnectedToAnother() throws Exception {
         StompSession black = connect(instanceB(), BLACK);
-        BlockingQueue<Map<String, Object>> errors = subscribe(black, "/user/topic/errors");
+        BlockingQueue<Map<?, ?>> errors = subscribe(black, "/user/topic/errors");
 
         // Instance A does not hold BLACK's session, so it must resolve the user through the broker
         awaitDelivery(
