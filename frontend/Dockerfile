@@ -1,13 +1,15 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
 COPY . .
+RUN npm run build
 
+# Unprivileged variant runs nginx as a non-root user
+FROM nginxinc/nginx-unprivileged:1.29-alpine
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 3000
-
-CMD ["npm", "run", "dev"]
