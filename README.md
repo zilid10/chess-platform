@@ -109,8 +109,9 @@ docker compose up --build
 ```
 
 Compose starts PostgreSQL, Redis, and RabbitMQ, applies the database migrations, then starts two backend instances
-behind nginx and the frontend. To run more or fewer instances, change `deploy.replicas` under `backend` in
-`docker-compose.yml`, then restart `backend-lb` so nginx sees them.
+and the frontend behind an nginx gateway (`gateway/nginx.conf`). The gateway routes `/api` and `/ws` to the backend
+instances and everything else to the frontend. To run more or fewer instances, change `deploy.replicas` under
+`backend` in `docker-compose.yml`; the gateway picks up the change within about 10 seconds.
 
 | Service                         | URL                                           |
 |---------------------------------|-----------------------------------------------|
@@ -145,8 +146,7 @@ The credentials in `docker-compose.yml` are for local development only.
    ./mvnw spring-boot:run
    ```
 
-4. In `frontend/vite.config.ts`, change both proxy targets from `http://backend-lb:8080` to `http://localhost:8080`.
-   Then, from `frontend/`:
+4. From `frontend/` (the Vite dev server proxies `/api` and `/ws` to the backend on `localhost:8080`):
 
    ```bash
    npm ci

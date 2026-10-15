@@ -11,11 +11,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://backend-lb:8080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'http://backend-lb:8080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         ws: true,
       }
