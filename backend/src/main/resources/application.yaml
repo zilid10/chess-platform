@@ -13,6 +13,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  flyway:
+    # Flyway would otherwise look in db/migration
+    locations: classpath:db/migrations
+    validate-migration-naming: true
   data:
     web:
       pageable:

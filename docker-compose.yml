@@ -38,24 +38,6 @@ services:
       retries: 5
       start_period: 10s
 
-  flyway:
-    container_name: chess-flyway
-    image: flyway/flyway:11.19
-    command: migrate
-    restart: "no"
-    networks:
-      - backend
-    volumes:
-      - ./backend/src/main/resources/db/migrations:/flyway/sql:ro
-    environment:
-      FLYWAY_URL: jdbc:postgresql://db:5432/chessdb
-      FLYWAY_USER: root
-      FLYWAY_PASSWORD: password
-      FLYWAY_LOCATIONS: filesystem:/flyway/sql
-    depends_on:
-      db:
-        condition: service_healthy
-
   rabbitmq:
     container_name: chess-rabbitmq
     hostname: rabbitmq
@@ -105,8 +87,14 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      flyway:
-        condition: service_completed_successfully
+
+  frontend:
+    container_name: chess-frontend
+    hostname: frontend
+    build:
+      context: ./frontend
+    networks:
+      - frontend
 
   # Single entry point: / goes to the frontend, /api and /ws to the backend replicas
   gateway:
@@ -119,21 +107,14 @@ services:
     networks:
       - backend
       - frontend
-    volumes:
-      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    configs:
+      - source: gateway-nginx-conf
+        target: /etc/nginx/conf.d/default.conf
     depends_on:
       backend:
         condition: service_healthy
       frontend:
         condition: service_started
-
-  frontend:
-    container_name: chess-frontend
-    hostname: frontend
-    build:
-      context: ./frontend
-    networks:
-      - frontend
 
 networks:
   backend:
@@ -145,3 +126,5 @@ configs:
   rabbitmq-plugins:
     content: |
       [rabbitmq_management,rabbitmq_stomp].
+  gateway-nginx-conf:
+    file: ./gateway_nginx.conf
