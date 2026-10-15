@@ -100,17 +100,16 @@ flowchart LR
 
 ## Getting Started
 
-### Run with Docker Compose
-
 You need Docker and Docker Compose. These ports must be free: 3000, 8080, 5432, 6379, 61613, and 15672.
 
 ```bash
 docker compose up --build
 ```
 
-Compose starts PostgreSQL, Redis, and RabbitMQ, applies the database migrations, then starts two backend instances
-behind nginx and the frontend. To run more or fewer instances, change `deploy.replicas` under `backend` in
-`docker-compose.yml`, then restart `backend-lb` so nginx sees them.
+Compose starts PostgreSQL, Redis, and RabbitMQ, then two backend instances, which apply the database migrations on
+startup, and the frontend behind an nginx gateway (`gateway_nginx.conf`). The gateway routes `/api` and `/ws` to the backend
+instances and everything else to the frontend. To run more or fewer instances, change `deploy.replicas` under
+`backend` in `docker-compose.yml`; the gateway picks up the change within about 10 seconds.
 
 | Service                         | URL                                           |
 |---------------------------------|-----------------------------------------------|
@@ -124,34 +123,6 @@ To try a game, register two accounts and sign in from two browsers, or from a no
 game on one, then join it from the other with the game ID.
 
 The credentials in `docker-compose.yml` are for local development only.
-
-### Run without Docker Compose
-
-1. Start PostgreSQL on port 5432 and Redis on port 6379, and create a database and user. A single backend instance
-   doesn't need RabbitMQ: it uses Spring's in-memory broker unless `APP_WEBSOCKET_RELAY_ENABLED=true`.
-2. From `backend/`, set `flyway.url`, `flyway.user`, and `flyway.password` in `flyway.conf`, then apply the migrations:
-
-   ```bash
-   flyway -configFiles=flyway.conf migrate
-   ```
-
-3. From `backend/`, start the backend with JDK 21:
-
-   ```bash
-   export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/your_db
-   export SPRING_DATASOURCE_USERNAME=your_db_user
-   export SPRING_DATASOURCE_PASSWORD=your_db_password
-   export SPRING_DATA_REDIS_HOST=localhost
-   ./mvnw spring-boot:run
-   ```
-
-4. In `frontend/vite.config.ts`, change both proxy targets from `http://backend-lb:8080` to `http://localhost:8080`.
-   Then, from `frontend/`:
-
-   ```bash
-   npm ci
-   npm run dev
-   ```
 
 ### Configuration
 
@@ -178,10 +149,6 @@ From `backend/`:
 Integration tests (`*IT`) start PostgreSQL, Redis, and RabbitMQ with Testcontainers and apply the migrations with
 Flyway, so they only need a running Docker daemon. `WebSocketRelayIT` starts two backend instances against one RabbitMQ
 and checks that a move made on one reaches a player connected to the other.
-
-```properties
-docker.host=unix:///Users/<you>/.orbstack/run/docker.sock
-```
 
 From `frontend/`:
 
@@ -227,7 +194,7 @@ The STOMP endpoint is `/ws`. Topic names use dots because RabbitMQ topic names c
 
 ```text
 chess-platform/
-├── backend/                    # Spring Boot application (Maven wrapper, Dockerfile, flyway.conf)
+├── backend/                    # Spring Boot application (Maven wrapper, Dockerfile)
 │   └── src/main/
 │       ├── java/me/zilid/chessplatform/
 │       │   ├── chess/          # Rules engine: board, move generation, game lifecycle, clocks, FEN/UCI/PGN
@@ -251,8 +218,8 @@ chess-platform/
   Spring Security principals.
 - Each backend package documents its responsibility in `package-info.java` and is `@NullMarked`. NullAway checks
   nullness at compile time.
-- Spring Boot does not run Flyway at startup. Docker Compose applies migrations with the Flyway container, and tests
-  apply them with Flyway.
+- Spring Boot applies the Flyway migrations at startup, in every environment including tests. When several instances
+  start together, Flyway's PostgreSQL lock lets one migrate while the others wait.
 - `security.UserPrincipal` is stored in Redis sessions with Java serialization. Changing its class name, fields, or
   `serialVersionUID` invalidates existing sessions, so flush the Spring Session keys in Redis when deploying such a
   change.

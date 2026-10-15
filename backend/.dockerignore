@@ -6,3 +6,6 @@ target/
 *.log
 .env
 .env.*
+Dockerfile
+.dockerignore
+mvnw.cmd
