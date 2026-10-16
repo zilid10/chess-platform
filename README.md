@@ -93,7 +93,7 @@ flowchart LR
 | Data           | PostgreSQL 17.5 with Flyway migrations, Redis 8.6 with Spring Session                                  |
 | Messaging      | RabbitMQ 4.1 as an external STOMP broker                                                               |
 | Frontend       | React 19, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |
-| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint                                 |
+| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint, Gatling                                 |
 | Infrastructure | Docker Compose, nginx, GitHub Actions                                                                  |
 
 ---
@@ -184,8 +184,8 @@ full stack.
 `loadtest/` is a Gatling simulation that plays complete games through the gateway. Each virtual user registers and
 logs in two players and then starts games between them, back to back. Both players follow the same steps as the
 frontend's game page: the REST join, then STOMP over `/ws` to subscribe and move. Every game is the 1858 Opera Game,
-ending in mate after 33 moves. Once the game is rated and archived, the user reads its ratings, game history, and PGN.
-Each player has its own socket, so the gateway can route the two players to different backend instances.
+ending in mate on White's 17th move. Once the game is rated and archived, the user reads its ratings, game history, and
+PGN. Each player has its own socket, so the gateway can route the two players to different backend instances.
 
 `LOADTEST_TYPE` picks the kind of test. In every type, pairs of players arrive evenly over the ramp, and each pair
 keeps starting games until the duration has passed since it arrived. The types differ in their defaults and in what
@@ -197,7 +197,7 @@ counts as a pass:
 | `average`    | 100     | 30s  | 5m       | Typical load: ramp up, hold, ramp down                                         | <1% fail, p95 under 1 s        |
 | `stress`     | 300     | 1m   | 5m       | Well above typical load                                                        | <1% fail, p95 under 1 s        |
 | `spike`      | 400     | 10s  | one game | A sudden surge, such as a tournament start: logins, sockets, and broker relays | <1% fail, p95 under 1 s        |
-| `breakpoint` | 4000    | 10m  | 10m      | Capacity: players keep arriving until a socket reply takes over 1 s            | Always; read the logged count  |
+| `breakpoint` | 4000    | 10m  | 10m      | Capacity: players keep arriving until a game fails or a reply takes over 1 s   | Always; read the logged count  |
 | `soak`       | 100     | 1m   | 1h       | Leaks and growth over time in Redis, RabbitMQ, and PostgreSQL                  | <1% fail, p95 under 1 s        |
 
 The player counts are starting points. Set `average` to your expected peak and scale the others from it. A breakpoint
