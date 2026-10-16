@@ -31,12 +31,6 @@ public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
                 .toArray(String[]::new);
-        // Only required with the relay, so a single instance without RabbitMQ can leave them unset
-        if (relayEnabled) {
-            Assert.hasText(relayHost, "app.websocket.relay.host is required when the relay is enabled");
-            Assert.hasText(relayLogin, "app.websocket.relay.login is required when the relay is enabled");
-            Assert.hasText(relayPasscode, "app.websocket.relay.passcode is required when the relay is enabled");
-        }
         this.relay = new RelayProperties(relayEnabled, relayHost, relayPort, relayLogin, relayPasscode);
     }
 
