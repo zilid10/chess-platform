@@ -1,11 +1,8 @@
+# Production-ready defaults. Profiles (e.g. dev) only override what differs; environment variables override any
+# property through relaxed binding (SPRING_DATASOURCE_URL sets spring.datasource.url).
 spring:
   application:
     name: chess-platform
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-  datasource:
-    hikari:
-      maximum-pool-size: 10
   threads:
     virtual:
       enabled: true
@@ -14,7 +11,6 @@ spring:
     hibernate:
       ddl-auto: validate
   flyway:
-    # Flyway would otherwise look in db/migration
     locations: classpath:db/migrations
     validate-migration-naming: true
   data:
@@ -25,21 +21,33 @@ spring:
     banner-mode: "off"
 
 server:
-  port: ${SERVER_PORT:8080}
-  address: ${SERVER_ADDRESS:0.0.0.0}
   servlet:
     session:
       cookie:
         # Spring Session would otherwise name it SESSION
         name: JSESSIONID
 
+# The gateway's public server only routes /api and /ws, so actuator stays internal
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
 app:
-  allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000,http://frontend:3000}
+  allowed-origins: http://localhost:3000,http://frontend:3000
   websocket:
     relay:
-      # Required when running more than one backend instance
-      enabled: ${APP_WEBSOCKET_RELAY_ENABLED:false}
-      host: ${APP_WEBSOCKET_RELAY_HOST:rabbitmq}
-      port: ${APP_WEBSOCKET_RELAY_PORT:61613}
-      login: ${APP_WEBSOCKET_RELAY_LOGIN:guest}
-      passcode: ${APP_WEBSOCKET_RELAY_PASSCODE:guest}
+      # Required when running more than one backend instance; host, login and passcode must then be set
+      enabled: true
+
+logging:
+  level:
+    root: warn
+    me.zilid.chessplatform: info

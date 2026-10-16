@@ -36,9 +36,16 @@ COPY --link --from=build /app/extracted/application/ ./
 ENV JAVA_TOOL_OPTIONS="-Xms256m -Xmx512m"
 
 # Training run for a Class Data Sharing archive, which speeds up startup. It only refreshes the context,
-# so Flyway and Hibernate must not touch the database, which does not exist at build time.
+# so Flyway and Hibernate must not touch the database, which does not exist at build time. The base configuration
+# requires a datasource URL and relay settings, so the run gets a placeholder URL and the in-memory broker.
 RUN java -XX:ArchiveClassesAtExit=app.jsa \
     -Dspring.context.exit=onRefresh \
+    -Dspring.datasource.url=jdbc:postgresql://build-time-placeholder/none \
+    -Dapp.websocket.relay.enabled=false \
+    -Dapp.websocket.relay.host=build-time-placeholder \
+    -Dapp.websocket.relay.port=61613 \
+    -Dapp.websocket.relay.login=build-time-placeholder \
+    -Dapp.websocket.relay.passcode=build-time-placeholder \
     -Dspring.flyway.enabled=false \
     -Dspring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false \
     -Dspring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect \
