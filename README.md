@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Java 21](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f)
-![React 18](https://img.shields.io/badge/React-18-61dafb)
+![React 19](https://img.shields.io/badge/React-19-61dafb)
 
 A real-time multiplayer chess platform with a chess engine written from scratch, live clocks, Elo ratings, and a
 backend that scales horizontally: any number of instances can serve the same game.
@@ -92,7 +92,7 @@ flowchart LR
 | Backend        | Java 21 (virtual threads), Spring Boot 4.1, Spring Security, Spring WebSocket (STOMP), Spring Data JPA |
 | Data           | PostgreSQL 17.5 with Flyway migrations, Redis 8.6 with Spring Session                                  |
 | Messaging      | RabbitMQ 4.1 as an external STOMP broker                                                               |
-| Frontend       | React 18, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |
+| Frontend       | React 19, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |
 | Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint                                 |
 | Infrastructure | Docker Compose, nginx, GitHub Actions                                                                  |
 
@@ -129,8 +129,9 @@ docker compose up -d
 ```
 
 Run the backend from your IDE (or `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` in `backend/`) with the
-`dev` profile, which connects to those services on `localhost`. Then run `npm run dev` in `frontend/`: Vite serves the
-frontend on port 3000 and proxies `/api` and `/ws` to the backend on port 8080, so the URLs above stay the same.
+`dev` profile, which connects to those services on `localhost`. Then run `npm run dev` in `frontend/` with Node 24: Vite
+serves the frontend on port 3000 and proxies `/api` and `/ws` to the backend on port 8080, so the URLs above stay the
+same.
 
 To try a game, register two accounts and sign in from two browsers, or from a normal and a private window. Create a
 game on one, then join it from the other with the game ID.
