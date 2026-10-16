@@ -10,4 +10,4 @@ RUN ./mvnw -q dependency:go-offline
 
 COPY src src
 
-ENTRYPOINT ["./mvnw", "-q", "gatling:test"]
+ENTRYPOINT ["./mvnw", "--batch-mode", "--no-transfer-progress", "gatling:test"]
