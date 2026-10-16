@@ -1,6 +1,6 @@
 # Chess Platform
 
-[![CI](https://github.com/zilid10/chess-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/zilid10/chess-platform/actions/workflows/ci.yml)
+[![CI](https://github.com/zilid10/chess-platform/actions/workflows/ci.yaml/badge.svg)](https://github.com/zilid10/chess-platform/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Java 21](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f)
@@ -224,7 +224,8 @@ chess-platform/
 │       └── resources/db/migrations/   # Flyway migrations
 ├── frontend/                   # React app: pages/, components/, services/, types/
 ├── .github/                    # CI workflow, Dependabot, and issue and PR templates
-└── docker-compose.yml          # Full local stack
+├── compose.yaml                # Local services; the app profile adds the full stack
+└── nginx.conf                  # Gateway routing for the full stack
 ```
 
 ### Architecture notes
