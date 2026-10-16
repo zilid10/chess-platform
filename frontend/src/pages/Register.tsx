@@ -1,19 +1,15 @@
-import { useState, FormEvent } from 'react';
+import { useActionState } from 'react';
 import { apiErrorMessage } from '../services/errors';
 import { useNavigate, Link } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
 
+const initialState = {
+  error: '',
+  values: { username: '', email: '', password: '', confirmPassword: '', about: '' },
+};
+
 const Register = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    about: '',
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -21,35 +17,28 @@ const Register = () => {
     navigate('/dashboard');
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
+  // React resets the form after each submit, so the typed values come back as its defaults.
+  const register = async (_prev: typeof initialState, formData: FormData) => {
+    const values = Object.fromEntries(formData) as typeof initialState.values;
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    if (values.password !== values.confirmPassword) {
+      return { error: 'Passwords do not match', values };
     }
-
-    setLoading(true);
 
     try {
       await userService.createUser({
-        username: formData.username,
-        email: formData.email,
-        rawPassword: formData.password,
-        about: formData.about || undefined,
+        username: values.username,
+        email: values.email,
+        rawPassword: values.password,
+        about: values.about || undefined,
       });
       navigate('/login');
+      return { error: '', values };
     } catch (err) {
-      setError(apiErrorMessage(err, 'Registration failed. Please try again.'));
-    } finally {
-      setLoading(false);
+      return { error: apiErrorMessage(err, 'Registration failed. Please try again.'), values };
     }
   };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [state, formAction, loading] = useActionState(register, initialState);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -65,10 +54,10 @@ const Register = () => {
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
+        <form className="mt-8 space-y-6" action={formAction}>
+          {!loading && state.error && (
             <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{error}</p>
+              <p className="text-sm text-red-800">{state.error}</p>
             </div>
           )}
           <div className="space-y-4">
@@ -78,8 +67,7 @@ const Register = () => {
               required
               className="input"
               placeholder="Username"
-              value={formData.username}
-              onChange={handleChange}
+              defaultValue={state.values.username}
             />
             <input
               name="email"
@@ -87,16 +75,14 @@ const Register = () => {
               required
               className="input"
               placeholder="Email"
-              value={formData.email}
-              onChange={handleChange}
+              defaultValue={state.values.email}
             />
             <input
               name="about"
               type="text"
               className="input"
               placeholder="About (optional)"
-              value={formData.about}
-              onChange={handleChange}
+              defaultValue={state.values.about}
             />
             <input
               name="password"
@@ -104,8 +90,7 @@ const Register = () => {
               required
               className="input"
               placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
+              defaultValue={state.values.password}
             />
             <input
               name="confirmPassword"
@@ -113,8 +98,7 @@ const Register = () => {
               required
               className="input"
               placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
+              defaultValue={state.values.confirmPassword}
             />
           </div>
 
