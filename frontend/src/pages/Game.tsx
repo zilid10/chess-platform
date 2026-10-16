@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiErrorMessage } from '../services/errors';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Chessboard } from 'react-chessboard';
+import { Chessboard, PieceDropHandlerArgs } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { websocketService } from '../services/websocketService';
 import { gameService } from '../services/gameService';
@@ -148,8 +148,8 @@ const Game = () => {
     }
   }, [chatMessages]);
 
-  const onDrop = (sourceSquare: string, targetSquare: string) => {
-    if (!gameId || !gameState || gameState.gameStatus !== 'ONGOING') {
+  const onDrop = ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) => {
+    if (!targetSquare || !gameId || !gameState || gameState.gameStatus !== 'ONGOING') {
       return false;
     }
 
@@ -367,12 +367,15 @@ const Game = () => {
             
             <div className="w-full max-w-2xl mx-auto">
               {renderClock(topColor)}
-              <Chessboard
-                position={game.fen()}
-                onPieceDrop={onDrop}
-                boardWidth={560}
-                boardOrientation={playerColor}
-              />
+              <div className="max-w-[560px]">
+                <Chessboard
+                  options={{
+                    position: game.fen(),
+                    onPieceDrop: onDrop,
+                    boardOrientation: playerColor,
+                  }}
+                />
+              </div>
               {renderClock(bottomColor)}
             </div>
 
@@ -450,7 +453,7 @@ const Game = () => {
       <div className="mt-6 card bg-gray-50">
         <p className="text-sm text-gray-600">
           <span className="font-semibold">Game ID:</span>{' '}
-          <span className="font-mono bg-white px-2 py-1 rounded">{gameId}</span>
+          <span className="font-mono bg-white px-2 py-1 rounded-sm">{gameId}</span>
         </p>
         <p className="text-xs text-gray-500 mt-2">
           Share this ID with your friend to let them join the game
