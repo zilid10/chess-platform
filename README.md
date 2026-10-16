@@ -71,7 +71,7 @@ Nothing about a game lives in one instance's memory:
 - **WebSocket subscriptions** live in RabbitMQ through Spring's STOMP broker relay. A move handled by one instance
   reaches players connected to another, including private `/user/...` messages.
 
-Docker Compose runs two backend instances behind nginx by default.
+Docker Compose runs two backend instances behind nginx with the `app` profile.
 
 ```mermaid
 flowchart LR
@@ -103,13 +103,14 @@ flowchart LR
 You need Docker and Docker Compose. These ports must be free: 3000, 8080, 5432, 6379, 61613, and 15672.
 
 ```bash
-docker compose up --build
+docker compose --profile app up --build
 ```
 
-Compose starts PostgreSQL, Redis, and RabbitMQ, then two backend instances, which apply the database migrations on
-startup, and the frontend behind an nginx gateway (`gateway_nginx.conf`). The gateway routes `/api` and `/ws` to the backend
-instances and everything else to the frontend. To run more or fewer instances, change `deploy.replicas` under
-`backend` in `docker-compose.yml`; the gateway picks up the change within about 10 seconds.
+The `app` profile runs the whole application as it runs in production. Compose starts PostgreSQL, Redis, and RabbitMQ,
+then two backend instances, which apply the database migrations on startup, and the frontend behind an nginx gateway
+(`nginx.conf`). The gateway routes `/api` and `/ws` to the backend instances and everything else to the frontend. To
+run more or fewer instances, add `--scale backend=<n>` or change `deploy.replicas` under `backend` in `compose.yaml`;
+the gateway picks up the change within about 10 seconds.
 
 | Service                         | URL                                           |
 |---------------------------------|-----------------------------------------------|
@@ -119,10 +120,22 @@ instances and everything else to the frontend. To run more or fewer instances, c
 | Health check                    | http://localhost:8080/actuator/health         |
 | RabbitMQ management UI          | http://localhost:15672 (`chess` / `password`) |
 
+### Local development
+
+Without the profile, Compose starts only PostgreSQL, Redis, and RabbitMQ:
+
+```bash
+docker compose up -d
+```
+
+Run the backend from your IDE (or `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` in `backend/`) with the
+`dev` profile, which connects to those services on `localhost`. Then run `npm run dev` in `frontend/`: Vite serves the
+frontend on port 3000 and proxies `/api` and `/ws` to the backend on port 8080, so the URLs above stay the same.
+
 To try a game, register two accounts and sign in from two browsers, or from a normal and a private window. Create a
 game on one, then join it from the other with the game ID.
 
-The credentials in `docker-compose.yml` are for local development only.
+The credentials in `compose.yaml` and `application-dev.yaml` are for local development only.
 
 ### Configuration
 

@@ -69,7 +69,12 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
         properties = {
             "management.server.port=-1",
             "app.allowed-origins=" + GameSocketStompTest.ORIGIN,
-            "app.websocket.relay.enabled=false"
+            // In-memory broker; the relay settings are required but unused
+            "app.websocket.relay.enabled=false",
+            "app.websocket.relay.host=unused",
+            "app.websocket.relay.port=61613",
+            "app.websocket.relay.login=unused",
+            "app.websocket.relay.passcode=unused"
         })
 class GameSocketStompTest {
     static final String ORIGIN = "https://chess.example";

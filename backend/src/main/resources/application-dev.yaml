@@ -1,7 +1,24 @@
-# Debugging features for local development. Connection settings come from the environment (compose.yaml).
+# Local development against the services from `docker compose up` (db, redis, rabbitmq on localhost).
+# Under `docker compose --profile app`, the environment in compose.yaml overrides the connection settings.
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/chessdb
+    username: root
+    password: password
+  data:
+    redis:
+      host: localhost
+      port: 6379
   jpa:
     show-sql: true
+
+app:
+  websocket:
+    relay:
+      host: localhost
+      port: 61613
+      login: chess
+      passcode: password
 
 management:
   endpoints:

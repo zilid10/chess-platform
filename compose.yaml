@@ -60,9 +60,13 @@ services:
       retries: 5
       start_period: 20s
 
+  # The app profile runs the whole application like production: docker compose --profile app up --build
+  # Without it, only db, redis and rabbitmq start, for running the backend and frontend locally.
+
   # Several identical instances; logins live in Redis and WebSocket messages go through RabbitMQ,
   # so any instance can serve any request
   backend:
+    profiles: [ app ]
     build:
       context: ./backend
     deploy:
@@ -97,6 +101,7 @@ services:
         condition: service_healthy
 
   frontend:
+    profiles: [ app ]
     container_name: chess-frontend
     hostname: frontend
     build:
@@ -106,6 +111,7 @@ services:
 
   # Single entry point: / goes to the frontend, /api and /ws to the backend replicas
   gateway:
+    profiles: [ app ]
     container_name: chess-gateway
     hostname: gateway
     image: nginxinc/nginx-unprivileged:1.29-alpine
