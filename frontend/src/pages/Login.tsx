@@ -1,13 +1,11 @@
-import { useState, FormEvent } from 'react';
+import { useActionState } from 'react';
 import { apiErrorMessage } from '../services/errors';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const initialState = { error: '', values: { username: '', password: '' } };
+
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -15,20 +13,18 @@ const Login = () => {
     navigate('/dashboard');
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
+  // React resets the form after each submit, so the typed values come back as its defaults.
+  const signIn = async (_prev: typeof initialState, formData: FormData) => {
+    const values = Object.fromEntries(formData) as typeof initialState.values;
     try {
-      await login(username, password);
+      await login(values.username, values.password);
       navigate('/dashboard');
+      return { error: '', values };
     } catch (err) {
-      setError(apiErrorMessage(err, 'Login failed. Please check your credentials.'));
-    } finally {
-      setLoading(false);
+      return { error: apiErrorMessage(err, 'Login failed. Please check your credentials.'), values };
     }
   };
+  const [state, formAction, loading] = useActionState(signIn, initialState);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -44,10 +40,10 @@ const Login = () => {
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
+        <form className="mt-8 space-y-6" action={formAction}>
+          {!loading && state.error && (
             <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{error}</p>
+              <p className="text-sm text-red-800">{state.error}</p>
             </div>
           )}
           <div className="rounded-md shadow-xs -space-y-px">
@@ -62,8 +58,7 @@ const Login = () => {
                 required
                 className="input rounded-t-md rounded-b-none"
                 placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                defaultValue={state.values.username}
               />
             </div>
             <div>
@@ -77,8 +72,7 @@ const Login = () => {
                 required
                 className="input rounded-b-md rounded-t-none"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                defaultValue={state.values.password}
               />
             </div>
           </div>
