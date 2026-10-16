@@ -1,18 +1,9 @@
+# Debugging features for local development. Connection settings come from the environment (compose.yaml).
 spring:
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/chessdb}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:password}
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:redis}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
   jpa:
     show-sql: true
 
 management:
-  server:
-    port: ${MANAGEMENT_SERVER_PORT:8080}
   endpoints:
     web:
       exposure:
@@ -28,5 +19,5 @@ logging:
   level:
     root: info
     me.zilid.chessplatform: debug
-    org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace

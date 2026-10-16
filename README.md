@@ -126,9 +126,12 @@ The credentials in `docker-compose.yml` are for local development only.
 
 ### Configuration
 
+The backend reads these environment variables. Templates: `.env.example` for Docker Compose, which sets them from a
+few credentials, and `backend/.env.example` for deploying the backend on its own.
+
 | Variable                                                   | Purpose                                                                                    |
 |------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| `SPRING_PROFILES_ACTIVE`                                   | `dev` (default) or `prod`. `prod` hides the API documentation and most actuator endpoints. |
+| `SPRING_PROFILES_ACTIVE`                                   | `dev` locally: API docs, all actuator endpoints, debug logging. Unset in production.       |
 | `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD`          | PostgreSQL connection                                                                      |
 | `SPRING_DATA_REDIS_HOST`, `_PORT`                          | Redis connection                                                                           |
 | `APP_ALLOWED_ORIGINS`                                      | Comma-separated frontend origins allowed for HTTP and WebSocket requests                   |

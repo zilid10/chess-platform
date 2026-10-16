@@ -1,6 +1,7 @@
 docker/
 /docker/volumes/
 .DS_Store
+.env
 
 # Backend
 target/

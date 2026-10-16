@@ -66,7 +66,11 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = GameSocketStompTest.TestApplication.class,
-        properties = {"management.server.port=-1", "app.allowed-origins=" + GameSocketStompTest.ORIGIN})
+        properties = {
+            "management.server.port=-1",
+            "app.allowed-origins=" + GameSocketStompTest.ORIGIN,
+            "app.websocket.relay.enabled=false"
+        })
 class GameSocketStompTest {
     static final String ORIGIN = "https://chess.example";
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");

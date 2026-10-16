@@ -10,11 +10,11 @@ services:
     volumes:
       - ./docker/volumes/postgres-dev:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: chessdb
+      POSTGRES_USER: ${DB_USER:-root}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-chessdb}
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U root -d chessdb" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -48,8 +48,8 @@ services:
     networks:
       - backend
     environment:
-      RABBITMQ_DEFAULT_USER: chess
-      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-chess}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-password}
     configs:
       - source: rabbitmq-plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -70,10 +70,18 @@ services:
     networks:
       - backend
     environment:
-      APP_WEBSOCKET_RELAY_ENABLED: "true"
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-http://localhost:3000,http://frontend:3000}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME:-chessdb}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-password}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      APP_WEBSOCKET_RELAY_ENABLED: true
       APP_WEBSOCKET_RELAY_HOST: rabbitmq
-      APP_WEBSOCKET_RELAY_LOGIN: chess
-      APP_WEBSOCKET_RELAY_PASSCODE: password
+      APP_WEBSOCKET_RELAY_PORT: 61613
+      APP_WEBSOCKET_RELAY_LOGIN: ${RABBITMQ_USER:-chess}
+      APP_WEBSOCKET_RELAY_PASSCODE: ${RABBITMQ_PASSWORD:-password}
     healthcheck:
       test: [ "CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health" ]
       interval: 10s
@@ -127,4 +135,4 @@ configs:
     content: |
       [rabbitmq_management,rabbitmq_stomp].
   gateway-nginx-conf:
-    file: ./gateway_nginx.conf
+    file: ./nginx.conf
