@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useActionState } from 'react';
 import { apiErrorMessage } from '../services/errors';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
@@ -6,14 +6,13 @@ import RatingsCard from '../components/RatingsCard';
 import { User } from '../types';
 import { Edit2, Save, X } from 'lucide-react';
 
+const noMessage = { error: '', success: '' };
+
 const Profile = () => {
   const { user: currentUser, refreshUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     about: '',
@@ -29,7 +28,6 @@ const Profile = () => {
     
     try {
       setLoading(true);
-      setError('');
       const profile = await userService.getCurrentUser();
       setUser(profile);
       setFormData({
@@ -58,42 +56,40 @@ const Profile = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError('');
-    setSuccess('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (formData.password && formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+  const saveProfile = async (_prev: typeof noMessage, data: FormData) => {
+    const password = data.get('password') as string | null;
+    if (password && password !== data.get('confirmPassword')) {
+      return { error: 'Passwords do not match', success: '' };
     }
 
-    if (!currentUser?.id) return;
+    if (!currentUser?.id) return noMessage;
 
-    setSaving(true);
+    let success = '';
     try {
       await userService.updateUser({
-        email: formData.email,
-        about: formData.about || undefined,
-        rawPassword: formData.password || undefined,
+        email: data.get('email') as string,
+        about: (data.get('about') as string) || undefined,
+        rawPassword: password || undefined,
       });
-      
-      setSuccess('Profile updated successfully!');
+
+      success = 'Profile updated successfully!';
       setEditing(false);
       setFormData({ ...formData, password: '', confirmPassword: '' });
       await refreshUser(); // Refresh the auth context
       await loadUserProfile();
+      return { error: '', success };
     } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to update profile'));
-    } finally {
-      setSaving(false);
+      return { error: apiErrorMessage(err, 'Failed to update profile'), success };
     }
+  };
+  const [result, saveAction, saving] = useActionState(saveProfile, noMessage);
+  // Editing a field or cancelling hides the last save's message, as does starting another save.
+  const [dismissed, setDismissed] = useState(result);
+  const { error, success } = saving || result === dismissed ? noMessage : result;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setDismissed(result);
   };
 
   const handleCancel = () => {
@@ -106,8 +102,7 @@ const Profile = () => {
       });
     }
     setEditing(false);
-    setError('');
-    setSuccess('');
+    setDismissed(result);
   };
 
   if (loading) {
@@ -154,7 +149,7 @@ const Profile = () => {
       )}
 
       <div className="card">
-        <form onSubmit={handleSubmit}>
+        <form action={saveAction}>
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
