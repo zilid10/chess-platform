@@ -136,7 +136,7 @@ public class Game {
             firstMoveDeadline = clock.isRunning() || !isFullySeated() ? null : now.plus(FIRST_MOVE_TIMEOUT);
             updateGameStatus(now);
             return true;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return false;
         }
     }

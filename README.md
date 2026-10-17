@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/zilid10/chess-platform/actions/workflows/ci.yaml/badge.svg)](https://github.com/zilid10/chess-platform/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Java 21](https://img.shields.io/badge/Java-21-orange)
+![Java 25](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f)
 ![React 19](https://img.shields.io/badge/React-19-61dafb)
 
@@ -89,7 +89,7 @@ flowchart LR
 
 | Area           | Technologies                                                                                           |
 |----------------|--------------------------------------------------------------------------------------------------------|
-| Backend        | Java 21 (virtual threads), Spring Boot 4.1, Spring Security, Spring WebSocket (STOMP), Spring Data JPA |
+| Backend        | Java 25 (virtual threads), Spring Boot 4.1, Spring Security, Spring WebSocket (STOMP), Spring Data JPA |
 | Data           | PostgreSQL 17.5 with Flyway migrations, Redis 8.6 with Spring Session                                  |
 | Messaging      | RabbitMQ 4.1 as an external STOMP broker                                                               |
 | Frontend       | React 19, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |

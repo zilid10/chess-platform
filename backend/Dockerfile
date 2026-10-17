@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /app
 # The wrapper pins the same Maven version CI uses; .mvn also holds the JVM flags Error Prone needs inside javac
 COPY mvnw pom.xml ./
@@ -7,7 +7,7 @@ COPY ./src ./src
 RUN --mount=type=cache,target=/root/.m2 ./mvnw package -DskipTests -B --no-transfer-progress \
     && java -Djarmode=tools -jar target/*.jar extract --layers --destination extracted --application-filename app.jar
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 ARG APP_USER=appuser
 ARG APP_GROUP=appgroup
@@ -35,10 +35,11 @@ COPY --link --from=build /app/extracted/application/ ./
 # Overridable at run time, e.g. from docker compose
 ENV JAVA_TOOL_OPTIONS="-Xms256m -Xmx512m"
 
-# Training run for a Class Data Sharing archive, which speeds up startup. It only refreshes the context,
-# so Flyway and Hibernate must not touch the database, which does not exist at build time. The base configuration
+# Training run for an AOT cache, which preloads and links classes and keeps method profiles for faster startup and
+# warm-up. Compact object headers shrink every object; the cache only loads with the same flags, so ENTRYPOINT repeats
+# them. The run only refreshes the context, so Flyway and Hibernate must not touch the database, which does not exist at build time. The base configuration
 # requires a datasource URL and relay settings, so the run gets a placeholder URL and the in-memory broker.
-RUN java -XX:ArchiveClassesAtExit=app.jsa \
+RUN java -XX:AOTCacheOutput=app.aot -XX:+UseCompactObjectHeaders \
     -Dspring.context.exit=onRefresh \
     -Dspring.datasource.url=jdbc:postgresql://build-time-placeholder/none \
     -Dapp.websocket.relay.enabled=false \
@@ -54,4 +55,4 @@ RUN java -XX:ArchiveClassesAtExit=app.jsa \
 
 USER ${APP_USER}
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:SharedArchiveFile=app.jsa", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:AOTCache=app.aot", "-XX:+UseCompactObjectHeaders", "-jar", "app.jar"]
