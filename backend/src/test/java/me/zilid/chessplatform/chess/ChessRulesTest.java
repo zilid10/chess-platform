@@ -244,6 +244,19 @@ class ChessRulesTest {
         }
 
         @Test
+        void promotionPieceOnOtherMoveIsRejected() {
+            Position position = Position.startingPosition();
+            assertThat(makeMove(position, "e2", "e4", PieceType.QUEEN)).isFalse();
+            assertThat(makeMove(position, "e2", "e4", null)).isTrue();
+        }
+
+        @Test
+        void promotionNeedsAPiece() {
+            Position position = Fen.parse("7k/P7/8/8/8/8/8/K7 w - - 0 1");
+            assertThat(makeMove(position, "a7", "a8", null)).isFalse();
+        }
+
+        @Test
         void pawnCanPromoteByCapturing() {
             // Black rook on b8 can be taken with promotionType
             Position position = Fen.parse("1r5k/P7/8/8/8/8/8/K7 w - - 0 1");
