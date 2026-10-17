@@ -103,16 +103,16 @@ const History = () => {
     return `${seconds}s`;
   };
 
-  const handleDownloadPGN = async (gameId: string) => {
+  const handleDownloadPGN = async (matchId: string) => {
     try {
-      const pgnText = await gameService.getGamePGN(gameId);
+      const pgnText = await gameService.getMatchPGN(matchId);
       
       // Create a blob and download
       const blob = new Blob([pgnText], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `game-${gameId}.pgn`;
+      a.download = `game-${matchId}.pgn`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -122,12 +122,12 @@ const History = () => {
     }
   };
 
-  const handleCopyPGN = async (gameId: string) => {
+  const handleCopyPGN = async (matchId: string) => {
     try {
-      const pgnText = await gameService.getGamePGN(gameId);
+      const pgnText = await gameService.getMatchPGN(matchId);
       
       await navigator.clipboard.writeText(pgnText);
-      setCopiedGameId(gameId);
+      setCopiedGameId(matchId);
       setTimeout(() => setCopiedGameId(null), 2000);
     } catch (err) {
       console.error('Error copying PGN:', err);

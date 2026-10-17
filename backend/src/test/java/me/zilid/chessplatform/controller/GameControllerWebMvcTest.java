@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 class GameControllerWebMvcTest {
 
     private static final UUID GAME_ID = UUID.fromString("8a169d0a-c121-4d83-a7b3-8ee30f87cfa9");
+    private static final UUID MATCH_ID = UUID.fromString("3f2c9e41-7d5b-4b8a-9c1e-2a6d4f8b0e17");
     private static final UserPrincipal PLAYER = new UserPrincipal(
             UUID.fromString("02410898-174c-4cb5-b8c5-55fe3cc535b9"),
             "player",
@@ -173,9 +174,9 @@ class GameControllerWebMvcTest {
 
     @Test
     void pgnEndpointReturnsPlainText() {
-        when(matchService.getMatchPGN(GAME_ID)).thenReturn("1. e4 e5 2. Nf3");
+        when(matchService.getMatchPGN(MATCH_ID)).thenReturn("1. e4 e5 2. Nf3");
 
-        assertThat(mvcTester.get().uri("/api/games/{gameId}/pgn", GAME_ID).with(user(PLAYER)))
+        assertThat(mvcTester.get().uri("/api/matches/{matchId}/pgn", MATCH_ID).with(user(PLAYER)))
                 .hasStatusOk()
                 .hasContentTypeCompatibleWith(MediaType.TEXT_PLAIN)
                 .hasBodyTextEqualTo("1. e4 e5 2. Nf3");

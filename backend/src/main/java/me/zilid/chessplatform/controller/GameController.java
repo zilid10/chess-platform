@@ -34,10 +34,11 @@ public class GameController {
         return matchService.findMatches(userId, pageable);
     }
 
-    @GetMapping("/games/{gameId}/pgn")
-    public String getGamePGN(@PathVariable("gameId") UUID gameId) {
-        logger.debug("Fetching PGN for game: {}", gameId);
-        return matchService.getMatchPGN(gameId);
+    // Takes the archived match's ID from the history, not the live game ID
+    @GetMapping("/matches/{matchId}/pgn")
+    public String getMatchPGN(@PathVariable UUID matchId) {
+        logger.debug("Fetching PGN for match: {}", matchId);
+        return matchService.getMatchPGN(matchId);
     }
 
     @PostMapping("/games")

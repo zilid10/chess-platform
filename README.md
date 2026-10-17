@@ -187,9 +187,12 @@ REST endpoints live under `/api`. With the dev profile, the full reference is at
 | Area                | Endpoints                                                                                                                                                                                                  |
 |---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Accounts            | `POST /users` (register), `POST /login`, `GET /me`, `GET` / `PUT` / `DELETE /users`                                                                                                                        |
-| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`, `GET /games/{gameId}/pgn`                                                                                                         |
-| History and ratings | `GET /games/users/{userId}`, `GET /users/{userId}/ratings`                                                                                                                                                 |
+| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`                                                                                                                                    |
+| History and ratings | `GET /games/users/{userId}`, `GET /matches/{matchId}/pgn`, `GET /users/{userId}/ratings`                                                                                                                   |
 | Friends             | `GET /friends`, `GET /friends/received`, `GET /friends/sent`, `POST /friends/send/{userId}`, `POST /friends/accept/{friendRequestId}`, `PUT /friends/reject/{friendRequestId}`, `DELETE /friends/{userId}` |
+
+A finished game is archived as a match with its own ID, the `id` of each history entry. `GET /matches/{matchId}/pgn` takes
+that ID, not the live `gameId`.
 
 The STOMP endpoint is `/ws`. Topic names use dots because RabbitMQ topic names cannot contain `/`.
 
