@@ -87,3 +87,31 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Plays one full game through the gateway, so it catches breakage between services that unit tests miss
+  loadtest-smoke:
+    name: Load test (smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Start the application
+        run: docker compose --profile app up --detach --build --wait
+
+      - name: Run the smoke load test
+        run: docker compose --profile app --profile loadtest run --rm --build loadtest
+
+      - name: Upload load test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: loadtest-report
+          path: loadtest/target/gatling/
+          if-no-files-found: ignore
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose --profile app logs --no-color

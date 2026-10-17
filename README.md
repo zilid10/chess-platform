@@ -93,7 +93,7 @@ flowchart LR
 | Data           | PostgreSQL 17.5 with Flyway migrations, Redis 8.6 with Spring Session                                  |
 | Messaging      | RabbitMQ 4.1 as an external STOMP broker                                                               |
 | Frontend       | React 19, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |
-| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint                                 |
+| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint, Gatling                        |
 | Infrastructure | Docker Compose, nginx, GitHub Actions                                                                  |
 
 ---
@@ -106,7 +106,8 @@ You need Docker and Docker Compose. These ports must be free: 3000, 8080, 5432, 
 docker compose --profile app up --build
 ```
 
-The `app` profile runs the whole application as it runs in production. Compose starts PostgreSQL, Redis, and RabbitMQ,
+The `app` profile runs the whole application with the same layout as production, though with the `dev` Spring
+profile by default (`SPRING_PROFILES_ACTIVE`). Compose starts PostgreSQL, Redis, and RabbitMQ,
 then two backend instances, which apply the database migrations on startup, and the frontend behind an nginx gateway
 (`nginx.conf`). The gateway routes `/api` and `/ws` to the backend instances and everything else to the frontend. To
 run more or fewer instances, add `--scale backend=<n>` or change `deploy.replicas` under `backend` in `compose.yaml`;
@@ -176,7 +177,60 @@ npm test
 npm run build   # includes the TypeScript check
 ```
 
-GitHub Actions runs all of these on every push and pull request.
+GitHub Actions runs all of these on every push and pull request, along with the smoke load test below against the
+full stack.
+
+### Load testing
+
+`loadtest/` is a Gatling simulation that plays complete games through the gateway. Each virtual user registers and
+logs in two players and then starts games between them, back to back. Both players follow the same steps as the
+frontend's game page: the REST join, then STOMP over `/ws` to subscribe and move. Every game is the 1858 Opera Game,
+ending in mate on White's 17th move. Once the game is rated and archived, the user reads its ratings, game history, and
+PGN. Each player has its own socket, so the gateway can route the two players to different backend instances.
+
+`LOADTEST_TYPE` picks the kind of test. In every type, pairs of players arrive evenly over the ramp, and each pair
+keeps starting games until the duration has passed since it arrived. The types differ in their defaults and in what
+counts as a pass:
+
+| Type         | Players | Ramp | Duration | What it checks                                                                 | Passes when                    |
+|--------------|---------|------|----------|--------------------------------------------------------------------------------|--------------------------------|
+| `smoke`      | 2       | 0s   | one game | The script and the stack work at all. The default.                             | No request fails               |
+| `average`    | 100     | 30s  | 5m       | Typical load: ramp up, hold, ramp down                                         | <1% fail, p95 under 1 s        |
+| `stress`     | 300     | 1m   | 5m       | Well above typical load                                                        | <1% fail, p95 under 1 s        |
+| `spike`      | 400     | 10s  | one game | A sudden surge, such as a tournament start: logins, sockets, and broker relays | <1% fail, p95 under 1 s        |
+| `breakpoint` | 4000    | 10m  | 10m      | Capacity: players keep arriving until a game fails or a reply takes over 1 s   | Always; read the logged count  |
+| `soak`       | 100     | 1m   | 1h       | Leaks and growth over time in Redis, RabbitMQ, and PostgreSQL                  | <1% fail, p95 under 1 s        |
+
+The player counts are starting points. Set `average` to your expected peak and scale the others from it. A breakpoint
+run ends with a line like `Load Generator was forcefully stopped: Breakpoint: a game failed with 3200 players active`.
+Run it again with `--scale backend=1` to see how much the second instance adds.
+
+Against the full stack in Docker:
+
+```bash
+LOADTEST_TYPE=average docker compose --profile app --profile loadtest run --rm --build loadtest
+```
+
+Or from `loadtest/` against a stack that is already running (`docker compose --profile app up`, or the local
+development setup):
+
+```bash
+LOADTEST_TYPE=stress LOADTEST_USERS=500 ./mvnw gatling:test
+```
+
+The HTML report is written to `loadtest/target/gatling/`; in CI it is attached to the run as `loadtest-report`.
+Load-test accounts are named `lt` followed by the first 12 characters of a UUID, such as `lt1a2b3c4d-5e6`, so you
+can tell them apart from real users. These
+variables override the type's defaults:
+
+| Variable              | Default                 | Purpose                                                              |
+|-----------------------|-------------------------|----------------------------------------------------------------------|
+| `LOADTEST_TYPE`       | `smoke`                 | One of the types above                                               |
+| `LOADTEST_TARGET_URL` | `http://localhost:3000` | Gateway or Vite dev server to test; `http://gateway:3000` in Compose |
+| `LOADTEST_USERS`      | per type                | Concurrent players, two per game                                     |
+| `LOADTEST_RAMP`       | per type                | Time over which players arrive                                       |
+| `LOADTEST_DURATION`   | per type                | How long each pair keeps starting new games, such as `30s` or `1h`   |
+| `LOADTEST_THINK_TIME` | `1s`                    | Pause before each move, such as `0.5s`                               |
 
 ---
 
@@ -186,10 +240,13 @@ REST endpoints live under `/api`. With the dev profile, the full reference is at
 
 | Area                | Endpoints                                                                                                                                                                                                  |
 |---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Accounts            | `POST /users` (register), `POST /login`, `GET /me`, `GET` / `PUT` / `DELETE /users`                                                                                                                        |
-| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`, `GET /games/{gameId}/pgn`                                                                                                         |
-| History and ratings | `GET /games/users/{userId}`, `GET /users/{userId}/ratings`                                                                                                                                                 |
+| Accounts            | `POST /users` (register), `POST /login`, `POST /logout`, `GET /me`, `GET /users?search=`, `PUT` / `DELETE /users`                                                                                          |
+| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`                                                                                                                                    |
+| History and ratings | `GET /games/users/{userId}`, `GET /games/{matchId}/pgn`, `GET /users/{userId}/ratings`                                                                                                                     |
 | Friends             | `GET /friends`, `GET /friends/received`, `GET /friends/sent`, `POST /friends/send/{userId}`, `POST /friends/accept/{friendRequestId}`, `PUT /friends/reject/{friendRequestId}`, `DELETE /friends/{userId}` |
+
+A finished game is archived as a match with its own ID, so `GET /games/{matchId}/pgn` takes the `id` of an entry
+from the game history, not the live game's ID.
 
 The STOMP endpoint is `/ws`. Topic names use dots because RabbitMQ topic names cannot contain `/`.
 
@@ -224,8 +281,9 @@ chess-platform/
 │       │   └── config/         # Infrastructure wiring, including the WebSocket broker
 │       └── resources/db/migrations/   # Flyway migrations
 ├── frontend/                   # React app: pages/, components/, services/, types/
+├── loadtest/                   # Gatling simulation that plays full games against the stack
 ├── .github/                    # CI workflow, Dependabot, and issue and PR templates
-├── compose.yaml                # Local services; the app profile adds the full stack
+├── compose.yaml                # Local services; the app profile adds the full stack, loadtest the load test
 └── nginx.conf                  # Gateway routing for the full stack
 ```
 

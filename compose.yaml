@@ -130,6 +130,31 @@ services:
       frontend:
         condition: service_started
 
+  # Plays full games against the app profile and writes the HTML report to loadtest/target/gatling:
+  # LOADTEST_TYPE=average docker compose --profile app --profile loadtest run --rm --build loadtest
+  # Unset variables fall back to the test type's defaults (see README)
+  loadtest:
+    profiles: [ loadtest ]
+    container_name: chess-loadtest
+    hostname: loadtest
+    build:
+      context: ./loadtest
+    networks:
+      - backend
+    volumes:
+      - ./loadtest/target/gatling:/app/target/gatling
+    environment:
+      LOADTEST_TYPE: ${LOADTEST_TYPE:-}
+      LOADTEST_TARGET_URL: ${LOADTEST_TARGET_URL:-http://gateway:3000}
+      LOADTEST_USERS: ${LOADTEST_USERS:-}
+      LOADTEST_RAMP: ${LOADTEST_RAMP:-}
+      LOADTEST_DURATION: ${LOADTEST_DURATION:-}
+      LOADTEST_THINK_TIME: ${LOADTEST_THINK_TIME:-}
+    depends_on:
+      # The gateway itself waits for healthy backends
+      gateway:
+        condition: service_started
+
 networks:
   backend:
     driver: bridge
