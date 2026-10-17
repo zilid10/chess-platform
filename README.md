@@ -93,7 +93,7 @@ flowchart LR
 | Data           | PostgreSQL 17.5 with Flyway migrations, Redis 8.6 with Spring Session                                  |
 | Messaging      | RabbitMQ 4.1 as an external STOMP broker                                                               |
 | Frontend       | React 19, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, STOMP.js                         |
-| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint, Gatling                                 |
+| Quality        | JUnit, Mockito, Testcontainers, JSpecify with NullAway, Vitest, ESLint, Gatling                        |
 | Infrastructure | Docker Compose, nginx, GitHub Actions                                                                  |
 
 ---
@@ -106,7 +106,8 @@ You need Docker and Docker Compose. These ports must be free: 3000, 8080, 5432, 
 docker compose --profile app up --build
 ```
 
-The `app` profile runs the whole application as it runs in production. Compose starts PostgreSQL, Redis, and RabbitMQ,
+The `app` profile runs the whole application with the same layout as production, though with the `dev` Spring
+profile by default (`SPRING_PROFILES_ACTIVE`). Compose starts PostgreSQL, Redis, and RabbitMQ,
 then two backend instances, which apply the database migrations on startup, and the frontend behind an nginx gateway
 (`nginx.conf`). The gateway routes `/api` and `/ws` to the backend instances and everything else to the frontend. To
 run more or fewer instances, add `--scale backend=<n>` or change `deploy.replicas` under `backend` in `compose.yaml`;
@@ -218,7 +219,8 @@ LOADTEST_TYPE=stress LOADTEST_USERS=500 ./mvnw gatling:test
 ```
 
 The HTML report is written to `loadtest/target/gatling/`; in CI it is attached to the run as `loadtest-report`.
-Load-test accounts are named `lt` followed by 12 random characters, so you can tell them apart from real users. These
+Load-test accounts are named `lt` followed by the first 12 characters of a UUID, such as `lt1a2b3c4d-5e6`, so you
+can tell them apart from real users. These
 variables override the type's defaults:
 
 | Variable              | Default                 | Purpose                                                              |
@@ -238,10 +240,13 @@ REST endpoints live under `/api`. With the dev profile, the full reference is at
 
 | Area                | Endpoints                                                                                                                                                                                                  |
 |---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Accounts            | `POST /users` (register), `POST /login`, `GET /me`, `GET` / `PUT` / `DELETE /users`                                                                                                                        |
-| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`, `GET /games/{gameId}/pgn`                                                                                                         |
-| History and ratings | `GET /games/users/{userId}`, `GET /users/{userId}/ratings`                                                                                                                                                 |
+| Accounts            | `POST /users` (register), `POST /login`, `POST /logout`, `GET /me`, `GET /users?search=`, `PUT` / `DELETE /users`                                                                                          |
+| Games               | `POST /games`, `POST /games/{gameId}/join`, `GET /games/{gameId}/state`                                                                                                                                    |
+| History and ratings | `GET /games/users/{userId}`, `GET /games/{matchId}/pgn`, `GET /users/{userId}/ratings`                                                                                                                     |
 | Friends             | `GET /friends`, `GET /friends/received`, `GET /friends/sent`, `POST /friends/send/{userId}`, `POST /friends/accept/{friendRequestId}`, `PUT /friends/reject/{friendRequestId}`, `DELETE /friends/{userId}` |
+
+A finished game is archived as a match with its own ID, so `GET /games/{matchId}/pgn` takes the `id` of an entry
+from the game history, not the live game's ID.
 
 The STOMP endpoint is `/ws`. Topic names use dots because RabbitMQ topic names cannot contain `/`.
 
@@ -278,7 +283,7 @@ chess-platform/
 ├── frontend/                   # React app: pages/, components/, services/, types/
 ├── loadtest/                   # Gatling simulation that plays full games against the stack
 ├── .github/                    # CI workflow, Dependabot, and issue and PR templates
-├── compose.yaml                # Local services; the app profile adds the full stack
+├── compose.yaml                # Local services; the app profile adds the full stack, loadtest the load test
 └── nginx.conf                  # Gateway routing for the full stack
 ```
 
