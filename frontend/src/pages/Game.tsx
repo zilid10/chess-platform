@@ -164,7 +164,7 @@ const Game = () => {
       if (move === null) return false;
 
       console.log(`onDrop ${sourceSquare} -> ${targetSquare}`);
-      websocketService.sendMove(gameId, sourceSquare, targetSquare, 'q');
+      websocketService.sendMove(gameId, sourceSquare, targetSquare, move.promotion);
       return true;
     } catch {
       return false;
