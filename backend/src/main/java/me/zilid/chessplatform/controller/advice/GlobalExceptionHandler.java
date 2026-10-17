@@ -32,7 +32,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         Map<String, List<String>> errors = new LinkedHashMap<>();
         ex.getBindingResult()
                 .getFieldErrors()
-                .forEach(error -> errors.computeIfAbsent(error.getField(), ignored -> new ArrayList<>())
+                .forEach(error -> errors.computeIfAbsent(error.getField(), _ -> new ArrayList<>())
                         .add(Objects.requireNonNullElse(error.getDefaultMessage(), "Invalid value")));
         problem.setProperty("errors", errors);
         if (ex.getBindingResult().hasGlobalErrors()) {
