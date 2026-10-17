@@ -244,10 +244,10 @@ class ChessRulesTest {
         }
 
         @Test
-        void promotionPieceIsIgnoredForOtherMoves() {
+        void promotionPieceOnOtherMoveIsRejected() {
             Position position = Position.startingPosition();
-            assertThat(makeMove(position, "e2", "e4", PieceType.QUEEN)).isTrue();
-            assertThat(makeMove(position, "g8", "f6", PieceType.QUEEN)).isTrue();
+            assertThat(makeMove(position, "e2", "e4", PieceType.QUEEN)).isFalse();
+            assertThat(makeMove(position, "e2", "e4", null)).isTrue();
         }
 
         @Test

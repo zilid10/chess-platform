@@ -17,16 +17,11 @@ public class MoveGenerator {
         return legalMoves(position, move.from()).contains(move);
     }
 
-    /**
-     * The legal move from {@code from} to {@code to}. {@code promotionType} picks the piece for a promotion and is
-     * ignored for any other move, so a client may always send its preferred promotion piece.
-     */
     public static Optional<Move> findLegalMove(
             Position position, Square from, Square to, @Nullable PieceType promotionType) {
         return legalMoves(position, from).stream()
-                .filter(move -> move.from().equals(from)
-                        && move.to().equals(to)
-                        && (move.promotionType() == null || move.promotionType() == promotionType))
+                .filter(move ->
+                        move.from().equals(from) && move.to().equals(to) && move.promotionType() == promotionType)
                 .findAny();
     }
 
